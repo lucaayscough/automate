@@ -1,0 +1,50 @@
+################################################################################
+
+set(PLUGIN_NAME              Automate)
+set(PLUGIN_VERSION           0.1.0)
+set(PLUGIN_MANUFACTURER_CODE luay)
+set(PLUGIN_CODE              Auto)
+set(CMAKE_CXX_STANDARD 20)
+
+################################################################################
+
+cmake_minimum_required(VERSION 3.21)
+
+set(FORMATS "VST3;Standalone" CACHE STRING "Plugin formats for JUCE to build. Valid formats: VST AU AUv3 Standalone")
+message("-- Building formats: ${FORMATS}")
+
+project(${PLUGIN_NAME} VERSION ${PLUGIN_VERSION} LANGUAGES CXX)
+
+add_subdirectory(extern/JUCE)
+
+juce_add_plugin(${PLUGIN_NAME}
+  COMPANY_NAME "Luca Ayscough"
+  BUNDLE_ID com.lucaayscough.automate
+  PLUGIN_MANUFACTURER_CODE ${PLUGIN_MANUFACTURER_CODE}
+  PLUGIN_CODE ${PLUGIN_CODE}
+  FORMATS ${FORMATS}
+  PRODUCT_NAME ${PLUGIN_NAME}
+  EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+  COPY_PLUGIN_AFTER_BUILD FALSE
+  VST3_CATEGORIES Fx
+  AU_MAIN_TYPE kAudioUnitType_Effect
+  MICROPHONE_PERMISSION_ENABLED FALSE 
+  )
+juce_generate_juce_header(${PLUGIN_NAME})
+
+# NOTE(robin): Anything that uses JUCE, compile as a single translation unit.
+# Anything else that has a more sane compilation model, we'll compile as a
+# static lib and link in later
+target_sources(${PLUGIN_NAME} PRIVATE src/juce_build.cpp)
+
+target_compile_definitions(${PLUGIN_NAME} PUBLIC
+  JUCE_WEB_BROWSER=0
+  JUCE_USE_CURL=0
+  JUCE_VST3_CAN_REPLACE_VST2=0)
+
+target_link_libraries(${PLUGIN_NAME} PRIVATE
+  juce::juce_audio_utils
+  juce::juce_audio_devices
+  juce::juce_recommended_config_flags # Sets stuff like optimisation level
+  juce::juce_recommended_lto_flags
+  juce::juce_recommended_warning_flags)
