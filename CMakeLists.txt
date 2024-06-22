@@ -40,7 +40,9 @@ target_sources(${PLUGIN_NAME} PRIVATE src/juce_build.cpp)
 target_compile_definitions(${PLUGIN_NAME} PUBLIC
   JUCE_WEB_BROWSER=0
   JUCE_USE_CURL=0
-  JUCE_VST3_CAN_REPLACE_VST2=0)
+  JUCE_VST3_CAN_REPLACE_VST2=0
+  JUCE_PLUGINHOST_VST3=1
+  JUCE_PLUGINHOST_AU=1)
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE
   juce::juce_audio_utils

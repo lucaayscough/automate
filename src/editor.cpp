@@ -1,25 +1,24 @@
 #include "plugin.hpp"
 #include "editor.hpp"
 
-PluginEditor::PluginEditor(PluginProcessor& p) :
-  AudioProcessorEditor(&p)
+PluginEditor::PluginEditor(PluginProcessor& _proc) :
+  AudioProcessorEditor(&_proc), proc(_proc), apvts(proc.apvts)
 {
-  setSize(400, 300);
-}
-
-PluginEditor::~PluginEditor()
-{
+  addAndMakeVisible(pluginList);
+  setSize(1000, 600);
+  setResizable(true, true);
 }
 
 void PluginEditor::paint(juce::Graphics& g)
 {
-  g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-
-  g.setColour(juce::Colours::white);
-  g.setFont(15.0f);
-  g.drawFittedText("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+  g.fillAll(juce::Colours::black);
 }
 
 void PluginEditor::resized()
 {
+  auto r = getLocalBounds();
+  if (pluginInstanceEditor)
+    pluginInstanceEditor->setBounds(r.removeFromTop(pluginInstanceEditor->getHeight()));
+  pluginList.setBounds(r.removeFromTop(pluginListHeight));
 }
+

@@ -1,12 +1,16 @@
 #pragma once
 
+#include "identifiers.hpp"
+#include "state_attachment.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 
-class PluginProcessor : public juce::AudioProcessor
+class PluginProcessor : public juce::AudioProcessor, public juce::ChangeListener
 {
 public:
   PluginProcessor();
   ~PluginProcessor() override;
+
+  void changeListenerCallback(juce::ChangeBroadcaster*) override;
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -34,6 +38,22 @@ public:
 
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
+
+  juce::UndoManager undoManager;
+  juce::AudioProcessorValueTreeState apvts {*this, &undoManager, "Automate", {}};
+
+  juce::AudioPluginFormatManager apfm;
+  juce::KnownPluginList knownPluginList;
+  juce::PropertiesFile::Options optionsFile;
+  juce::String searchPath             { "~/Desktop/plugs/" };
+  juce::File deadMansPedalFile        { "~/Desktop/dmpf.txt" };
+  juce::PropertiesFile propertiesFile { { "~/Desktop/properties.txt" }, optionsFile};
+
+  std::unique_ptr<juce::AudioPluginInstance> pluginInstance; 
+  StateAttachment pluginInstanceAttachment { apvts.state,
+                                             IDENTIFIER_PLUGIN_INSTANCE,
+                                             [] (juce::var) {},
+                                             &undoManager };
 
 private:
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
