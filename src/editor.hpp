@@ -22,7 +22,8 @@ private:
                                    &proc.propertiesFile };
 
   std::unique_ptr<juce::AudioProcessorEditor> pluginInstanceEditor;
-  StateAttachment pluginInstanceAttachment {apvts.state, IDENTIFIER_PLUGIN_INSTANCE, [this] (juce::var v) {
+  StateAttachment pluginInstanceAttachment { apvts.state, IDENTIFIER_PLUGIN_INSTANCE,
+                                             [this] (juce::var v) {
     if (!v.isVoid() && proc.pluginInstance && proc.pluginInstance->hasEditor())
     {
       pluginInstanceEditor.reset(proc.pluginInstance->createEditor());
@@ -33,7 +34,7 @@ private:
     {
       pluginInstanceEditor.reset();
     }
-  }, apvts.undoManager};
+  }, apvts.undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

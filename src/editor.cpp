@@ -18,7 +18,9 @@ void PluginEditor::resized()
 {
   auto r = getLocalBounds();
   if (pluginInstanceEditor)
+  {
     pluginInstanceEditor->setBounds(r.removeFromTop(pluginInstanceEditor->getHeight()));
+  }
   pluginList.setBounds(r.removeFromTop(pluginListHeight));
 }
 
