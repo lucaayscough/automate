@@ -2,6 +2,7 @@
 
 #include "identifiers.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_audio_devices/juce_audio_devices.h>
 
 namespace atmt {
 
@@ -27,6 +28,24 @@ struct Engine
   {
     if (instance)
     {
+      auto playhead = apvts.processor.getPlayHead();
+      auto position = playhead->getPosition();
+
+      if (position.hasValue())
+      {
+        auto time = position->getTimeInSamples();
+
+        if (time.hasValue())
+        {
+          auto interpolationValue = float(*time % 441000) / 441000.f;
+          
+          if (parameterStates.size() > 1)
+          {
+            interpolateStates(0, 1, interpolationValue); 
+          }
+        }
+      }
+
       instance->processBlock(buffer, midiBuffer);
     }
   }
@@ -77,8 +96,6 @@ struct Engine
 
   void interpolateStates(int stateBeginIndex, int stateEndIndex, float position)
   {
-    JUCE_ASSERT_MESSAGE_THREAD
-
     auto& stateBegin = parameterStates[std::size_t(stateBeginIndex)];
     auto& stateEnd   = parameterStates[std::size_t(stateEndIndex)];
     auto parameters = instance->getParameters();

@@ -27,12 +27,15 @@ void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*)
     juce::String errorMessage;
     auto instance = apfm.createPluginInstance(plugins[0], getSampleRate(), getBlockSize(), errorMessage);
     engine.setPluginInstance(instance);
+    prepareToPlay(getSampleRate(), getBlockSize());
     suspendProcessing(false);
   }
 }
 
 void PluginProcessor::prepareToPlay(double sampleRate, int blockSize)
 {
+  JUCE_ASSERT_MESSAGE_THREAD
+  jassert(sampleRate > 0 && blockSize > 0);
   engine.prepare(sampleRate, blockSize);
 }
 
