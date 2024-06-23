@@ -15,26 +15,28 @@ private:
   PluginProcessor& proc;
   juce::AudioProcessorValueTreeState& apvts;
 
-  int pluginListHeight = 400;
+  int statesPanelWidth = 300;
+  int pluginListHeight = 300;
+
+  StatesListPanel statesPanel { proc };
+
   PluginListComponent pluginList { proc.apfm,
                                    proc.knownPluginList,
                                    proc.deadMansPedalFile,
                                    &proc.propertiesFile };
 
   std::unique_ptr<juce::AudioProcessorEditor> pluginInstanceEditor;
-  StateAttachment pluginInstanceAttachment { apvts.state, IDENTIFIER_PLUGIN_INSTANCE,
-                                             [this] (juce::var v) {
-    if (!v.isVoid() && proc.pluginInstance && proc.pluginInstance->hasEditor())
+  atmt::StateAttachment pluginInstanceAttachment { apvts.state, IDENTIFIER_PLUGIN_INSTANCE, [this] (juce::var) {
+    pluginInstanceEditor.reset(proc.engine.getEditor());
+    
+    if (pluginInstanceEditor)
     {
-      pluginInstanceEditor.reset(proc.pluginInstance->createEditor());
       addAndMakeVisible(pluginInstanceEditor.get());
-      setSize(pluginInstanceEditor->getWidth(), pluginInstanceEditor->getHeight() + pluginListHeight);
-    }
-    else
-    {
-      pluginInstanceEditor.reset();
+      setSize(pluginInstanceEditor->getWidth() + statesPanelWidth, pluginInstanceEditor->getHeight() + pluginListHeight);
     }
   }, apvts.undoManager };
+
+  juce::TextButton saveStateButton { "Save State" };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

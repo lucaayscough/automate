@@ -19,37 +19,21 @@ PluginProcessor::~PluginProcessor()
 
 void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*)
 {
-  juce::String errorMessage;
   auto plugins = knownPluginList.getTypes();
 
   if (plugins.size() > 0)
   {
-    DBG("Loading plugin");
-
     suspendProcessing(true);
-    pluginInstance = apfm.createPluginInstance(plugins[0],
-                                               getSampleRate(),
-                                               getBlockSize(),
-                                               errorMessage);
-
-    jassert(pluginInstance);
-
-    pluginInstanceAttachment.setValue(plugins[0].createIdentifierString());
+    juce::String errorMessage;
+    auto instance = apfm.createPluginInstance(plugins[0], getSampleRate(), getBlockSize(), errorMessage);
+    engine.setPluginInstance(instance);
     suspendProcessing(false);
-  }
-  else
-  {
-    pluginInstance.reset();
-    pluginInstanceAttachment.setValue({});
   }
 }
 
-void PluginProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void PluginProcessor::prepareToPlay(double sampleRate, int blockSize)
 {
-  if (pluginInstance)
-  {
-    pluginInstance->prepareToPlay(sampleRate, samplesPerBlock);
-  }
+  engine.prepare(sampleRate, blockSize);
 }
 
 void PluginProcessor::releaseResources() {}
@@ -61,8 +45,7 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
     buffer.clear(i, 0, buffer.getNumSamples());
 
-  if (pluginInstance)
-    pluginInstance->processBlock(buffer, midiBuffer);
+  engine.process(buffer, midiBuffer);
 }
 
 // ================================================================================

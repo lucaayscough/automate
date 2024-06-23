@@ -1,5 +1,7 @@
 #include "state_attachment.hpp"
 
+namespace atmt {
+
 StateAttachment::StateAttachment(juce::ValueTree& _state,
                 const juce::String& _identifier,
                 std::function<void(juce::var)> _callback,
@@ -45,3 +47,5 @@ void StateAttachment::valueTreeRedirected(juce::ValueTree&)
 {
   jassertfalse;
 }
+
+} // namespace atmt

@@ -2,6 +2,8 @@
 
 #include <juce_data_structures/juce_data_structures.h>
 
+namespace atmt {
+
 class StateAttachment : public juce::ValueTree::Listener
 {
 public:
@@ -20,3 +22,4 @@ private:
   juce::UndoManager* undoManager;
 };
 
+} // namespace atmt
