@@ -4,35 +4,63 @@
 PluginEditor::PluginEditor(PluginProcessor& _proc) :
   AudioProcessorEditor(&_proc), proc(_proc), apvts(proc.apvts)
 {
+  addAndMakeVisible(descriptionBar);
   addAndMakeVisible(statesPanel);
   addAndMakeVisible(pluginList);
-  addAndMakeVisible(saveStateButton);
 
-  saveStateButton.onClick = [this] () -> void {
-    proc.engine.saveParameterState();
-    statesPanel.addState();
-  };
+  proc.engine.instanceBroadcaster.addChangeListener(this);
 
-  setSize(1000, 600);
+  setSize(width, height);
   setResizable(true, true);
+}
+
+PluginEditor::~PluginEditor()
+{
+  proc.engine.instanceBroadcaster.removeChangeListener(this);
+}
+
+void PluginEditor::changeListenerCallback(juce::ChangeBroadcaster*)
+{
+  instanceUpdateCallback();
 }
 
 void PluginEditor::paint(juce::Graphics& g)
 {
-  g.fillAll(juce::Colours::white);
+  g.fillAll(juce::Colours::black);
 }
 
 void PluginEditor::resized()
 {
   auto r = getLocalBounds();
-  statesPanel.setBounds(r.removeFromLeft(300));
+  statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
+  pluginList.setBounds(r.removeFromRight(pluginListWidth));
+  descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
 
-  pluginList.setBounds(r.removeFromBottom(pluginListHeight));
-  saveStateButton.setBounds(r.removeFromTop(40).removeFromLeft(80));
-
-  if (pluginInstanceEditor)
+  if (instanceEditor)
   {
-    pluginInstanceEditor->setBounds(r.removeFromTop(pluginInstanceEditor->getHeight()));
+    instanceEditor->setBounds(r.removeFromTop(instanceEditor->getHeight()));
   }
 }
 
+void PluginEditor::instanceDescriptionUpdateCallback(juce::var v)
+{
+  auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
+
+  if (description)
+  {
+    descriptionBar.setDescription(description); 
+  }
+
+  statesPanel.reset();
+}
+
+void PluginEditor::instanceUpdateCallback()
+{
+  instanceEditor.reset(proc.engine.getEditor());
+  if (instanceEditor)
+  {
+    addAndMakeVisible(instanceEditor.get());
+    setSize(instanceEditor->getWidth()  + statesPanelWidth + pluginListWidth,
+            instanceEditor->getHeight() + descriptionBarHeight);
+  }
+}

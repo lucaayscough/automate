@@ -8,6 +8,7 @@ class StateAttachment : public juce::ValueTree::Listener
 {
 public:
   StateAttachment(juce::ValueTree&, const juce::String&, std::function<void(juce::var)>, juce::UndoManager*);
+  ~StateAttachment() override;
   void setValue(const juce::var& v);
 
 private:

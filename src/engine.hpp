@@ -55,10 +55,9 @@ struct Engine
     JUCE_ASSERT_MESSAGE_THREAD
 
     jassert(_instance);
-
     instance = std::move(_instance);
-    auto description = instance->getPluginDescription();
-    instanceAttachment.setValue(description.createIdentifierString());
+    parameterStates.clear();
+    instanceBroadcaster.sendChangeMessage();
   }
 
   void saveParameterState()
@@ -131,13 +130,8 @@ struct Engine
   }
 
   juce::AudioProcessorValueTreeState& apvts;
-
+  juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
-  atmt::StateAttachment instanceAttachment { apvts.state,
-                                             IDENTIFIER_PLUGIN_INSTANCE,
-                                             [] (juce::var) {},
-                                             apvts.undoManager };
-
   std::vector<std::vector<float>> parameterStates;
 };
 

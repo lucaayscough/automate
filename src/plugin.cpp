@@ -23,13 +23,30 @@ void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*)
 
   if (plugins.size() > 0)
   {
-    suspendProcessing(true);
-    juce::String errorMessage;
-    auto instance = apfm.createPluginInstance(plugins[0], getSampleRate(), getBlockSize(), errorMessage);
-    engine.setPluginInstance(instance);
-    prepareToPlay(getSampleRate(), getBlockSize());
-    suspendProcessing(false);
+    auto id = plugins[0].createIdentifierString();
+    instanceAttachment.setValue(id);
   }
+}
+
+void PluginProcessor::updatePluginInstance(juce::var v)
+{
+  suspendProcessing(true);
+  juce::String errorMessage;
+  auto id = v.toString();
+
+  if (id != "")
+  {
+    auto description = knownPluginList.getTypeForIdentifierString(id);
+
+    if (description)
+    {
+      auto instance = apfm.createPluginInstance(*description, getSampleRate(), getBlockSize(), errorMessage);
+      engine.setPluginInstance(instance);
+      prepareToPlay(getSampleRate(), getBlockSize());
+    }
+  }
+
+  suspendProcessing(false);
 }
 
 void PluginProcessor::prepareToPlay(double sampleRate, int blockSize)
@@ -97,8 +114,9 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
   {
     if (xmlState->hasTagName(apvts.state.getType()))
     {
-      //auto newState = juce::ValueTree::fromXml(*xmlState);
-      //apvts.replaceState(newState);
+      auto newState = juce::ValueTree::fromXml(*xmlState);
+      apvts.state.copyPropertiesFrom(newState, apvts.undoManager);
+      undoManager.clearUndoHistory();
     }
   }
 }

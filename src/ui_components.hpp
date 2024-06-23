@@ -4,22 +4,54 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "plugin.hpp"
 
+struct DescriptionBar : juce::Component
+{
+  void paint(juce::Graphics& g) override
+  {
+    g.setColour(juce::Colours::white);
+    g.setFont(getHeight());
+    
+    if (description)
+    {
+      g.drawText(description->name, getLocalBounds(), juce::Justification::left);
+    }
+  }
+
+  void setDescription(std::unique_ptr<juce::PluginDescription>& desc)
+  {
+    description = std::move(desc);
+    repaint();
+  }
+
+  std::unique_ptr<juce::PluginDescription> description;
+};
+
 struct StatesListPanel : juce::Component
 {
   StatesListPanel(PluginProcessor& _proc)
     : proc(_proc)
   {
     addAndMakeVisible(title);
+    addAndMakeVisible(saveStateButton);
+
+    saveStateButton.onClick = [this] () -> void {
+      proc.engine.saveParameterState();
+      addState();
+    };
   }
 
   void resized() override
   {
     auto r = getLocalBounds(); 
+
     title.setBounds(r.removeFromTop(40));
+
     for (auto* state : states)
     {
       state->setBounds(r.removeFromTop(30));
     }
+
+    saveStateButton.setBounds(r.removeFromBottom(40));
   }
 
   void addState()
@@ -43,11 +75,17 @@ struct StatesListPanel : juce::Component
     resized();
   }
 
+  void reset()
+  {
+    states.clear();
+  }
+
   struct Title : juce::Component
   {
     void paint(juce::Graphics& g) override
     {
       auto r = getLocalBounds();
+      g.setColour(juce::Colours::white);
       g.setFont(getHeight());
       g.drawText(text, r, juce::Justification::centred);
     }
@@ -66,6 +104,7 @@ struct StatesListPanel : juce::Component
   PluginProcessor& proc;
   Title title;
   juce::OwnedArray<State> states;
+  juce::TextButton saveStateButton { "Save State" };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatesListPanel)
 };

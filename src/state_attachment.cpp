@@ -16,6 +16,11 @@ StateAttachment::StateAttachment(juce::ValueTree& _state,
   performUpdate();
 }
 
+StateAttachment::~StateAttachment()
+{
+  state.removeListener(this);
+}
+
 void StateAttachment::setValue(const juce::var& v)
 {
   JUCE_ASSERT_MESSAGE_THREAD

@@ -12,6 +12,7 @@ public:
   ~PluginProcessor() override;
 
   void changeListenerCallback(juce::ChangeBroadcaster*) override;
+  void updatePluginInstance(juce::var v);
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -44,6 +45,12 @@ public:
   juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
 
   atmt::Engine engine { apvts }; 
+
+  atmt::StateAttachment instanceAttachment { apvts.state,
+                                             IDENTIFIER_PLUGIN_INSTANCE,
+                                             [this] (juce::var v) { updatePluginInstance(v); },
+                                             apvts.undoManager };
+
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
