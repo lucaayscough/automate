@@ -1,20 +1,21 @@
 #pragma once
 
-#include "ui_components.hpp"
+#include "change_attachment.hpp"
+#include "components.hpp"
 #include "plugin.hpp"
 
-class PluginEditor : public juce::AudioProcessorEditor, public juce::ChangeListener {
+namespace atmt {
+
+class PluginEditor : public juce::AudioProcessorEditor {
 public:
   explicit PluginEditor(PluginProcessor&);
-  ~PluginEditor() override;
 
-  void changeListenerCallback(juce::ChangeBroadcaster*) override;
   void paint(juce::Graphics&) override;
   void resized() override;
 
 private:
-  void instanceDescriptionUpdateCallback(juce::var);
-  void instanceUpdateCallback();
+  void pluginIDChangeCallback(const juce::var&);
+  void instanceChangeCallback();
 
   PluginProcessor& proc;
   juce::AudioProcessorValueTreeState& apvts;
@@ -28,18 +29,14 @@ private:
 
   DescriptionBar descriptionBar;
   StatesListPanel statesPanel { proc };
+  PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
 
-  PluginListComponent pluginList { proc.apfm,
-                                   proc.knownPluginList,
-                                   proc.deadMansPedalFile,
-                                   &proc.propertiesFile };
+  ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
+  StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };
 
   std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;
-  atmt::StateAttachment instanceDescriptionAttachment { apvts.state,
-                                                        IDENTIFIER_PLUGIN_INSTANCE,
-                                                        [this] (juce::var v) { instanceDescriptionUpdateCallback(v); },
-                                                        apvts.undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };
 
+} // namespace atmt

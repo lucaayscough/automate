@@ -53,28 +53,20 @@ struct Engine
 
   void saveParameterState() {
     JUCE_ASSERT_MESSAGE_THREAD
-
     jassert(instance);
-
     std::vector<float> parameterValues;
-
     auto parameters = instance->getParameters();
-    
     for (auto* parameter : parameters) {
       parameterValues.push_back(parameter->getValue());
       DBG(parameter->getName(1024) + " - " + juce::String(parameter->getValue()));
     }
-
     parameterStates.push_back(parameterValues);
   }
 
   void restoreParameterState(int index) {
     JUCE_ASSERT_MESSAGE_THREAD
-
     jassert(instance);
-
     auto parameters = instance->getParameters();
-
     for (std::size_t i = 0; i < parameterStates[std::size_t(index)].size(); ++i) {
       parameters[int(i)]->setValue(parameterStates[std::size_t(index)][i]); 
     }

@@ -2,6 +2,8 @@
 
 #include <juce_data_structures/juce_data_structures.h>
 
+#define STATE_CB(func) [this] (juce::var v) { func(v); }
+
 namespace atmt {
 
 class StateAttachment : public juce::ValueTree::Listener

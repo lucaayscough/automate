@@ -1,24 +1,16 @@
 #include "plugin.hpp"
 #include "editor.hpp"
 
+namespace atmt {
+
 PluginEditor::PluginEditor(PluginProcessor& _proc)
   : AudioProcessorEditor(&_proc), proc(_proc), apvts(proc.apvts) {
   addAndMakeVisible(descriptionBar);
   addAndMakeVisible(statesPanel);
   addAndMakeVisible(pluginList);
 
-  proc.engine.instanceBroadcaster.addChangeListener(this);
-
   setSize(width, height);
   setResizable(true, true);
-}
-
-PluginEditor::~PluginEditor() {
-  proc.engine.instanceBroadcaster.removeChangeListener(this);
-}
-
-void PluginEditor::changeListenerCallback(juce::ChangeBroadcaster*) {
-  instanceUpdateCallback();
 }
 
 void PluginEditor::paint(juce::Graphics& g) {
@@ -36,7 +28,7 @@ void PluginEditor::resized() {
   }
 }
 
-void PluginEditor::instanceDescriptionUpdateCallback(juce::var v) {
+void PluginEditor::pluginIDChangeCallback(const juce::var& v) {
   auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
 
   if (description) {
@@ -46,7 +38,7 @@ void PluginEditor::instanceDescriptionUpdateCallback(juce::var v) {
   statesPanel.reset();
 }
 
-void PluginEditor::instanceUpdateCallback() {
+void PluginEditor::instanceChangeCallback() {
   instanceEditor.reset(proc.engine.getEditor());
   if (instanceEditor) {
     addAndMakeVisible(instanceEditor.get());
@@ -54,3 +46,5 @@ void PluginEditor::instanceUpdateCallback() {
             instanceEditor->getHeight() + descriptionBarHeight);
   }
 }
+
+} // namespace atmt

@@ -5,6 +5,8 @@
   .withInput("Input", juce::AudioChannelSet::stereo()) \
   .withOutput("Output", juce::AudioChannelSet::stereo())
 
+namespace atmt {
+
 PluginProcessor::PluginProcessor()
   : AudioProcessor(DEFAULT_BUSES) {
   apfm.addDefaultFormats();  
@@ -103,16 +105,18 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
   }
 }
 
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
-  return new PluginProcessor();
-}
-
 double PluginProcessor::getTailLengthSeconds() const      { return 0.0; }
 int PluginProcessor::getNumPrograms()                     { return 1;   }
 int PluginProcessor::getCurrentProgram()                  { return 0;   }
 void PluginProcessor::setCurrentProgram(int)              {}
 const juce::String PluginProcessor::getProgramName(int)   { return {};  }
 void PluginProcessor::changeProgramName(int, const juce::String&) {}
+
+} // namespace atmt
+
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
+  return new atmt::PluginProcessor();
+}
 
 #undef DEFAULT_BUSES
 #pragma endregion

@@ -5,8 +5,9 @@
 #include "state_attachment.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 
-class PluginProcessor : public juce::AudioProcessor, public juce::ChangeListener
-{
+namespace atmt {
+
+class PluginProcessor : public juce::AudioProcessor, public juce::ChangeListener {
 public:
   PluginProcessor();
   ~PluginProcessor() override;
@@ -44,13 +45,7 @@ public:
   juce::UndoManager undoManager;
   juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
 
-  atmt::Engine engine { apvts }; 
-
-  atmt::StateAttachment instanceAttachment { apvts.state,
-                                             IDENTIFIER_PLUGIN_INSTANCE,
-                                             [this] (juce::var v) { updatePluginInstance(v); },
-                                             apvts.undoManager };
-
+  Engine engine { apvts }; 
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
@@ -60,5 +55,9 @@ public:
   juce::PropertiesFile propertiesFile             { { "~/Desktop/properties.txt" }, optionsFile};
 
 private:
+  StateAttachment instanceAttachment { apvts.state, ID::pluginID, STATE_CB(updatePluginInstance), apvts.undoManager };
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };
+
+} // namespace atmt

@@ -4,6 +4,8 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "plugin.hpp"
 
+namespace atmt {
+
 struct DescriptionBar : juce::Component {
   void paint(juce::Graphics& g) override {
     g.setColour(juce::Colours::white);
@@ -115,3 +117,5 @@ private:
   juce::PluginListComponent pluginList;
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginListComponent)
 };
+
+} // namespace atmt
