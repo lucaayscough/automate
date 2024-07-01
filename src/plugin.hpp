@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utils.hpp"
+#include "state_manager.hpp"
 #include "engine.hpp"
 #include "identifiers.hpp"
 #include "state_attachment.hpp"
@@ -7,13 +9,13 @@
 
 namespace atmt {
 
-class PluginProcessor : public juce::AudioProcessor, public juce::ChangeListener {
+class PluginProcessor : public juce::AudioProcessor {
 public:
   PluginProcessor();
   ~PluginProcessor() override;
 
-  void changeListenerCallback(juce::ChangeBroadcaster*) override;
-  void updatePluginInstance(juce::var v);
+  void knownPluginListChangeCallback();
+  void pluginIDChangeCallback(const juce::var& v);
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -45,6 +47,7 @@ public:
   juce::UndoManager undoManager;
   juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
 
+  StateManager manager { apvts };
   Engine engine { apvts }; 
 
   juce::AudioPluginFormatManager apfm;
@@ -55,7 +58,8 @@ public:
   juce::PropertiesFile propertiesFile             { { "~/Desktop/properties.txt" }, optionsFile};
 
 private:
-  StateAttachment instanceAttachment { apvts.state, ID::pluginID, STATE_CB(updatePluginInstance), apvts.undoManager };
+  ChangeAttachment knownPluginListAttachment { knownPluginList, CHANGE_CB(knownPluginListChangeCallback) };
+  StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

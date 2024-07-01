@@ -11,6 +11,7 @@ PluginEditor::PluginEditor(PluginProcessor& _proc)
 
   setSize(width, height);
   setResizable(true, true);
+  instanceChangeCallback();
 }
 
 void PluginEditor::paint(juce::Graphics& g) {

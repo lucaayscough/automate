@@ -9,24 +9,25 @@ namespace atmt {
 
 PluginProcessor::PluginProcessor()
   : AudioProcessor(DEFAULT_BUSES) {
-  apfm.addDefaultFormats();  
-  knownPluginList.addChangeListener(this); 
+  Path::init();
+  loadKnownPluginList(knownPluginList);
+  apfm.addDefaultFormats();
 }
 
 PluginProcessor::~PluginProcessor() {
-  knownPluginList.removeChangeListener(this);
+  saveKnownPluginList(knownPluginList);
 }
 
-void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*) {
+void PluginProcessor::knownPluginListChangeCallback() {
   auto plugins = knownPluginList.getTypes();
 
   if (plugins.size() > 0) {
     auto id = plugins[0].createIdentifierString();
-    instanceAttachment.setValue(id);
+    pluginIDAttachment.setValue(id);
   }
 }
 
-void PluginProcessor::updatePluginInstance(juce::var v) {
+void PluginProcessor::pluginIDChangeCallback(const juce::var& v) {
   suspendProcessing(true);
   juce::String errorMessage;
   auto id = v.toString();
@@ -95,12 +96,10 @@ void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
 
 void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
   std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
   if (xmlState.get()) {
     if (xmlState->hasTagName(apvts.state.getType())) {
       auto newState = juce::ValueTree::fromXml(*xmlState);
-      apvts.state.copyPropertiesFrom(newState, apvts.undoManager);
-      undoManager.clearUndoHistory();
+      manager.replace(newState);
     }
   }
 }
