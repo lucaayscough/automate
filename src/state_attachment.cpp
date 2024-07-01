@@ -9,47 +9,39 @@ StateAttachment::StateAttachment(juce::ValueTree& _state,
   : state(_state),
     identifier(_identifier),
     callback(std::move(_callback)),
-    undoManager(_undoManager)
-{
+    undoManager(_undoManager) {
   JUCE_ASSERT_MESSAGE_THREAD
   state.addListener(this);
   performUpdate();
 }
 
-StateAttachment::~StateAttachment()
-{
+StateAttachment::~StateAttachment() {
   state.removeListener(this);
 }
 
-void StateAttachment::setValue(const juce::var& v)
-{
+void StateAttachment::setValue(const juce::var& v) {
   JUCE_ASSERT_MESSAGE_THREAD
   state.setProperty(identifier, v, undoManager);
 }
 
-juce::var StateAttachment::getValue()
-{
+juce::var StateAttachment::getValue() {
   JUCE_ASSERT_MESSAGE_THREAD
   return state[identifier];
 }
 
-void StateAttachment::performUpdate()
-{
+void StateAttachment::performUpdate() {
   callback(getValue());
 }
 
-void StateAttachment::valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier& i)
-{
+void StateAttachment::valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier& i) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  if (identifier == i)
-  {
+  if (identifier == i) {
     performUpdate();
   }
 }
 
-void StateAttachment::valueTreeRedirected(juce::ValueTree&)
-{
+void StateAttachment::valueTreeRedirected(juce::ValueTree&) {
   jassertfalse;
 }
 

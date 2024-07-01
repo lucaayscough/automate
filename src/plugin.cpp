@@ -6,51 +6,40 @@
   .withOutput("Output", juce::AudioChannelSet::stereo())
 
 PluginProcessor::PluginProcessor()
-  : AudioProcessor(DEFAULT_BUSES)
-{
+  : AudioProcessor(DEFAULT_BUSES) {
   apfm.addDefaultFormats();  
   knownPluginList.addChangeListener(this); 
 }
 
-PluginProcessor::~PluginProcessor()
-{
+PluginProcessor::~PluginProcessor() {
   knownPluginList.removeChangeListener(this);
 }
 
-void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*)
-{
+void PluginProcessor::changeListenerCallback(juce::ChangeBroadcaster*) {
   auto plugins = knownPluginList.getTypes();
 
-  if (plugins.size() > 0)
-  {
+  if (plugins.size() > 0) {
     auto id = plugins[0].createIdentifierString();
     instanceAttachment.setValue(id);
   }
 }
 
-void PluginProcessor::updatePluginInstance(juce::var v)
-{
+void PluginProcessor::updatePluginInstance(juce::var v) {
   suspendProcessing(true);
   juce::String errorMessage;
   auto id = v.toString();
-
-  if (id != "")
-  {
+  if (id != "") {
     auto description = knownPluginList.getTypeForIdentifierString(id);
-
-    if (description)
-    {
+    if (description) {
       auto instance = apfm.createPluginInstance(*description, getSampleRate(), getBlockSize(), errorMessage);
       engine.setPluginInstance(instance);
       prepareToPlay(getSampleRate(), getBlockSize());
     }
   }
-
   suspendProcessing(false);
 }
 
-void PluginProcessor::prepareToPlay(double sampleRate, int blockSize)
-{
+void PluginProcessor::prepareToPlay(double sampleRate, int blockSize) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(sampleRate > 0 && blockSize > 0);
   engine.prepare(sampleRate, blockSize);
@@ -58,8 +47,7 @@ void PluginProcessor::prepareToPlay(double sampleRate, int blockSize)
 
 void PluginProcessor::releaseResources() {}
 
-void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer)
-{
+void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
@@ -71,8 +59,7 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
 // ================================================================================
 #pragma region JUCE boilerplate
 
-bool PluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
+bool PluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   auto outputLayout = layouts.getMainOutputChannelSet();
 
   std::vector<juce::AudioChannelSet> supportedLayouts = {
@@ -94,26 +81,21 @@ bool PluginProcessor::producesMidi() const { return false; }
 bool PluginProcessor::isMidiEffect() const { return false; }
 bool PluginProcessor::hasEditor()    const { return true;  }
 
-juce::AudioProcessorEditor* PluginProcessor::createEditor()
-{
+juce::AudioProcessorEditor* PluginProcessor::createEditor() {
   return new PluginEditor(*this);
 }
 
-void PluginProcessor::getStateInformation(juce::MemoryBlock& destData)
-{
+void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
   auto state = apvts.copyState();
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
 }
 
-void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
-{
+void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
   std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-  if (xmlState.get())
-  {
-    if (xmlState->hasTagName(apvts.state.getType()))
-    {
+  if (xmlState.get()) {
+    if (xmlState->hasTagName(apvts.state.getType())) {
       auto newState = juce::ValueTree::fromXml(*xmlState);
       apvts.state.copyPropertiesFrom(newState, apvts.undoManager);
       undoManager.clearUndoHistory();
@@ -121,8 +103,7 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes)
   }
 }
 
-juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
-{
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
   return new PluginProcessor();
 }
 

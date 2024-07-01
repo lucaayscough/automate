@@ -9,38 +9,30 @@ namespace atmt {
 struct Engine
 {
   Engine(juce::AudioProcessorValueTreeState& _apvts)
-    : apvts(_apvts)
-  {
+    : apvts(_apvts) {
     JUCE_ASSERT_MESSAGE_THREAD
   }
 
-  void prepare(double sampleRate, int blockSize) 
-  {
+  void prepare(double sampleRate, int blockSize) {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    if (instance)
-    {
+    if (instance) {
       instance->prepareToPlay(sampleRate, blockSize);
     }
   }
 
-  void process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer)
-  {
-    if (instance)
-    {
+  void process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
+    if (instance) {
       auto playhead = apvts.processor.getPlayHead();
       auto position = playhead->getPosition();
 
-      if (position.hasValue())
-      {
+      if (position.hasValue()) {
         auto time = position->getTimeInSamples();
 
-        if (time.hasValue())
-        {
+        if (time.hasValue()) {
           auto interpolationValue = float(*time % 441000) / 441000.f;
           
-          if (parameterStates.size() > 1)
-          {
+          if (parameterStates.size() > 1) {
             interpolateStates(0, 1, interpolationValue); 
           }
         }
@@ -50,8 +42,7 @@ struct Engine
     }
   }
 
-  void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance)
-  {
+  void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {
     JUCE_ASSERT_MESSAGE_THREAD
 
     jassert(_instance);
@@ -60,8 +51,7 @@ struct Engine
     instanceBroadcaster.sendChangeMessage();
   }
 
-  void saveParameterState()
-  {
+  void saveParameterState() {
     JUCE_ASSERT_MESSAGE_THREAD
 
     jassert(instance);
@@ -70,8 +60,7 @@ struct Engine
 
     auto parameters = instance->getParameters();
     
-    for (auto* parameter : parameters)
-    {
+    for (auto* parameter : parameters) {
       parameterValues.push_back(parameter->getValue());
       DBG(parameter->getName(1024) + " - " + juce::String(parameter->getValue()));
     }
@@ -79,28 +68,24 @@ struct Engine
     parameterStates.push_back(parameterValues);
   }
 
-  void restoreParameterState(int index)
-  {
+  void restoreParameterState(int index) {
     JUCE_ASSERT_MESSAGE_THREAD
 
     jassert(instance);
 
     auto parameters = instance->getParameters();
 
-    for (std::size_t i = 0; i < parameterStates[std::size_t(index)].size(); ++i)
-    {
+    for (std::size_t i = 0; i < parameterStates[std::size_t(index)].size(); ++i) {
       parameters[int(i)]->setValue(parameterStates[std::size_t(index)][i]); 
     }
   }
 
-  void interpolateStates(int stateBeginIndex, int stateEndIndex, float position)
-  {
+  void interpolateStates(int stateBeginIndex, int stateEndIndex, float position) {
     auto& stateBegin = parameterStates[std::size_t(stateBeginIndex)];
     auto& stateEnd   = parameterStates[std::size_t(stateEndIndex)];
     auto parameters = instance->getParameters();
 
-    for (int i = 0; i < parameters.size(); ++i)
-    {
+    for (int i = 0; i < parameters.size(); ++i) {
       float distance = stateEnd[std::size_t(i)] - stateBegin[std::size_t(i)] ;
       float increment = distance * position; 
       float newValue = stateBegin[std::size_t(i)] + increment;
@@ -109,8 +94,7 @@ struct Engine
     }
   }
 
-  bool hasInstance()
-  {
+  bool hasInstance() {
     JUCE_ASSERT_MESSAGE_THREAD
 
     if (instance)
@@ -119,8 +103,7 @@ struct Engine
       return false;
   }
 
-  juce::AudioProcessorEditor* getEditor()
-  {
+  juce::AudioProcessorEditor* getEditor() {
     JUCE_ASSERT_MESSAGE_THREAD
 
     if (hasInstance() && instance->hasEditor())

@@ -3,8 +3,7 @@
 #include "ui_components.hpp"
 #include "plugin.hpp"
 
-class PluginEditor : public juce::AudioProcessorEditor, public juce::ChangeListener
-{
+class PluginEditor : public juce::AudioProcessorEditor, public juce::ChangeListener {
 public:
   explicit PluginEditor(PluginProcessor&);
   ~PluginEditor() override;

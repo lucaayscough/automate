@@ -4,21 +4,17 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "plugin.hpp"
 
-struct DescriptionBar : juce::Component
-{
-  void paint(juce::Graphics& g) override
-  {
+struct DescriptionBar : juce::Component {
+  void paint(juce::Graphics& g) override {
     g.setColour(juce::Colours::white);
     g.setFont(getHeight());
     
-    if (description)
-    {
+    if (description) {
       g.drawText(description->name, getLocalBounds(), juce::Justification::left);
     }
   }
 
-  void setDescription(std::unique_ptr<juce::PluginDescription>& desc)
-  {
+  void setDescription(std::unique_ptr<juce::PluginDescription>& desc) {
     description = std::move(desc);
     repaint();
   }
@@ -26,11 +22,9 @@ struct DescriptionBar : juce::Component
   std::unique_ptr<juce::PluginDescription> description;
 };
 
-struct StatesListPanel : juce::Component
-{
+struct StatesListPanel : juce::Component {
   StatesListPanel(PluginProcessor& _proc)
-    : proc(_proc)
-  {
+    : proc(_proc) {
     addAndMakeVisible(title);
     addAndMakeVisible(saveStateButton);
 
@@ -40,22 +34,19 @@ struct StatesListPanel : juce::Component
     };
   }
 
-  void resized() override
-  {
+  void resized() override {
     auto r = getLocalBounds(); 
 
     title.setBounds(r.removeFromTop(40));
 
-    for (auto* state : states)
-    {
+    for (auto* state : states) {
       state->setBounds(r.removeFromTop(30));
     }
 
     saveStateButton.setBounds(r.removeFromBottom(40));
   }
 
-  void addState()
-  {
+  void addState() {
     int index = states.size();
     auto state = new State(index);
     states.add(state);
@@ -68,20 +59,17 @@ struct StatesListPanel : juce::Component
     resized();
   }
 
-  void removeState(int index)
-  {
+  void removeState(int index) {
     removeChildComponent(index);
     states.remove(index); 
     resized();
   }
 
-  void reset()
-  {
+  void reset() {
     states.clear();
   }
 
-  struct Title : juce::Component
-  {
+  struct Title : juce::Component {
     void paint(juce::Graphics& g) override
     {
       auto r = getLocalBounds();
@@ -93,8 +81,7 @@ struct StatesListPanel : juce::Component
     juce::String text { "States" };
   };
 
-  struct State : juce::TextButton
-  {
+  struct State : juce::TextButton {
     State(int _index)
       : juce::TextButton(juce::String(_index)), index(_index) {}
 
@@ -109,20 +96,17 @@ struct StatesListPanel : juce::Component
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatesListPanel)
 };
 
-class PluginListComponent : public juce::Component
-{
+class PluginListComponent : public juce::Component {
 public:
   PluginListComponent(juce::AudioPluginFormatManager &formatManager,
                       juce::KnownPluginList &listToRepresent,
                       const juce::File &deadMansPedalFile,
                       juce::PropertiesFile* propertiesToUse)
-    : pluginList { formatManager, listToRepresent, deadMansPedalFile, propertiesToUse }
-  {
+    : pluginList { formatManager, listToRepresent, deadMansPedalFile, propertiesToUse } {
     addAndMakeVisible(pluginList);
   }
 
-  void resized() override
-  {
+  void resized() override {
     auto r = getLocalBounds();
     pluginList.setBounds(r.removeFromTop(400));
   }
