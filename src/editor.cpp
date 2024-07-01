@@ -8,6 +8,7 @@ PluginEditor::PluginEditor(PluginProcessor& _proc)
   addAndMakeVisible(descriptionBar);
   addAndMakeVisible(statesPanel);
   addAndMakeVisible(pluginList);
+  addAndMakeVisible(transport);
 
   setSize(width, height);
   setResizable(true, true);
@@ -20,6 +21,7 @@ void PluginEditor::paint(juce::Graphics& g) {
 
 void PluginEditor::resized() {
   auto r = getLocalBounds();
+  transport.setBounds(r.removeFromBottom(transportHeight));
   statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
   pluginList.setBounds(r.removeFromRight(pluginListWidth));
   descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
@@ -44,7 +46,7 @@ void PluginEditor::instanceChangeCallback() {
   if (instanceEditor) {
     addAndMakeVisible(instanceEditor.get());
     setSize(instanceEditor->getWidth()  + statesPanelWidth + pluginListWidth,
-            instanceEditor->getHeight() + descriptionBarHeight);
+            instanceEditor->getHeight() + descriptionBarHeight + transportHeight);
   }
 }
 

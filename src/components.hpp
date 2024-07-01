@@ -6,6 +6,16 @@
 
 namespace atmt {
 
+struct Transport : juce::Component {
+  Transport() {}
+
+  void paint(juce::Graphics& g) override {
+    g.fillAll(juce::Colours::grey);
+  }
+  
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Transport)
+};
+
 struct DescriptionBar : juce::Component {
   void paint(juce::Graphics& g) override {
     g.setColour(juce::Colours::white);
