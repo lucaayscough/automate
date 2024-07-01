@@ -140,6 +140,7 @@ struct Engine : juce::ValueTree::Listener {
       return nullptr;
   }
 
+  // TODO(luca): rename states variable to avoid confusion
   StateManager& manager;
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
   juce::ValueTree states { manager.states };
