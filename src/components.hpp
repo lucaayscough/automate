@@ -34,51 +34,72 @@ struct DescriptionBar : juce::Component {
   std::unique_ptr<juce::PluginDescription> description;
 };
 
-struct StatesListPanel : juce::Component {
+struct StatesListPanel : juce::Component, juce::ValueTree::Listener {
   StatesListPanel(PluginProcessor& _proc)
     : proc(_proc) {
     addAndMakeVisible(title);
+    addAndMakeVisible(stateNameInput);
     addAndMakeVisible(saveStateButton);
 
     saveStateButton.onClick = [this] () -> void {
-      proc.engine.saveParameterState();
-      addState();
+      if (stateNameInput.getText() != "") {
+        proc.engine.saveParameterState(stateNameInput.getText());
+      }
     };
+
+    proc.manager.states.addListener(this);
+  }
+
+  ~StatesListPanel() override {
+    proc.manager.states.removeListener(this);
   }
 
   void resized() override {
     auto r = getLocalBounds(); 
-
     title.setBounds(r.removeFromTop(40));
-
     for (auto* state : states) {
       state->setBounds(r.removeFromTop(30));
     }
-
-    saveStateButton.setBounds(r.removeFromBottom(40));
+    auto b = r.removeFromBottom(40);
+    saveStateButton.setBounds(b.removeFromRight(getWidth() / 2));
+    stateNameInput.setBounds(b);
   }
 
-  void addState() {
-    int index = states.size();
-    auto state = new State(index);
+  void addState(const juce::String& name) {
+    auto state = new State(proc, name);
     states.add(state);
     addAndMakeVisible(state);
-
-    state->onClick = [this, index] () -> void {
-      proc.engine.restoreParameterState(index); 
-    };
-
     resized();
   }
 
-  void removeState(int index) {
-    removeChildComponent(index);
-    states.remove(index); 
+  void removeState(const juce::String& name) {
+    for (int i = 0; i < states.size(); ++i) {
+      if (states[i]->getName() == name) {
+        removeChildComponent(states[i]);
+        states.remove(i);
+      }
+    }
     resized();
   }
 
-  void reset() {
-    states.clear();
+  int getNumStates() {
+    return states.size();
+  }
+
+  void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
+    JUCE_ASSERT_MESSAGE_THREAD
+    jassert(parent.isValid() && child.isValid());
+    auto nameVar = child[ID::STATE::name];
+    jassert(!nameVar.isVoid());
+    addState(nameVar.toString());
+  }
+
+  void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) override { 
+    JUCE_ASSERT_MESSAGE_THREAD
+    jassert(parent.isValid() && child.isValid());
+    auto nameVar = child[ID::STATE::name];
+    jassert(!nameVar.isVoid());
+    removeState(nameVar.toString());
   }
 
   struct Title : juce::Component {
@@ -93,16 +114,33 @@ struct StatesListPanel : juce::Component {
     juce::String text { "States" };
   };
 
-  struct State : juce::TextButton {
-    State(int _index)
-      : juce::TextButton(juce::String(_index)), index(_index) {}
+  struct State : juce::Component {
+    State(PluginProcessor& _proc, const juce::String& name) : proc(_proc) {
+      setName(name);
+      selectorButton.setButtonText(name);
 
-    int index = 0;
+      addAndMakeVisible(selectorButton);
+      addAndMakeVisible(removeButton);
+
+      selectorButton.onClick = [this] () -> void { proc.engine.restoreParameterState(getName()); };
+      removeButton.onClick   = [this] () -> void { proc.engine.removeParameterState(getName()); };
+    }
+
+    void resized() {
+      auto r = getLocalBounds();
+      removeButton.setBounds(r.removeFromRight(getWidth() / 4));
+      selectorButton.setBounds(r);
+    }
+
+    PluginProcessor& proc;
+    juce::TextButton selectorButton;
+    juce::TextButton removeButton { "X" };
   };
 
   PluginProcessor& proc;
   Title title;
   juce::OwnedArray<State> states;
+  juce::TextEditor stateNameInput;
   juce::TextButton saveStateButton { "Save State" };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatesListPanel)

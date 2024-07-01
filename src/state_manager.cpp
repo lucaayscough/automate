@@ -11,6 +11,9 @@ StateManager::StateManager(juce::AudioProcessorValueTreeState& _apvts)
 
 void StateManager::init() {
   JUCE_ASSERT_MESSAGE_THREAD
+    
+  undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
+  states = undoable.getOrCreateChildWithName(ID::STATES, undoManager);
 }
 
 void StateManager::replace(const juce::ValueTree& newState) {
@@ -29,6 +32,12 @@ void StateManager::replace(const juce::ValueTree& newState) {
 
 void StateManager::validate() {
   JUCE_ASSERT_MESSAGE_THREAD
+
+  jassert(state.isValid());
+  jassert(undoable.isValid());
+  jassert(states.isValid());
+
+  valueTreeToXmlString(state);
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

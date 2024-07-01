@@ -48,7 +48,7 @@ public:
   juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
 
   StateManager manager { apvts };
-  Engine engine { apvts }; 
+  Engine engine { manager }; 
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;

@@ -37,8 +37,6 @@ void PluginEditor::pluginIDChangeCallback(const juce::var& v) {
   if (description) {
     descriptionBar.setDescription(description); 
   }
-
-  statesPanel.reset();
 }
 
 void PluginEditor::instanceChangeCallback() {
