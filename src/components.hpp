@@ -6,13 +6,39 @@
 
 namespace atmt {
 
-struct Transport : juce::Component {
+struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
   Transport() {}
 
   void paint(juce::Graphics& g) override {
     g.fillAll(juce::Colours::grey);
   }
-  
+
+  void addClip(const juce::ValueTree&) {
+    DBG("add clip");
+  }
+
+  void removeClip(const juce::ValueTree&) {
+    DBG("remove clip");
+  }
+
+  bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override {
+    return true;
+  }
+
+  void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override {
+    DBG("droppped!!!");
+  }
+
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
+    JUCE_ASSERT_MESSAGE_THREAD
+    addClip(child);
+  }
+
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
+    JUCE_ASSERT_MESSAGE_THREAD
+    removeClip(child);
+  }
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Transport)
 };
 
@@ -133,8 +159,16 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
 
     void resized() {
       auto r = getLocalBounds();
+      r.removeFromLeft(getWidth() / 4);
       removeButton.setBounds(r.removeFromRight(getWidth() / 4));
       selectorButton.setBounds(r);
+    }
+
+    void mouseDown(const juce::MouseEvent&) {
+      auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
+      if (container) {
+        container->startDragging(getName(), this);
+      }
     }
 
     PluginProcessor& proc;

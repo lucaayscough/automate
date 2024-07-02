@@ -68,7 +68,6 @@ struct Engine : juce::ValueTree::Listener {
     newState.setProperty(ID::PRESET::name, name, apvts.undoManager);
     newState.setProperty(ID::PRESET::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
     presets.addChild(newState, -1, apvts.undoManager);
-    DBG(manager.valueTreeToXmlString(manager.state));
   }
 
   void removePreset(const juce::String& name) {

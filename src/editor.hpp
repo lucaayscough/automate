@@ -6,7 +6,7 @@
 
 namespace atmt {
 
-class PluginEditor : public juce::AudioProcessorEditor {
+class PluginEditor : public juce::AudioProcessorEditor, public juce::DragAndDropContainer {
 public:
   explicit PluginEditor(PluginProcessor&);
 
