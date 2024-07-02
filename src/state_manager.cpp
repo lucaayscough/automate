@@ -13,7 +13,7 @@ void StateManager::init() {
   JUCE_ASSERT_MESSAGE_THREAD
     
   undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
-  states = undoable.getOrCreateChildWithName(ID::STATES, undoManager);
+  presets = undoable.getOrCreateChildWithName(ID::PRESETS, undoManager);
 }
 
 void StateManager::replace(const juce::ValueTree& newState) {
@@ -35,7 +35,7 @@ void StateManager::validate() {
 
   jassert(state.isValid());
   jassert(undoable.isValid());
-  jassert(states.isValid());
+  jassert(presets.isValid());
 
   valueTreeToXmlString(state);
 }

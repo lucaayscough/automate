@@ -20,7 +20,7 @@ struct StateManager
   juce::UndoManager* undoManager;
   juce::ValueTree state;
   juce::ValueTree undoable;
-  juce::ValueTree states;
+  juce::ValueTree presets;
 };
 
 } // namespace atmt 

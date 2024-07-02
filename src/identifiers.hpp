@@ -6,10 +6,10 @@ struct ID {
   static constexpr char pluginID[]          { "pluginID" };
 
   static constexpr char UNDOABLE[]          { "UNDOABLE" };
-  static constexpr char STATES[]            { "STATES" };
+  static constexpr char PRESETS[]            { "PRESETS" };
 
-  struct STATE {
-    static constexpr char type[]            { "STATE" };
+  struct PRESET {
+    static constexpr char type[]            { "PRESET" };
     static constexpr char name[]            { "name" };
     static constexpr char parameters[]      { "parameters" };
   };

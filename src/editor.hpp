@@ -29,7 +29,7 @@ private:
   int transportHeight = 150;
 
   DescriptionBar descriptionBar;
-  StatesListPanel statesPanel { proc };
+  PresetsListPanel statesPanel { proc };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
   Transport transport;
 

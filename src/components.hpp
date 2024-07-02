@@ -34,72 +34,72 @@ struct DescriptionBar : juce::Component {
   std::unique_ptr<juce::PluginDescription> description;
 };
 
-struct StatesListPanel : juce::Component, juce::ValueTree::Listener {
-  StatesListPanel(PluginProcessor& _proc)
+struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
+  PresetsListPanel(PluginProcessor& _proc)
     : proc(_proc) {
     addAndMakeVisible(title);
-    addAndMakeVisible(stateNameInput);
-    addAndMakeVisible(saveStateButton);
+    addAndMakeVisible(presetNameInput);
+    addAndMakeVisible(savePresetButton);
 
-    saveStateButton.onClick = [this] () -> void {
-      if (stateNameInput.getText() != "") {
-        proc.engine.saveParameterState(stateNameInput.getText());
+    savePresetButton.onClick = [this] () -> void {
+      if (presetNameInput.getText() != "") {
+        proc.engine.savePreset(presetNameInput.getText());
       }
     };
 
-    proc.manager.states.addListener(this);
+    proc.manager.presets.addListener(this);
   }
 
-  ~StatesListPanel() override {
-    proc.manager.states.removeListener(this);
+  ~PresetsListPanel() override {
+    proc.manager.presets.removeListener(this);
   }
 
   void resized() override {
     auto r = getLocalBounds(); 
     title.setBounds(r.removeFromTop(40));
-    for (auto* state : states) {
-      state->setBounds(r.removeFromTop(30));
+    for (auto* preset : presets) {
+      preset->setBounds(r.removeFromTop(30));
     }
     auto b = r.removeFromBottom(40);
-    saveStateButton.setBounds(b.removeFromRight(getWidth() / 2));
-    stateNameInput.setBounds(b);
+    savePresetButton.setBounds(b.removeFromRight(getWidth() / 2));
+    presetNameInput.setBounds(b);
   }
 
-  void addState(const juce::String& name) {
-    auto state = new State(proc, name);
-    states.add(state);
-    addAndMakeVisible(state);
+  void addPreset(const juce::String& name) {
+    auto preset = new Preset(proc, name);
+    presets.add(preset);
+    addAndMakeVisible(preset);
     resized();
   }
 
-  void removeState(const juce::String& name) {
-    for (int i = 0; i < states.size(); ++i) {
-      if (states[i]->getName() == name) {
-        removeChildComponent(states[i]);
-        states.remove(i);
+  void removePreset(const juce::String& name) {
+    for (int i = 0; i < presets.size(); ++i) {
+      if (presets[i]->getName() == name) {
+        removeChildComponent(presets[i]);
+        presets.remove(i);
       }
     }
     resized();
   }
 
-  int getNumStates() {
-    return states.size();
+  int getNumPresets() {
+    return presets.size();
   }
 
   void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    auto nameVar = child[ID::STATE::name];
+    auto nameVar = child[ID::PRESET::name];
     jassert(!nameVar.isVoid());
-    addState(nameVar.toString());
+    addPreset(nameVar.toString());
   }
 
   void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) override { 
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    auto nameVar = child[ID::STATE::name];
+    auto nameVar = child[ID::PRESET::name];
     jassert(!nameVar.isVoid());
-    removeState(nameVar.toString());
+    removePreset(nameVar.toString());
   }
 
   struct Title : juce::Component {
@@ -111,19 +111,19 @@ struct StatesListPanel : juce::Component, juce::ValueTree::Listener {
       g.drawText(text, r, juce::Justification::centred);
     }
 
-    juce::String text { "States" };
+    juce::String text { "Presets" };
   };
 
-  struct State : juce::Component {
-    State(PluginProcessor& _proc, const juce::String& name) : proc(_proc) {
+  struct Preset : juce::Component {
+    Preset(PluginProcessor& _proc, const juce::String& name) : proc(_proc) {
       setName(name);
       selectorButton.setButtonText(name);
 
       addAndMakeVisible(selectorButton);
       addAndMakeVisible(removeButton);
 
-      selectorButton.onClick = [this] () -> void { proc.engine.restoreParameterState(getName()); };
-      removeButton.onClick   = [this] () -> void { proc.engine.removeParameterState(getName()); };
+      selectorButton.onClick = [this] () -> void { proc.engine.restorePreset(getName()); };
+      removeButton.onClick   = [this] () -> void { proc.engine.removePreset(getName()); };
     }
 
     void resized() {
@@ -139,11 +139,11 @@ struct StatesListPanel : juce::Component, juce::ValueTree::Listener {
 
   PluginProcessor& proc;
   Title title;
-  juce::OwnedArray<State> states;
-  juce::TextEditor stateNameInput;
-  juce::TextButton saveStateButton { "Save State" };
+  juce::OwnedArray<Preset> presets;
+  juce::TextEditor presetNameInput;
+  juce::TextButton savePresetButton { "Save Preset" };
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StatesListPanel)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetsListPanel)
 };
 
 class PluginListComponent : public juce::Component {

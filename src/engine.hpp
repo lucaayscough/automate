@@ -11,11 +11,11 @@ struct Engine : juce::ValueTree::Listener {
     : manager(_manager) {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    states.addListener(this);
+    presets.addListener(this);
   }
 
   ~Engine() {
-    states.removeListener(this);
+    presets.removeListener(this);
   }
 
   void prepare(double sampleRate, int blockSize) {
@@ -37,7 +37,7 @@ struct Engine : juce::ValueTree::Listener {
       //  if (time.hasValue()) {
       //    auto interpolationValue = float(*time % 441000) / 441000.f;
       //    
-      //    if (parameterStates.size() > 1) {
+      //    if (presets.size() > 1) {
       //      interpolateStates(0, 1, interpolationValue); 
       //    }
       //  }
@@ -52,11 +52,11 @@ struct Engine : juce::ValueTree::Listener {
 
     jassert(_instance);
     instance = std::move(_instance);
-    parameterStates.clear();
+    presetParameters.clear();
     instanceBroadcaster.sendChangeMessage();
   }
 
-  void saveParameterState(const juce::String& name) {
+  void savePreset(const juce::String& name) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
     std::vector<float> parameterValues;
@@ -64,33 +64,33 @@ struct Engine : juce::ValueTree::Listener {
     for (auto* parameter : parameters) {
       parameterValues.push_back(parameter->getValue());
     }
-    juce::ValueTree newState { ID::STATE::type };
-    newState.setProperty(ID::STATE::name, name, apvts.undoManager);
-    newState.setProperty(ID::STATE::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
-    states.addChild(newState, -1, apvts.undoManager);
+    juce::ValueTree newState { ID::PRESET::type };
+    newState.setProperty(ID::PRESET::name, name, apvts.undoManager);
+    newState.setProperty(ID::PRESET::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
+    presets.addChild(newState, -1, apvts.undoManager);
     DBG(manager.valueTreeToXmlString(manager.state));
   }
 
-  void removeParameterState(const juce::String& name) {
-    auto child = states.getChildWithProperty(ID::STATE::name, name);
-    states.removeChild(child, apvts.undoManager);
+  void removePreset(const juce::String& name) {
+    auto child = presets.getChildWithProperty(ID::PRESET::name, name);
+    presets.removeChild(child, apvts.undoManager);
   }
 
-  void restoreParameterState(const juce::String& name) {
+  void restorePreset(const juce::String& name) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
-    auto child = states.getChildWithProperty(ID::STATE::name, name);
-    auto index = states.indexOf(child);
+    auto child = presets.getChildWithProperty(ID::PRESET::name, name);
+    auto index = presets.indexOf(child);
     auto parameters = instance->getParameters();
-    for (std::size_t i = 0; i < parameterStates[std::size_t(index)].size(); ++i) {
-      parameters[int(i)]->setValue(parameterStates[std::size_t(index)][i]); 
+    for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
+      parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
     }
   }
 
   void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    auto parametersVar = child[ID::STATE::parameters]; 
+    auto parametersVar = child[ID::PRESET::parameters]; 
     jassert(!parametersVar.isVoid());
     auto mb = parametersVar.getBinaryData();
     auto len = mb->getSize() / sizeof(float);
@@ -99,18 +99,18 @@ struct Engine : juce::ValueTree::Listener {
     for (size_t i = 0; i < len; ++i) {
       parameterValues.push_back(data[i]);
     }
-    parameterStates.push_back(parameterValues);
+    presetParameters.push_back(parameterValues);
   }
 
   void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    parameterStates.erase(parameterStates.begin() + index);
+    presetParameters.erase(presetParameters.begin() + index);
   }
 
   void interpolateStates(int stateBeginIndex, int stateEndIndex, float position) {
-    auto& stateBegin = parameterStates[std::size_t(stateBeginIndex)];
-    auto& stateEnd   = parameterStates[std::size_t(stateEndIndex)];
+    auto& stateBegin = presetParameters[std::size_t(stateBeginIndex)];
+    auto& stateEnd   = presetParameters[std::size_t(stateEndIndex)];
     auto parameters = instance->getParameters();
 
     for (int i = 0; i < parameters.size(); ++i) {
@@ -140,14 +140,12 @@ struct Engine : juce::ValueTree::Listener {
       return nullptr;
   }
 
-  // TODO(luca): rename states variable to avoid confusion
   StateManager& manager;
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
-  juce::ValueTree states { manager.states };
+  juce::ValueTree presets { manager.presets };
   juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
-  std::vector<StateAttachment> parameterStateAttachments;
-  std::vector<std::vector<float>> parameterStates;
+  std::vector<std::vector<float>> presetParameters;
 };
 
 } // namespace atmt
