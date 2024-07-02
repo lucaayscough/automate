@@ -47,7 +47,12 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
       }
     };
 
-    proc.manager.presets.addListener(this);
+    auto& presetsTree = proc.manager.presets;
+    presetsTree.addListener(this);
+
+    for (const auto& child : presetsTree) {
+      addPreset(child);
+    }
   }
 
   ~PresetsListPanel() override {
@@ -65,14 +70,21 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     presetNameInput.setBounds(b);
   }
 
-  void addPreset(const juce::String& name) {
-    auto preset = new Preset(proc, name);
+  void addPreset(const juce::ValueTree& presetTree) {
+    jassert(presetTree.isValid());
+    auto nameVar = presetTree[ID::PRESET::name];
+    jassert(!nameVar.isVoid());
+    auto preset = new Preset(proc, nameVar.toString());
     presets.add(preset);
     addAndMakeVisible(preset);
     resized();
   }
 
-  void removePreset(const juce::String& name) {
+  void removePreset(const juce::ValueTree& presetTree) {
+    jassert(presetTree.isValid());
+    auto nameVar = presetTree[ID::PRESET::name];
+    jassert(!nameVar.isVoid());
+    auto name = nameVar.toString();
     for (int i = 0; i < presets.size(); ++i) {
       if (presets[i]->getName() == name) {
         removeChildComponent(presets[i]);
@@ -86,25 +98,18 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     return presets.size();
   }
 
-  void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
     JUCE_ASSERT_MESSAGE_THREAD
-    jassert(parent.isValid() && child.isValid());
-    auto nameVar = child[ID::PRESET::name];
-    jassert(!nameVar.isVoid());
-    addPreset(nameVar.toString());
+    addPreset(child);
   }
 
-  void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) override { 
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
     JUCE_ASSERT_MESSAGE_THREAD
-    jassert(parent.isValid() && child.isValid());
-    auto nameVar = child[ID::PRESET::name];
-    jassert(!nameVar.isVoid());
-    removePreset(nameVar.toString());
+    removePreset(child);
   }
 
   struct Title : juce::Component {
-    void paint(juce::Graphics& g) override
-    {
+    void paint(juce::Graphics& g) override {
       auto r = getLocalBounds();
       g.setColour(juce::Colours::white);
       g.setFont(getHeight());

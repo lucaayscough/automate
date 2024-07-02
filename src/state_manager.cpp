@@ -21,10 +21,14 @@ void StateManager::replace(const juce::ValueTree& newState) {
 
   juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
-  if (lk.lockWasGained())
-  {
-    state.copyPropertiesFrom(newState, apvts.undoManager);
-    DBG(valueTreeToXmlString(apvts.state));
+  if (lk.lockWasGained()) {
+    auto newUndoable = newState.getChildWithName(ID::UNDOABLE);
+    auto newPresets  = newUndoable.getChildWithName(ID::PRESETS);
+
+    state.copyPropertiesFrom(newState, undoManager);
+    undoable.copyPropertiesFrom(newUndoable, undoManager);
+    presets.copyPropertiesAndChildrenFrom(newPresets, undoManager);
+      
     undoManager->clearUndoHistory();
     validate();
   }
@@ -37,7 +41,7 @@ void StateManager::validate() {
   jassert(undoable.isValid());
   jassert(presets.isValid());
 
-  valueTreeToXmlString(state);
+  DBG(valueTreeToXmlString(state));
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

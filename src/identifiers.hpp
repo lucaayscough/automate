@@ -6,7 +6,7 @@ struct ID {
   static constexpr char pluginID[]          { "pluginID" };
 
   static constexpr char UNDOABLE[]          { "UNDOABLE" };
-  static constexpr char PRESETS[]            { "PRESETS" };
+  static constexpr char PRESETS[]           { "PRESETS" };
 
   struct PRESET {
     static constexpr char type[]            { "PRESET" };

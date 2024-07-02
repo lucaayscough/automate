@@ -14,7 +14,7 @@ struct Engine : juce::ValueTree::Listener {
     presets.addListener(this);
   }
 
-  ~Engine() {
+  ~Engine() override{
     presets.removeListener(this);
   }
 
@@ -87,7 +87,7 @@ struct Engine : juce::ValueTree::Listener {
     }
   }
 
-  void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) {
+  void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
     auto parametersVar = child[ID::PRESET::parameters]; 
@@ -102,10 +102,18 @@ struct Engine : juce::ValueTree::Listener {
     presetParameters.push_back(parameterValues);
   }
 
-  void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) {
+  void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) override {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
     presetParameters.erase(presetParameters.begin() + index);
+  }
+
+  void valueTreeParentChanged(juce::ValueTree&) override {
+    jassertfalse;
+  }
+
+  void valueTreeRedirected(juce::ValueTree&) override {
+    jassertfalse;
   }
 
   void interpolateStates(int stateBeginIndex, int stateEndIndex, float position) {
