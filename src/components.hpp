@@ -119,21 +119,20 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     addAndMakeVisible(savePresetButton);
 
     savePresetButton.onClick = [this] () -> void {
-      if (presetNameInput.getText() != "") {
-        proc.engine.savePreset(presetNameInput.getText());
+      auto name = presetNameInput.getText();
+      if (presetNameInput.getText() != "" && !manager.doesPresetNameExist(name)) {
+        proc.engine.savePreset(name);
+      } else {
+        juce::MessageBoxOptions options;
+        juce::AlertWindow::showAsync(options.withTitle("Error").withMessage("Preset name unavailable."), nullptr);
       }
     };
 
-    auto& presetsTree = proc.manager.presets;
     presetsTree.addListener(this);
 
     for (const auto& child : presetsTree) {
       addPreset(child);
     }
-  }
-
-  ~PresetsListPanel() override {
-    proc.manager.presets.removeListener(this);
   }
 
   void resized() override {
@@ -228,6 +227,8 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   };
 
   PluginProcessor& proc;
+  StateManager& manager { proc.manager };
+  juce::ValueTree presetsTree { manager.presets };
   Title title;
   juce::OwnedArray<Preset> presets;
   juce::TextEditor presetNameInput;

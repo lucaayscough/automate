@@ -57,6 +57,15 @@ void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
   }
 }
 
+bool StateManager::doesPresetNameExist(const juce::String& name) {
+  for (const auto& preset : presets) {
+    if (preset[ID::PRESET::name].toString() == name) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void StateManager::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) {
   if (child.hasType(ID::PRESET::type)) {
     removeEditClipsIfInvalid(child[ID::PRESET::name]);
