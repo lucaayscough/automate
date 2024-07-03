@@ -14,8 +14,9 @@ struct ID {
   static const juce::Identifier pluginID;
   static const juce::Identifier name;
   static const juce::Identifier start; 
-  static const juce::Identifier length; 
+  static const juce::Identifier end; 
   static const juce::Identifier parameters;
+  static const juce::Identifier zoom;
 };
 
 } // namespace atmt

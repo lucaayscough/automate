@@ -15,6 +15,7 @@ void StateManager::init() {
     
   undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
   edit = undoable.getOrCreateChildWithName(ID::EDIT, undoManager);
+  edit.setProperty(ID::zoom, 1.f, undoManager);
   presets = undoable.getOrCreateChildWithName(ID::PRESETS, undoManager);
 }
 
