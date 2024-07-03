@@ -29,18 +29,18 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
     }
   }
 
-  void addClip(const juce::ValueTree& clipTree) {
-    auto clip = new Clip(clipTree, undoManager);
-    clip->start = int(clipTree[ID::start]);
-    clip->length = int(clipTree[ID::length]);
-    clip->name = clipTree[ID::name].toString();
+  void addClip(const juce::ValueTree& clipValueTree) {
+    auto clip = new Clip(clipValueTree, undoManager);
+    clip->start = int(clipValueTree[ID::start]);
+    clip->length = int(clipValueTree[ID::length]);
+    clip->name = clipValueTree[ID::name].toString();
     addAndMakeVisible(clip);
     clips.add(clip);
     resized();
   }
 
-  void removeClip(const juce::ValueTree& clipTree) {
-    auto name = clipTree[ID::name].toString();
+  void removeClip(const juce::ValueTree& clipValueTree) {
+    auto name = clipValueTree[ID::name].toString();
     for (int i = 0; i < clips.size(); ++i) {
       if (clips[i]->name == name) {
         clips.remove(i);
@@ -75,32 +75,71 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
 
   void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
     if (vt.hasType(ID::CLIP)) {
-      if (id == ID::start) {
+      if (id == ID::start || id == ID::length) {
         resized();
       }
     }
   }
 
   struct Clip : juce::Component {
-    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : clipTree(vt), undoManager(um) {}
+    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : clipValueTree(vt), undoManager(um) {}
 
     void paint(juce::Graphics& g) {
       g.fillAll(juce::Colours::red);
       g.drawText(name, getLocalBounds(), juce::Justification::centred);
     }
 
-    void mouseDrag(const juce::MouseEvent& e) {
-      auto pos = getParentComponent()->getLocalPoint(this, e.position);
-      startAttachment.setValue(pos.x);
+    void mouseDown(const juce::MouseEvent& e) {
+      beginDrag(e);
     }
 
-    juce::ValueTree clipTree; 
+    void mouseUp(const juce::MouseEvent&) {
+      endDrag();
+    }
+
+    void mouseDrag(const juce::MouseEvent& e) {
+      auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position).toInt();
+      int adjustedXPos = parentLocalPoint.x - mouseDownOffset;
+      if (isTrimDrag) {
+        if (isLeftTrimDrag) {
+          int end = start + length;
+          start.setValue(adjustedXPos, undoManager);
+          length.setValue(end - adjustedXPos, undoManager);
+        } else {
+          length.setValue(int(e.position.x) + mouseDownOffset, undoManager);
+        }
+      } else {
+        start.setValue(adjustedXPos, undoManager);
+      }
+    }
+
+    void beginDrag(const juce::MouseEvent& e) {
+      mouseDownOffset = int(e.position.x);
+      if (e.position.x < trimThreashold) {
+        isTrimDrag = true;
+        isLeftTrimDrag = true;
+      } else if (e.position.x > length - trimThreashold) {
+        mouseDownOffset = length - int(e.position.x);
+        isTrimDrag = true;
+        isLeftTrimDrag = false;
+      }
+    }
+
+    void endDrag() {
+      isTrimDrag = false;
+      mouseDownOffset = 0;
+    }
+
+    juce::ValueTree clipValueTree; 
     juce::UndoManager* undoManager;
-    StateAttachment startAttachment  { clipTree, ID::start,  [this] (juce::var v) { start  = int(v); }, undoManager };
-    StateAttachment lengthAttachment { clipTree, ID::length, [this] (juce::var v) { length = int(v); }, undoManager };
-    int start = 0;
-    int length = 0;
+    juce::CachedValue<int> start  { clipValueTree, ID::start,  undoManager };
+    juce::CachedValue<int> length { clipValueTree, ID::length, undoManager };
     juce::String name;
+
+    static constexpr int trimThreashold = 20;
+    bool isTrimDrag = false;
+    bool isLeftTrimDrag = false;
+    int mouseDownOffset = 0;
   };
 
   juce::ValueTree editTree;
