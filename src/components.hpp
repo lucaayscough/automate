@@ -7,26 +7,63 @@
 namespace atmt {
 
 struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
-  Transport() {}
+  Transport(const juce::ValueTree& vt, juce::UndoManager* um) : editTree(vt), undoManager(um) {
+    rebuildClips();
+    editTree.addListener(this);
+  }
+
+  ~Transport() override {
+    editTree.removeListener(this);
+  }
 
   void paint(juce::Graphics& g) override {
     g.fillAll(juce::Colours::grey);
   }
 
-  void addClip(const juce::ValueTree&) {
-    DBG("add clip");
+  void resized() override {
+    for (auto* clip : clips) {
+      clip->setBounds(clip->start, 0, clip->end - clip->start, getHeight()); 
+    }
   }
 
-  void removeClip(const juce::ValueTree&) {
-    DBG("remove clip");
+  void rebuildClips() {
+    clips.clear();
+    for (const auto& child : editTree) {
+      addClip(child);
+    }
+  }
+
+  void addClip(const juce::ValueTree& clipTree) {
+    auto clip = new Clip();
+    clip->start = int(clipTree[ID::CLIP::start]);
+    clip->end = int(clipTree[ID::CLIP::end]);
+    clip->name = clipTree[ID::CLIP::name].toString();
+    addAndMakeVisible(clip);
+    clips.add(clip);
+    resized();
+  }
+
+  void removeClip(const juce::ValueTree& clipTree) {
+    auto name = clipTree[ID::CLIP::name].toString();
+    for (int i = 0; i < clips.size(); ++i) {
+      if (clips[i]->name == name) {
+        clips.remove(i);
+      }
+    }
   }
 
   bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override {
     return true;
   }
 
-  void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override {
-    DBG("droppped!!!");
+  void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override {
+    jassert(!details.description.isVoid());
+    auto name = details.description.toString();
+    juce::ValueTree clip { ID::CLIP::type };
+    clip.setProperty(ID::CLIP::start, details.localPosition.x, undoManager)
+        .setProperty(ID::CLIP::end, details.localPosition.x + 20, undoManager)
+        .setProperty(ID::CLIP::name, name, undoManager);
+    editTree.addChild(clip, -1, undoManager);
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
@@ -38,6 +75,20 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
     JUCE_ASSERT_MESSAGE_THREAD
     removeClip(child);
   }
+
+  struct Clip : juce::Component {
+    void paint(juce::Graphics& g) {
+      g.fillAll(juce::Colours::red);
+    }
+
+    int start = 0;
+    int end = 0;
+    juce::String name;
+  };
+
+  juce::ValueTree editTree;
+  juce::UndoManager* undoManager;
+  juce::OwnedArray<Clip> clips;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Transport)
 };

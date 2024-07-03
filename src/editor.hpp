@@ -31,7 +31,7 @@ private:
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { proc };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
-  Transport transport;
+  Transport transport { proc.manager.edit, apvts.undoManager };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
   StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };

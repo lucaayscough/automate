@@ -11,11 +11,8 @@ struct Engine : juce::ValueTree::Listener {
     : manager(_manager) {
     JUCE_ASSERT_MESSAGE_THREAD
 
+    edit.addListener(this);
     presets.addListener(this);
-  }
-
-  ~Engine() override{
-    presets.removeListener(this);
   }
 
   void prepare(double sampleRate, int blockSize) {
@@ -49,7 +46,6 @@ struct Engine : juce::ValueTree::Listener {
 
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {
     JUCE_ASSERT_MESSAGE_THREAD
-
     jassert(_instance);
     instance = std::move(_instance);
     presetParameters.clear();
@@ -89,30 +85,28 @@ struct Engine : juce::ValueTree::Listener {
   void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    auto parametersVar = child[ID::PRESET::parameters]; 
-    jassert(!parametersVar.isVoid());
-    auto mb = parametersVar.getBinaryData();
-    auto len = mb->getSize() / sizeof(float);
-    auto data = (float*)mb->getData();
-    std::vector<float> parameterValues;
-    for (size_t i = 0; i < len; ++i) {
-      parameterValues.push_back(data[i]);
+    
+    if (child.hasType(ID::PRESET::type)) {
+      auto parametersVar = child[ID::PRESET::parameters]; 
+      jassert(!parametersVar.isVoid());
+      auto mb = parametersVar.getBinaryData();
+      auto len = mb->getSize() / sizeof(float);
+      auto data = (float*)mb->getData();
+      std::vector<float> parameterValues;
+      for (size_t i = 0; i < len; ++i) {
+        parameterValues.push_back(data[i]);
+      }
+      presetParameters.push_back(parameterValues);
     }
-    presetParameters.push_back(parameterValues);
   }
 
   void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) override {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
-    presetParameters.erase(presetParameters.begin() + index);
-  }
 
-  void valueTreeParentChanged(juce::ValueTree&) override {
-    jassertfalse;
-  }
-
-  void valueTreeRedirected(juce::ValueTree&) override {
-    jassertfalse;
+    if (child.hasType(ID::PRESET::type)) {
+      presetParameters.erase(presetParameters.begin() + index);
+    }
   }
 
   void interpolateStates(int stateBeginIndex, int stateEndIndex, float position) {
@@ -149,6 +143,7 @@ struct Engine : juce::ValueTree::Listener {
 
   StateManager& manager;
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
+  juce::ValueTree edit { manager.edit };
   juce::ValueTree presets { manager.presets };
   juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 

@@ -6,13 +6,15 @@
 
 namespace atmt {
 
-struct StateManager 
+struct StateManager : juce::ValueTree::Listener
 {
   StateManager(juce::AudioProcessorValueTreeState&);
 
   void init();
   void replace(const juce::ValueTree&);
   void validate();
+  void removeEditClipsIfInvalid(const juce::var&);
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int);
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 
@@ -20,6 +22,7 @@ struct StateManager
   juce::UndoManager* undoManager;
   juce::ValueTree state;
   juce::ValueTree undoable;
+  juce::ValueTree edit;
   juce::ValueTree presets;
 };
 
