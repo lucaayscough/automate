@@ -1,29 +1,21 @@
 #pragma once
 
+#include <juce_core/juce_core.h>
+
 namespace atmt {
 
 struct ID {
-  static constexpr char pluginID[]          { "pluginID" };
+  static const juce::Identifier UNDOABLE;
+  static const juce::Identifier PRESETS;
+  static const juce::Identifier PRESET;
+  static const juce::Identifier EDIT;
+  static const juce::Identifier CLIP;
 
-  static constexpr char UNDOABLE[]          { "UNDOABLE" };
-  static constexpr char PRESETS[]           { "PRESETS" };
-
-  struct EDIT {
-    static constexpr char type[]            { "EDIT" };
-  };
-
-  struct CLIP {
-    static constexpr char type[]            { "CLIP" };
-    static constexpr char name[]            { "name" };
-    static constexpr char start[]           { "start" }; 
-    static constexpr char end[]             { "end" }; 
-  };
-
-  struct PRESET {
-    static constexpr char type[]            { "PRESET" };
-    static constexpr char name[]            { "name" };
-    static constexpr char parameters[]      { "parameters" };
-  };
+  static const juce::Identifier pluginID;
+  static const juce::Identifier name;
+  static const juce::Identifier start; 
+  static const juce::Identifier length; 
+  static const juce::Identifier parameters;
 };
 
 } // namespace atmt

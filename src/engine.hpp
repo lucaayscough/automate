@@ -52,6 +52,7 @@ struct Engine : juce::ValueTree::Listener {
     instanceBroadcaster.sendChangeMessage();
   }
 
+  // TODO(luca): part of this code should go in the manager
   void savePreset(const juce::String& name) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
@@ -60,21 +61,21 @@ struct Engine : juce::ValueTree::Listener {
     for (auto* parameter : parameters) {
       parameterValues.push_back(parameter->getValue());
     }
-    juce::ValueTree newState { ID::PRESET::type };
-    newState.setProperty(ID::PRESET::name, name, apvts.undoManager);
-    newState.setProperty(ID::PRESET::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
+    juce::ValueTree newState { ID::PRESET};
+    newState.setProperty(ID::name, name, apvts.undoManager);
+    newState.setProperty(ID::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
     presets.addChild(newState, -1, apvts.undoManager);
   }
 
   void removePreset(const juce::String& name) {
-    auto child = presets.getChildWithProperty(ID::PRESET::name, name);
+    auto child = presets.getChildWithProperty(ID::name, name);
     presets.removeChild(child, apvts.undoManager);
   }
 
   void restorePreset(const juce::String& name) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
-    auto child = presets.getChildWithProperty(ID::PRESET::name, name);
+    auto child = presets.getChildWithProperty(ID::name, name);
     auto index = presets.indexOf(child);
     auto parameters = instance->getParameters();
     for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
@@ -86,8 +87,8 @@ struct Engine : juce::ValueTree::Listener {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
     
-    if (child.hasType(ID::PRESET::type)) {
-      auto parametersVar = child[ID::PRESET::parameters]; 
+    if (child.hasType(ID::PRESET)) {
+      auto parametersVar = child[ID::parameters]; 
       jassert(!parametersVar.isVoid());
       auto mb = parametersVar.getBinaryData();
       auto len = mb->getSize() / sizeof(float);
@@ -104,7 +105,7 @@ struct Engine : juce::ValueTree::Listener {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(parent.isValid() && child.isValid());
 
-    if (child.hasType(ID::PRESET::type)) {
+    if (child.hasType(ID::PRESET)) {
       presetParameters.erase(presetParameters.begin() + index);
     }
   }

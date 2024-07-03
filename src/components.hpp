@@ -12,17 +12,13 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
     editTree.addListener(this);
   }
 
-  ~Transport() override {
-    editTree.removeListener(this);
-  }
-
   void paint(juce::Graphics& g) override {
     g.fillAll(juce::Colours::grey);
   }
 
   void resized() override {
     for (auto* clip : clips) {
-      clip->setBounds(clip->start, 0, clip->end - clip->start, getHeight()); 
+      clip->setBounds(clip->start, 0, clip->length, getHeight()); 
     }
   }
 
@@ -34,17 +30,17 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
   }
 
   void addClip(const juce::ValueTree& clipTree) {
-    auto clip = new Clip();
-    clip->start = int(clipTree[ID::CLIP::start]);
-    clip->end = int(clipTree[ID::CLIP::end]);
-    clip->name = clipTree[ID::CLIP::name].toString();
+    auto clip = new Clip(clipTree, undoManager);
+    clip->start = int(clipTree[ID::start]);
+    clip->length = int(clipTree[ID::length]);
+    clip->name = clipTree[ID::name].toString();
     addAndMakeVisible(clip);
     clips.add(clip);
     resized();
   }
 
   void removeClip(const juce::ValueTree& clipTree) {
-    auto name = clipTree[ID::CLIP::name].toString();
+    auto name = clipTree[ID::name].toString();
     for (int i = 0; i < clips.size(); ++i) {
       if (clips[i]->name == name) {
         clips.remove(i);
@@ -56,13 +52,14 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
     return true;
   }
 
+  // TODO(luca): some of this should go in the manager
   void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override {
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
-    juce::ValueTree clip { ID::CLIP::type };
-    clip.setProperty(ID::CLIP::start, details.localPosition.x, undoManager)
-        .setProperty(ID::CLIP::end, details.localPosition.x + 20, undoManager)
-        .setProperty(ID::CLIP::name, name, undoManager);
+    juce::ValueTree clip { ID::CLIP };
+    clip.setProperty(ID::start, details.localPosition.x, undoManager)
+        .setProperty(ID::length, 50, undoManager)
+        .setProperty(ID::name, name, undoManager);
     editTree.addChild(clip, -1, undoManager);
   }
 
@@ -76,13 +73,33 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
     removeClip(child);
   }
 
+  void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
+    if (vt.hasType(ID::CLIP)) {
+      if (id == ID::start) {
+        resized();
+      }
+    }
+  }
+
   struct Clip : juce::Component {
+    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : clipTree(vt), undoManager(um) {}
+
     void paint(juce::Graphics& g) {
       g.fillAll(juce::Colours::red);
+      g.drawText(name, getLocalBounds(), juce::Justification::centred);
     }
 
+    void mouseDrag(const juce::MouseEvent& e) {
+      auto pos = getParentComponent()->getLocalPoint(this, e.position);
+      startAttachment.setValue(pos.x);
+    }
+
+    juce::ValueTree clipTree; 
+    juce::UndoManager* undoManager;
+    StateAttachment startAttachment  { clipTree, ID::start,  [this] (juce::var v) { start  = int(v); }, undoManager };
+    StateAttachment lengthAttachment { clipTree, ID::length, [this] (juce::var v) { length = int(v); }, undoManager };
     int start = 0;
-    int end = 0;
+    int length = 0;
     juce::String name;
   };
 
@@ -148,7 +165,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
 
   void addPreset(const juce::ValueTree& presetTree) {
     jassert(presetTree.isValid());
-    auto nameVar = presetTree[ID::PRESET::name];
+    auto nameVar = presetTree[ID::name];
     jassert(!nameVar.isVoid());
     auto preset = new Preset(proc, nameVar.toString());
     presets.add(preset);
@@ -158,7 +175,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
 
   void removePreset(const juce::ValueTree& presetTree) {
     jassert(presetTree.isValid());
-    auto nameVar = presetTree[ID::PRESET::name];
+    auto nameVar = presetTree[ID::name];
     jassert(!nameVar.isVoid());
     auto name = nameVar.toString();
     for (int i = 0; i < presets.size(); ++i) {

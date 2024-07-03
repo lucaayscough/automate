@@ -3,7 +3,7 @@
 namespace atmt {
 
 StateAttachment::StateAttachment(juce::ValueTree& _state,
-                const juce::String& _identifier,
+                const juce::Identifier& _identifier,
                 std::function<void(juce::var)> _callback,
                 juce::UndoManager* _undoManager)
   : state(_state),

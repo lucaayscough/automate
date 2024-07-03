@@ -9,7 +9,7 @@ namespace atmt {
 class StateAttachment : public juce::ValueTree::Listener
 {
 public:
-  StateAttachment(juce::ValueTree&, const juce::String&, std::function<void(juce::var)>, juce::UndoManager*);
+  StateAttachment(juce::ValueTree&, const juce::Identifier&, std::function<void(juce::var)>, juce::UndoManager*);
   ~StateAttachment() override;
   void setValue(const juce::var& v);
 

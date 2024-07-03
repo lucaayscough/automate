@@ -14,7 +14,7 @@ void StateManager::init() {
   JUCE_ASSERT_MESSAGE_THREAD
     
   undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
-  edit = undoable.getOrCreateChildWithName(ID::EDIT::type, undoManager);
+  edit = undoable.getOrCreateChildWithName(ID::EDIT, undoManager);
   presets = undoable.getOrCreateChildWithName(ID::PRESETS, undoManager);
 }
 
@@ -25,7 +25,7 @@ void StateManager::replace(const juce::ValueTree& newState) {
 
   if (lk.lockWasGained()) {
     auto newUndoable = newState.getChildWithName(ID::UNDOABLE);
-    auto newEdit = newUndoable.getChildWithName(ID::EDIT::type);
+    auto newEdit = newUndoable.getChildWithName(ID::EDIT);
     auto newPresets  = newUndoable.getChildWithName(ID::PRESETS);
 
     state.copyPropertiesFrom(newState, undoManager);
@@ -51,7 +51,7 @@ void StateManager::validate() {
 
 void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
   for (const auto& clip : edit) {
-    if (clip[ID::CLIP::name].toString() == preset.toString()) {
+    if (clip[ID::name].toString() == preset.toString()) {
       edit.removeChild(clip, undoManager);
     }
   }
@@ -59,7 +59,7 @@ void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
   for (const auto& preset : presets) {
-    if (preset[ID::PRESET::name].toString() == name) {
+    if (preset[ID::name].toString() == name) {
       return true;
     }
   }
@@ -67,8 +67,8 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
 }
 
 void StateManager::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) {
-  if (child.hasType(ID::PRESET::type)) {
-    removeEditClipsIfInvalid(child[ID::PRESET::name]);
+  if (child.hasType(ID::PRESET)) {
+    removeEditClipsIfInvalid(child[ID::name]);
   }
 }
 
