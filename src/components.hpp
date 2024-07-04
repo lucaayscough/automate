@@ -6,9 +6,8 @@
 
 namespace atmt {
 
-// TODO(luca): rename this
-struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
-  Transport(const juce::ValueTree& vt, juce::UndoManager* um) : editTree(vt), undoManager(um) {
+struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
+  Track(const juce::ValueTree& vt, juce::UndoManager* um) : editTree(vt), undoManager(um) {
     rebuildClips();
     editTree.addListener(this);
   }
@@ -154,7 +153,7 @@ struct Transport : juce::Component, juce::ValueTree::Listener, juce::DragAndDrop
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<float> zoom { editTree, ID::zoom, undoManager };
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Transport)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
 
 struct DescriptionBar : juce::Component {

@@ -26,12 +26,12 @@ private:
   int descriptionBarHeight = 100;
   int statesPanelWidth = 150;
   int pluginListWidth = 150;
-  int transportHeight = 150;
+  int trackHeight = 150;
 
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { proc };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
-  Transport transport { proc.manager.edit, apvts.undoManager };
+  Track track { proc.manager.edit, apvts.undoManager };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
   StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };
