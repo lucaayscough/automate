@@ -13,8 +13,13 @@ struct StateManager : juce::ValueTree::Listener
   void init();
   void replace(const juce::ValueTree&);
   void validate();
+
+  void addEditClip(const juce::String&, int, int);
   void removeEditClipsIfInvalid(const juce::var&);
+  void savePreset(const juce::String& name);
+  void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
+
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int);
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);

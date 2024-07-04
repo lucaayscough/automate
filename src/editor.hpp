@@ -19,6 +19,7 @@ private:
 
   PluginProcessor& proc;
   juce::AudioProcessorValueTreeState& apvts;
+  StateManager& manager { proc.manager };
 
   int width = 1280;
   int height = 720;
@@ -29,9 +30,9 @@ private:
   int trackHeight = 150;
 
   DescriptionBar descriptionBar;
-  PresetsListPanel statesPanel { proc };
+  PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
-  Track track { proc.manager.edit, apvts.undoManager };
+  Track track { manager };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
   StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };

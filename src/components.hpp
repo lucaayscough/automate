@@ -7,7 +7,7 @@
 namespace atmt {
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
-  Track(const juce::ValueTree& vt, juce::UndoManager* um) : editTree(vt), undoManager(um) {
+  Track(StateManager& m) : manager(m) {
     rebuildClips();
     editTree.addListener(this);
   }
@@ -52,15 +52,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     return true;
   }
 
-  // TODO(luca): some of this should go in the manager
   void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override {
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
-    juce::ValueTree clip { ID::CLIP };
-    clip.setProperty(ID::start, details.localPosition.x / zoom, undoManager)
-        .setProperty(ID::end, details.localPosition.x + 150, undoManager)
-        .setProperty(ID::name, name, undoManager);
-    editTree.addChild(clip, -1, undoManager);
+    auto start = int(details.localPosition.x / zoom);
+    auto end = start + 150;
+    manager.addEditClip(name, start, end);
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
@@ -87,7 +84,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   }
 
   struct Clip : juce::Component {
-    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : clipValueTree(vt), undoManager(um) {}
+    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : undoManager(um), clipValueTree(vt) {}
 
     void paint(juce::Graphics& g) {
       g.fillAll(juce::Colours::red);
@@ -106,13 +103,13 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position).toInt();
       if (isTrimDrag) {
         if (isLeftTrimDrag) {
-          start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+          start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
         } else {
-          end.setValue((parentLocalPoint.x + mouseDownOffset) / zoom, undoManager);
+          end.setValue(int((parentLocalPoint.x + mouseDownOffset) / zoom), undoManager);
         }
       } else {
-        float length = end - start;
-        start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+        int length = end - start;
+        start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
         end.setValue(start + length, undoManager);
       }
     }
@@ -134,12 +131,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       mouseDownOffset = 0;
     }
 
-    juce::ValueTree clipValueTree; 
-    juce::ValueTree editValueTree { clipValueTree.getParent() };
     juce::UndoManager* undoManager;
-    juce::CachedValue<float> start  { clipValueTree, ID::start, undoManager };
-    juce::CachedValue<float> end    { clipValueTree, ID::end, undoManager };
-    juce::CachedValue<float> zoom { editValueTree, ID::zoom, undoManager };
+    juce::ValueTree clipValueTree; 
+    juce::ValueTree editValueTree   { clipValueTree.getParent() };
+    juce::CachedValue<int> start    { clipValueTree, ID::start, undoManager };
+    juce::CachedValue<int> end      { clipValueTree, ID::end, undoManager };
+    juce::CachedValue<float> zoom   { editValueTree, ID::zoom, undoManager };
     juce::String name;
 
     static constexpr int trimThreashold = 20;
@@ -148,8 +145,9 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     float mouseDownOffset = 0;
   };
 
-  juce::ValueTree editTree;
-  juce::UndoManager* undoManager;
+  StateManager& manager;
+  juce::UndoManager* undoManager { manager.undoManager };
+  juce::ValueTree editTree { manager.edit };
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<float> zoom { editTree, ID::zoom, undoManager };
 
@@ -175,8 +173,7 @@ struct DescriptionBar : juce::Component {
 };
 
 struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
-  PresetsListPanel(PluginProcessor& _proc)
-    : proc(_proc) {
+  PresetsListPanel(StateManager& m) : manager(m) {
     addAndMakeVisible(title);
     addAndMakeVisible(presetNameInput);
     addAndMakeVisible(savePresetButton);
@@ -184,7 +181,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     savePresetButton.onClick = [this] () -> void {
       auto name = presetNameInput.getText();
       if (presetNameInput.getText() != "" && !manager.doesPresetNameExist(name)) {
-        proc.engine.savePreset(name);
+        manager.savePreset(name);
       } else {
         juce::MessageBoxOptions options;
         juce::AlertWindow::showAsync(options.withTitle("Error").withMessage("Preset name unavailable."), nullptr);
@@ -213,7 +210,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     jassert(presetTree.isValid());
     auto nameVar = presetTree[ID::name];
     jassert(!nameVar.isVoid());
-    auto preset = new Preset(proc, nameVar.toString());
+    auto preset = new Preset(manager, nameVar.toString());
     presets.add(preset);
     addAndMakeVisible(preset);
     resized();
@@ -259,15 +256,16 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   };
 
   struct Preset : juce::Component {
-    Preset(PluginProcessor& _proc, const juce::String& name) : proc(_proc) {
+    Preset(StateManager& m, const juce::String& name) : manager(m) {
       setName(name);
       selectorButton.setButtonText(name);
 
       addAndMakeVisible(selectorButton);
       addAndMakeVisible(removeButton);
 
-      selectorButton.onClick = [this] () -> void { proc.engine.restorePreset(getName()); };
-      removeButton.onClick   = [this] () -> void { proc.engine.removePreset(getName()); };
+      // TODO(luca): this may not be needed because it may be incompatible with our interface
+      //selectorButton.onClick = [this] () -> void { proc.engine.restorePreset(getName()); };
+      removeButton.onClick   = [this] () -> void { manager.removePreset(getName()); };
     }
 
     void resized() {
@@ -284,13 +282,12 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
       }
     }
 
-    PluginProcessor& proc;
+    StateManager& manager;
     juce::TextButton selectorButton;
     juce::TextButton removeButton { "X" };
   };
 
-  PluginProcessor& proc;
-  StateManager& manager { proc.manager };
+  StateManager& manager;
   juce::ValueTree presetsTree { manager.presets };
   Title title;
   juce::OwnedArray<Preset> presets;

@@ -4,6 +4,7 @@
 #include "state_manager.hpp"
 #include "engine.hpp"
 #include "identifiers.hpp"
+#include "change_attachment.hpp"
 #include "state_attachment.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 

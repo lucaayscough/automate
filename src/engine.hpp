@@ -1,6 +1,7 @@
 #pragma once
 
 #include "identifiers.hpp"
+#include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_devices/juce_audio_devices.h>
 
@@ -52,31 +53,24 @@ struct Engine : juce::ValueTree::Listener {
     instanceBroadcaster.sendChangeMessage();
   }
 
-  // TODO(luca): part of this code should go in the manager
-  void savePreset(const juce::String& name) {
+  void getCurrentParameterValues(std::vector<float>& values) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
-    std::vector<float> parameterValues;
     auto parameters = instance->getParameters();
+    values.reserve(std::size_t(parameters.size()));
     for (auto* parameter : parameters) {
-      parameterValues.push_back(parameter->getValue());
+      values.push_back(parameter->getValue());
     }
-    juce::ValueTree newState { ID::PRESET};
-    newState.setProperty(ID::name, name, apvts.undoManager);
-    newState.setProperty(ID::parameters, { parameterValues.data(), parameterValues.size() * sizeof(float) }, apvts.undoManager);
-    presets.addChild(newState, -1, apvts.undoManager);
   }
 
-  void removePreset(const juce::String& name) {
-    auto child = presets.getChildWithProperty(ID::name, name);
-    presets.removeChild(child, apvts.undoManager);
-  }
-
-  void restorePreset(const juce::String& name) {
+  // TODO(luca): as noted elsewhere, this may not have a place in plugin, or
+  // if it does, we should have a property in the vt which specifies which preset
+  // is currently selected
+  void restoreFromPreset(const juce::String& name) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
-    auto child = presets.getChildWithProperty(ID::name, name);
-    auto index = presets.indexOf(child);
+    auto preset = presets.getChildWithProperty(ID::name, name);
+    auto index = presets.indexOf(preset);
     auto parameters = instance->getParameters();
     for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
       parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
@@ -94,7 +88,7 @@ struct Engine : juce::ValueTree::Listener {
       auto len = mb->getSize() / sizeof(float);
       auto data = (float*)mb->getData();
       std::vector<float> parameterValues;
-      for (size_t i = 0; i < len; ++i) {
+      for (std::size_t i = 0; i < len; ++i) {
         parameterValues.push_back(data[i]);
       }
       presetParameters.push_back(parameterValues);

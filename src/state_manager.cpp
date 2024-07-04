@@ -1,4 +1,5 @@
 #include "state_manager.hpp"
+#include "plugin.hpp"
 
 namespace atmt {
 
@@ -50,12 +51,35 @@ void StateManager::validate() {
   DBG(valueTreeToXmlString(state));
 }
 
+void StateManager::addEditClip(const juce::String& name, int start, int end) {
+  juce::ValueTree clip { ID::CLIP };
+  clip.setProperty(ID::start, start, undoManager)
+      .setProperty(ID::end, end, undoManager)
+      .setProperty(ID::name, name, undoManager);
+  edit.addChild(clip, -1, undoManager);
+}
+
 void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
   for (const auto& clip : edit) {
     if (clip[ID::name].toString() == preset.toString()) {
       edit.removeChild(clip, undoManager);
     }
   }
+}
+
+void StateManager::savePreset(const juce::String& name) {
+  auto& proc = *static_cast<PluginProcessor*>(&apvts.processor);
+  std::vector<float> values;
+  proc.engine.getCurrentParameterValues(values);
+  juce::ValueTree preset { ID::PRESET };
+  preset.setProperty(ID::name, name, undoManager);
+  preset.setProperty(ID::parameters, { values.data(), values.size() * sizeof(float) }, undoManager);
+  presets.addChild(preset, -1, undoManager);
+}
+
+void StateManager::removePreset(const juce::String& name) {
+  auto preset = presets.getChildWithProperty(ID::name, name);
+  presets.removeChild(preset, undoManager);
 }
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
