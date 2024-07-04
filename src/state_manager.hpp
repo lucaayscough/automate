@@ -14,7 +14,7 @@ struct StateManager : juce::ValueTree::Listener
   void replace(const juce::ValueTree&);
   void validate();
 
-  void addEditClip(const juce::String&, int, int);
+  void addEditClip(const juce::String&, int);
   void removeEditClipsIfInvalid(const juce::var&);
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
@@ -30,6 +30,9 @@ struct StateManager : juce::ValueTree::Listener
   juce::ValueTree undoable;
   juce::ValueTree edit;
   juce::ValueTree presets;
+
+  static constexpr int defaultClipLength = 1000;
+  static constexpr float defaultZoomValue = 0.2f;
 };
 
 } // namespace atmt 

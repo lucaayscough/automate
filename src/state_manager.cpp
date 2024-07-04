@@ -16,7 +16,7 @@ void StateManager::init() {
     
   undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
   edit = undoable.getOrCreateChildWithName(ID::EDIT, undoManager);
-  edit.setProperty(ID::zoom, 1.f, undoManager);
+  edit.setProperty(ID::zoom, defaultZoomValue, undoManager);
   presets = undoable.getOrCreateChildWithName(ID::PRESETS, undoManager);
 }
 
@@ -49,23 +49,31 @@ void StateManager::validate() {
   jassert(presets.isValid());
 }
 
-void StateManager::addEditClip(const juce::String& name, int start, int end) {
+void StateManager::addEditClip(const juce::String& name, int start) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   juce::ValueTree clip { ID::CLIP };
   clip.setProperty(ID::start, start, undoManager)
-      .setProperty(ID::end, end, undoManager)
+      .setProperty(ID::end, start + defaultClipLength, undoManager)
       .setProperty(ID::name, name, undoManager);
   edit.addChild(clip, -1, undoManager);
 }
 
 void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
-  for (const auto& clip : edit) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  for (int i = 0; i < edit.getNumChildren(); ++i) {
+    const auto& clip = edit.getChild(i);
     if (clip[ID::name].toString() == preset.toString()) {
-      edit.removeChild(clip, undoManager);
+      edit.removeChild(i, undoManager);
+      --i;
     }
   }
 }
 
 void StateManager::savePreset(const juce::String& name) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   auto& proc = *static_cast<PluginProcessor*>(&apvts.processor);
   std::vector<float> values;
   proc.engine.getCurrentParameterValues(values);
@@ -76,11 +84,15 @@ void StateManager::savePreset(const juce::String& name) {
 }
 
 void StateManager::removePreset(const juce::String& name) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   auto preset = presets.getChildWithProperty(ID::name, name);
   presets.removeChild(preset, undoManager);
 }
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   for (const auto& preset : presets) {
     if (preset[ID::name].toString() == name) {
       return true;
@@ -90,6 +102,8 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
 }
 
 void StateManager::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   if (child.hasType(ID::PRESET)) {
     removeEditClipsIfInvalid(child[ID::name]);
   }
