@@ -22,19 +22,28 @@ struct DebugTools : juce::Component {
   juce::TextButton printStateButton { "Print State" };
 };
 
-struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
-  Track(StateManager& m) : manager(m) {
+struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
+  Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
     rebuildClips();
     editTree.addListener(this);
+    startTimerHz(60);
+  }
+
+  void timerCallback() override {
+    repaint();
   }
 
   void paint(juce::Graphics& g) override {
+    auto r = getLocalBounds();
     g.fillAll(juce::Colours::grey);
+    g.setColour(juce::Colours::black);
+    auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
+    g.fillRect(time, r.getY(), 2, getHeight());
   }
 
   void resized() override {
     for (auto* clip : clips) {
-      clip->setBounds(int(clip->start * zoom), 0, int((clip->end - clip->start) * zoom), getHeight());
+      clip->setBounds(int(clip->start * zoom), 0, int(clip->getLength() * zoom), getHeight());
     }
   }
 
@@ -123,7 +132,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
           end.setValue(int((parentLocalPoint.x + mouseDownOffset) / zoom), undoManager);
         }
       } else {
-        int length = end - start;
+        int length = getLength();
         start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
         end.setValue(start + length, undoManager);
       }
@@ -134,8 +143,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       if (e.position.x < trimThreashold * zoom) {
         isTrimDrag = true;
         isLeftTrimDrag = true;
-      } else if (e.position.x > (end - start - trimThreashold) * zoom) {
-        mouseDownOffset = ((end - start) * zoom) - e.position.x;
+      } else if (e.position.x > (getLength() - trimThreashold) * zoom) {
+        mouseDownOffset = (getLength() * zoom) - e.position.x;
         isTrimDrag = true;
         isLeftTrimDrag = false;
       }
@@ -144,6 +153,10 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     void endDrag() {
       isTrimDrag = false;
       mouseDownOffset = 0;
+    }
+
+    int getLength() {
+      return end - start;
     }
 
     juce::UndoManager* undoManager;
@@ -161,6 +174,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   };
 
   StateManager& manager;
+  UIBridge& uiBridge;
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.edit };
   juce::OwnedArray<Clip> clips;

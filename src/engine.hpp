@@ -4,12 +4,12 @@
 #include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_devices/juce_audio_devices.h>
+#include "ui_bridge.hpp"
 
 namespace atmt {
 
 struct Engine : juce::ValueTree::Listener {
-  Engine(StateManager& _manager)
-    : manager(_manager) {
+  Engine(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
     JUCE_ASSERT_MESSAGE_THREAD
 
     editTree.addListener(this);
@@ -34,6 +34,7 @@ struct Engine : juce::ValueTree::Listener {
         if (time.hasValue()) {
           // NOTE(luca): a regular int will give us ≈25 days of audio
           auto ms = int(*time * 1000.0); 
+          uiBridge.playheadPosition.store(ms, std::memory_order_relaxed);
           auto clip = getFirstActiveClip(ms);
           if (clip) {
             auto preset = getPresetForClip(clip);
@@ -178,6 +179,7 @@ struct Engine : juce::ValueTree::Listener {
   }
 
   StateManager& manager;
+  UIBridge& uiBridge;
   juce::UndoManager* undoManager { manager.undoManager };
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
   juce::AudioProcessor& proc { apvts.processor };

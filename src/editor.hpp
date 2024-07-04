@@ -3,6 +3,7 @@
 #include "change_attachment.hpp"
 #include "components.hpp"
 #include "plugin.hpp"
+#include "ui_bridge.hpp"
 
 namespace atmt {
 
@@ -20,6 +21,7 @@ private:
   PluginProcessor& proc;
   juce::AudioProcessorValueTreeState& apvts;
   StateManager& manager { proc.manager };
+  UIBridge& uiBridge { proc.uiBridge };
 
   int width = 1280;
   int height = 720;
@@ -34,7 +36,7 @@ private:
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
-  Track track { manager };
+  Track track { manager, uiBridge };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
   StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };

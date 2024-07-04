@@ -7,6 +7,7 @@
 #include "change_attachment.hpp"
 #include "state_attachment.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "ui_bridge.hpp"
 
 namespace atmt {
 
@@ -49,7 +50,8 @@ public:
   juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
 
   StateManager manager { apvts };
-  Engine engine { manager }; 
+  UIBridge uiBridge;
+  Engine engine { manager, uiBridge }; 
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
