@@ -12,8 +12,8 @@ struct Engine : juce::ValueTree::Listener {
     : manager(_manager) {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    edit.addListener(this);
-    presets.addListener(this);
+    editTree.addListener(this);
+    presetsTree.addListener(this);
   }
 
   void prepare(double sampleRate, int blockSize) {
@@ -26,36 +26,52 @@ struct Engine : juce::ValueTree::Listener {
 
   void process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
     if (instance) {
-      //auto playhead = apvts.processor.getPlayHead();
-      //auto position = playhead->getPosition();
+      auto playhead = apvts.processor.getPlayHead();
+      auto position = playhead->getPosition();
 
-      //if (position.hasValue()) {
-      //  auto time = position->getTimeInSamples();
-
-      //  if (time.hasValue()) {
-      //    auto interpolationValue = float(*time % 441000) / 441000.f;
-      //    
-      //    if (presets.size() > 1) {
-      //      interpolateStates(0, 1, interpolationValue); 
-      //    }
-      //  }
-      //}
+      if (position.hasValue()) {
+        auto time = position->getTimeInSeconds();
+        if (time.hasValue()) {
+          // NOTE(luca): a regular int will give us ≈25 days of audio
+          auto ms = int(*time * 1000.0); 
+          auto clip = getFirstActiveClip(ms);
+          if (clip) {
+            auto preset = getPresetForClip(clip);
+            setParameters(preset);
+          }
+        }
+      }
 
       instance->processBlock(buffer, midiBuffer);
+    }
+  }
+
+  void interpolateParameters(int beginIndex, int endIndex, float position) {
+    auto& beginParameters = presets[std::size_t(beginIndex)]->parameters;
+    auto& endParameters   = presets[std::size_t(endIndex)]->parameters;
+    auto& parameters      = instance->getParameters();
+
+    for (int i = 0; i < parameters.size(); ++i) {
+      float distance  = endParameters[std::size_t(i)] - beginParameters[std::size_t(i)] ;
+      float increment = distance * position; 
+      float newValue  = beginParameters[std::size_t(i)] + increment;
+      jassert(!(newValue > 1.f) && !(newValue < 0.f));
+      parameters[i]->setValue(newValue);
     }
   }
 
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(_instance);
+
     instance = std::move(_instance);
-    presetParameters.clear();
     instanceBroadcaster.sendChangeMessage();
   }
 
   void getCurrentParameterValues(std::vector<float>& values) {
     JUCE_ASSERT_MESSAGE_THREAD
     jassert(instance);
+
     auto parameters = instance->getParameters();
     values.reserve(std::size_t(parameters.size()));
     for (auto* parameter : parameters) {
@@ -66,15 +82,61 @@ struct Engine : juce::ValueTree::Listener {
   // TODO(luca): as noted elsewhere, this may not have a place in plugin, or
   // if it does, we should have a property in the vt which specifies which preset
   // is currently selected
-  void restoreFromPreset(const juce::String& name) {
+  void restoreFromPreset(const juce::String&) {
+    //JUCE_ASSERT_MESSAGE_THREAD
+    //jassert(instance);
+
+    //auto preset = presetsTree.getChildWithProperty(ID::name, name);
+    //auto index = presetsTree.indexOf(preset);
+    //auto parameters = instance->getParameters();
+    //for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
+    //  parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
+    //}
+  }
+
+  void addPresetParameters(juce::ValueTree& presetTree) {
     JUCE_ASSERT_MESSAGE_THREAD
-    jassert(instance);
-    auto preset = presets.getChildWithProperty(ID::name, name);
-    auto index = presets.indexOf(preset);
-    auto parameters = instance->getParameters();
-    for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
-      parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
+    jassert(presetTree.isValid());
+
+    auto parametersVar = presetTree[ID::parameters];
+    auto mb = parametersVar.getBinaryData();
+    auto len = mb->getSize() / sizeof(float);
+    auto data = (float*)mb->getData();
+    auto preset = std::make_unique<Preset>();
+    for (std::size_t i = 0; i < len; ++i) {
+      preset->parameters.push_back(data[i]);
     }
+    preset->name.referTo(presetTree, ID::name, undoManager);
+
+    proc.suspendProcessing(true);
+    presets.push_back(std::move(preset));
+    proc.suspendProcessing(false);
+  }
+
+  void removePresetParameters(int index) {
+    JUCE_ASSERT_MESSAGE_THREAD
+    
+    proc.suspendProcessing(true);
+    presets.erase(presets.begin() + index);
+    proc.suspendProcessing(false);
+  }
+
+  void addClip(juce::ValueTree& clipTree) {
+    JUCE_ASSERT_MESSAGE_THREAD
+    jassert(clipTree.isValid());
+    
+    auto clip = std::make_unique<Clip>();
+    clip->name.referTo(clipTree, ID::name, undoManager);
+    clip->start.referTo(clipTree, ID::start, undoManager);
+    clip->end.referTo(clipTree, ID::end, undoManager);
+
+    proc.suspendProcessing(true);
+    clips.push_back(std::move(clip));
+    proc.suspendProcessing(false);
+  }
+
+  void removeClip(int) {
+    //
   }
 
   void valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) override {
@@ -82,16 +144,9 @@ struct Engine : juce::ValueTree::Listener {
     jassert(parent.isValid() && child.isValid());
     
     if (child.hasType(ID::PRESET)) {
-      auto parametersVar = child[ID::parameters]; 
-      jassert(!parametersVar.isVoid());
-      auto mb = parametersVar.getBinaryData();
-      auto len = mb->getSize() / sizeof(float);
-      auto data = (float*)mb->getData();
-      std::vector<float> parameterValues;
-      for (std::size_t i = 0; i < len; ++i) {
-        parameterValues.push_back(data[i]);
-      }
-      presetParameters.push_back(parameterValues);
+      addPresetParameters(child);
+    } else if (child.hasType(ID::CLIP)) {
+      addClip(child);
     }
   }
 
@@ -100,21 +155,7 @@ struct Engine : juce::ValueTree::Listener {
     jassert(parent.isValid() && child.isValid());
 
     if (child.hasType(ID::PRESET)) {
-      presetParameters.erase(presetParameters.begin() + index);
-    }
-  }
-
-  void interpolateStates(int stateBeginIndex, int stateEndIndex, float position) {
-    auto& stateBegin = presetParameters[std::size_t(stateBeginIndex)];
-    auto& stateEnd   = presetParameters[std::size_t(stateEndIndex)];
-    auto parameters = instance->getParameters();
-
-    for (int i = 0; i < parameters.size(); ++i) {
-      float distance = stateEnd[std::size_t(i)] - stateBegin[std::size_t(i)] ;
-      float increment = distance * position; 
-      float newValue = stateBegin[std::size_t(i)] + increment;
-      jassert(!(newValue > 1.f) && !(newValue < 0.f));
-      parameters[i]->setValue(newValue);
+      removePresetParameters(index);
     }
   }
 
@@ -137,12 +178,55 @@ struct Engine : juce::ValueTree::Listener {
   }
 
   StateManager& manager;
+  juce::UndoManager* undoManager { manager.undoManager };
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
-  juce::ValueTree edit { manager.edit };
-  juce::ValueTree presets { manager.presets };
+  juce::AudioProcessor& proc { apvts.processor };
+  juce::ValueTree editTree { manager.edit };
+  juce::ValueTree presetsTree { manager.presets };
   juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
-  std::vector<std::vector<float>> presetParameters;
+
+  struct Preset {
+    juce::CachedValue<juce::String> name;
+    std::vector<float> parameters;
+  };
+
+  struct Clip {
+    juce::CachedValue<juce::String> name;
+    juce::CachedValue<int> start;
+    juce::CachedValue<int> end;
+  };
+  
+  Clip* getFirstActiveClip(int time) {
+    for (auto& clip : clips) {
+      if (time >= clip->start && time <= clip->end) {
+        return clip.get();
+      }
+    }
+    return nullptr;
+  }
+
+  Preset* getPresetForClip(Clip* clip) {
+    for (auto& preset : presets) {
+      if (preset->name == clip->name) {
+        return preset.get();
+      }
+    }
+    jassertfalse;
+    return nullptr;
+  }
+
+  void setParameters(Preset* preset) {
+    auto& presetParameters = preset->parameters;
+    auto& parameters = instance->getParameters();
+
+    for (int i = 0; i < parameters.size(); ++i) {
+      parameters[i]->setValue(presetParameters[std::size_t(i)]);
+    }
+  }
+
+  std::vector<std::unique_ptr<Preset>> presets;
+  std::vector<std::unique_ptr<Clip>> clips;
 };
 
 } // namespace atmt
