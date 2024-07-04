@@ -24,11 +24,13 @@ private:
   int width = 1280;
   int height = 720;
 
+  int debugToolsHeight = 30;
   int descriptionBarHeight = 100;
   int statesPanelWidth = 150;
   int pluginListWidth = 150;
   int trackHeight = 150;
 
+  DebugTools debugTools { manager };
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };

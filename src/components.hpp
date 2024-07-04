@@ -6,6 +6,22 @@
 
 namespace atmt {
 
+struct DebugTools : juce::Component {
+  DebugTools(StateManager& m) : manager(m) {
+    addAndMakeVisible(printStateButton);
+    printStateButton.onClick = [this] {
+      DBG(manager.valueTreeToXmlString(manager.state));
+    };
+  }
+  
+  void resized() override {
+    printStateButton.setBounds(getLocalBounds());
+  }
+
+  StateManager& manager;
+  juce::TextButton printStateButton { "Print State" };
+};
+
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget {
   Track(StateManager& m) : manager(m) {
     rebuildClips();

@@ -47,8 +47,6 @@ void StateManager::validate() {
   jassert(undoable.isValid());
   jassert(edit.isValid());
   jassert(presets.isValid());
-
-  DBG(valueTreeToXmlString(state));
 }
 
 void StateManager::addEditClip(const juce::String& name, int start, int end) {
