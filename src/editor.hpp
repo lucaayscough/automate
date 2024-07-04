@@ -36,6 +36,7 @@ private:
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
+
   Track track { manager, uiBridge };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };

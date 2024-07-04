@@ -9,7 +9,7 @@ PluginEditor::PluginEditor(PluginProcessor& _proc)
   addAndMakeVisible(descriptionBar);
   addAndMakeVisible(statesPanel);
   addAndMakeVisible(pluginList);
-  addAndMakeVisible(track);
+  addAndMakeVisible(track.viewport);
 
   setSize(width, height);
   setResizable(true, true);
@@ -23,7 +23,11 @@ void PluginEditor::paint(juce::Graphics& g) {
 void PluginEditor::resized() {
   auto r = getLocalBounds();
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
-  track.setBounds(r.removeFromBottom(trackHeight));
+
+  // TODO(luca): tidy up
+  track.setSize(10000, trackHeight);
+  track.viewport.setBounds(r.removeFromBottom(trackHeight));
+
   statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
   pluginList.setBounds(r.removeFromRight(pluginListWidth));
   descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));

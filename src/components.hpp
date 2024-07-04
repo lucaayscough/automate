@@ -27,6 +27,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     rebuildClips();
     editTree.addListener(this);
     startTimerHz(60);
+    viewport.setViewedComponent(this, false);
+    viewport.setScrollBarPosition(false, false);
   }
 
   void timerCallback() override {
@@ -179,6 +181,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::ValueTree editTree { manager.edit };
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<float> zoom { editTree, ID::zoom, undoManager };
+  juce::Viewport viewport;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
