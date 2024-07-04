@@ -29,6 +29,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     startTimerHz(60);
     viewport.setViewedComponent(this, false);
     viewport.setScrollBarPosition(false, false);
+    viewport.setScrollBarsShown(false, true, true, true);
   }
 
   void timerCallback() override {
