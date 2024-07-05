@@ -52,12 +52,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   void rebuildClips() {
     clips.clear();
-    for (const auto& child : editTree) {
+    for (auto child : editTree) {
       addClip(child);
     }
   }
 
-  void addClip(const juce::ValueTree& clipValueTree) {
+  void addClip(juce::ValueTree& clipValueTree) {
     auto clip = new Clip(clipValueTree, undoManager);
     clip->start = int(clipValueTree[ID::start]);
     clip->end = int(clipValueTree[ID::end]);
@@ -67,7 +67,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     resized();
   }
 
-  void removeClip(const juce::ValueTree& clipValueTree) {
+  void removeClip(juce::ValueTree& clipValueTree) {
     auto name = clipValueTree[ID::name].toString();
     for (int i = 0; i < clips.size(); ++i) {
       if (clips[i]->name == name) {
@@ -88,12 +88,10 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
-    JUCE_ASSERT_MESSAGE_THREAD
     addClip(child);
   }
 
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
-    JUCE_ASSERT_MESSAGE_THREAD
     removeClip(child);
   }
 
@@ -110,8 +108,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     resized();
   }
 
-  struct Clip : juce::Component {
-    Clip(const juce::ValueTree& vt, juce::UndoManager* um) : undoManager(um), clipValueTree(vt) {}
+  struct Clip : juce::Component, atmt::Clip {
+    Clip(juce::ValueTree& vt, juce::UndoManager* um) : atmt::Clip(vt, um) {}
 
     void paint(juce::Graphics& g) {
       g.fillAll(juce::Colours::red);
@@ -162,13 +160,10 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       return end - start;
     }
 
-    juce::UndoManager* undoManager;
-    juce::ValueTree clipValueTree; 
-    juce::ValueTree editValueTree   { clipValueTree.getParent() };
-    juce::CachedValue<int> start    { clipValueTree, ID::start, undoManager };
-    juce::CachedValue<int> end      { clipValueTree, ID::end, undoManager };
+    juce::ValueTree editValueTree   { state.getParent() };
+
+    // TODO(luca): create coordinate converters and move somewhere else
     juce::CachedValue<float> zoom   { editValueTree, ID::zoom, undoManager };
-    juce::String name;
 
     static constexpr int trimThreashold = 20;
     bool isTrimDrag = false;
@@ -268,12 +263,10 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
-    JUCE_ASSERT_MESSAGE_THREAD
     addPreset(child);
   }
 
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
-    JUCE_ASSERT_MESSAGE_THREAD
     removePreset(child);
   }
 
