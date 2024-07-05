@@ -84,7 +84,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
     auto start = int(details.localPosition.x / zoom);
-    manager.addEditClip(name, start);
+    manager.addClip(name, start);
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {

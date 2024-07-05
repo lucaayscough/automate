@@ -49,7 +49,7 @@ void StateManager::validate() {
   jassert(presets.isValid());
 }
 
-void StateManager::addEditClip(const juce::String& name, int start) {
+void StateManager::addClip(const juce::String& name, int start) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   juce::ValueTree clip { ID::CLIP };
@@ -59,8 +59,7 @@ void StateManager::addEditClip(const juce::String& name, int start) {
   edit.addChild(clip, -1, undoManager);
 }
 
-// TODO(luca): rename this
-void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
+void StateManager::removeClipsIfInvalid(const juce::var& preset) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   for (int i = 0; i < edit.getNumChildren(); ++i) {
@@ -106,7 +105,7 @@ void StateManager::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& chil
   JUCE_ASSERT_MESSAGE_THREAD
 
   if (child.hasType(ID::PRESET)) {
-    removeEditClipsIfInvalid(child[ID::name]);
+    removeClipsIfInvalid(child[ID::name]);
   }
 }
 

@@ -14,8 +14,8 @@ struct StateManager : juce::ValueTree::Listener
   void replace(const juce::ValueTree&);
   void validate();
 
-  void addEditClip(const juce::String&, int);
-  void removeEditClipsIfInvalid(const juce::var&);
+  void addClip(const juce::String&, int);
+  void removeClipsIfInvalid(const juce::var&);
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
