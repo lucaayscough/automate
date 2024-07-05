@@ -165,6 +165,8 @@ struct Engine : juce::ValueTree::Listener {
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int index) override {
     if (child.hasType(ID::PRESET)) {
       removePreset(index);
+    } else if (child.hasType(ID::CLIP)) {
+      removeClip(index);
     }
   }
 

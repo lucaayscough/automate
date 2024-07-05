@@ -59,6 +59,7 @@ void StateManager::addEditClip(const juce::String& name, int start) {
   edit.addChild(clip, -1, undoManager);
 }
 
+// TODO(luca): rename this
 void StateManager::removeEditClipsIfInvalid(const juce::var& preset) {
   JUCE_ASSERT_MESSAGE_THREAD
 
