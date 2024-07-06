@@ -100,8 +100,16 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     }
   }
 
-  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) override {
-    zoom.setValue(zoom + w.deltaY, undoManager);
+  void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override {
+    zoomTrack(w.deltaY, e.position.x);
+  }
+
+  void zoomTrack(double amount, double mouseX) {
+    double x0 = mouseX * zoom;
+    zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), undoManager);
+    double x1 = mouseX * zoom;
+    double dx = (x1 - x0) / zoom;
+    viewport.setViewPosition(viewport.getViewPositionX() + dx, 0);
     resized();
   }
 
@@ -131,17 +139,17 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
         }
       } else {
         auto length = getLength();
-        start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
+        start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
         end.setValue(start + length, undoManager);
       }
     }
 
     void beginDrag(const juce::MouseEvent& e) {
       mouseDownOffset = e.position.x;
-      if (e.position.x < trimThreashold * zoom) {
+      if (e.position.x < trimThreshold) {
         isTrimDrag = true;
         isLeftTrimDrag = true;
-      } else if (e.position.x > (getLength() - trimThreashold) * zoom) {
+      } else if (e.position.x > (getLength() * zoom) - trimThreshold) {
         mouseDownOffset = (getLength() * zoom) - e.position.x;
         isTrimDrag = true;
         isLeftTrimDrag = false;
@@ -160,9 +168,9 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     juce::ValueTree editValueTree   { state.getParent() };
 
     // TODO(luca): create coordinate converters and move somewhere else
-    juce::CachedValue<float> zoom   { editValueTree, ID::zoom, undoManager };
+    juce::CachedValue<double> zoom   { editValueTree, ID::zoom, undoManager };
 
-    static constexpr int trimThreashold = 20;
+    static constexpr int trimThreshold = 20;
     bool isTrimDrag = false;
     bool isLeftTrimDrag = false;
     double mouseDownOffset = 0;
@@ -173,7 +181,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.edit };
   juce::OwnedArray<Clip> clips;
-  juce::CachedValue<float> zoom { editTree, ID::zoom, undoManager };
+  juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
+  static constexpr double zoomDeltaScale = 5.0;
   juce::Viewport viewport;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
