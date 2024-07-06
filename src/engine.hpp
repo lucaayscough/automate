@@ -29,7 +29,6 @@ struct Engine : juce::ValueTree::Listener {
         auto time = position->getTimeInSeconds();
         if (time.hasValue()) {
           // NOTE(luca): a regular int will give us ≈25 days of audio
-          // TODO(luca): use double seconds instead of int ms
           auto ms = int(*time * 1000.0); 
           uiBridge.playheadPosition.store(ms, std::memory_order_relaxed);
           auto clip = getFirstActiveClip(ms);
