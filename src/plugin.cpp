@@ -89,7 +89,7 @@ juce::AudioProcessorEditor* PluginProcessor::createEditor() {
 }
 
 void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
-  auto state = apvts.copyState();
+  auto state = manager.getState();
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
 }
@@ -97,7 +97,7 @@ void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
 void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
   std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
   if (xmlState.get()) {
-    if (xmlState->hasTagName(apvts.state.getType())) {
+    if (xmlState->hasTagName(manager.state.getType())) {
       auto newState = juce::ValueTree::fromXml(*xmlState);
       manager.replace(newState);
     }

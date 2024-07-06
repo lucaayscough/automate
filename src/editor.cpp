@@ -4,7 +4,7 @@
 namespace atmt {
 
 PluginEditor::PluginEditor(PluginProcessor& _proc)
-  : AudioProcessorEditor(&_proc), proc(_proc), apvts(proc.apvts) {
+  : AudioProcessorEditor(&_proc), proc(_proc) {
   addAndMakeVisible(debugTools);
   addAndMakeVisible(descriptionBar);
   addAndMakeVisible(statesPanel);

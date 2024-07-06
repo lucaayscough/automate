@@ -47,7 +47,7 @@ public:
   void setStateInformation(const void* data, int sizeInBytes) override;
 
   juce::UndoManager undoManager;
-  juce::AudioProcessorValueTreeState apvts { *this, &undoManager, "Automate", {} };
+  juce::AudioProcessorValueTreeState apvts { *this, &undoManager, ID::PARAMETERS, {} };
 
   StateManager manager { apvts };
   UIBridge uiBridge;
@@ -62,7 +62,7 @@ public:
 
 private:
   ChangeAttachment knownPluginListAttachment { knownPluginList, CHANGE_CB(knownPluginListChangeCallback) };
-  StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };
+  StateAttachment pluginIDAttachment { manager.edit, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

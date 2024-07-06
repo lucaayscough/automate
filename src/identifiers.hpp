@@ -5,7 +5,8 @@
 namespace atmt {
 
 struct ID {
-  static const juce::Identifier UNDOABLE;
+  static const juce::Identifier AUTOMATE;
+  static const juce::Identifier PARAMETERS;
   static const juce::Identifier PRESETS;
   static const juce::Identifier PRESET;
   static const juce::Identifier EDIT;

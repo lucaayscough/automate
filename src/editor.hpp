@@ -19,7 +19,6 @@ private:
   void instanceChangeCallback();
 
   PluginProcessor& proc;
-  juce::AudioProcessorValueTreeState& apvts;
   StateManager& manager { proc.manager };
   UIBridge& uiBridge { proc.uiBridge };
 
@@ -40,7 +39,7 @@ private:
   Track track { manager, uiBridge };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
-  StateAttachment pluginIDAttachment { apvts.state, ID::pluginID, STATE_CB(pluginIDChangeCallback), apvts.undoManager };
+  StateAttachment pluginIDAttachment { manager.edit, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
 
   std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;
 

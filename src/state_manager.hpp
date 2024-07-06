@@ -12,6 +12,7 @@ struct StateManager : juce::ValueTree::Listener
 
   void init();
   void replace(const juce::ValueTree&);
+  juce::ValueTree getState();
   void validate();
 
   void addClip(const juce::String&, int);
@@ -26,10 +27,11 @@ struct StateManager : juce::ValueTree::Listener
 
   juce::AudioProcessorValueTreeState& apvts;
   juce::UndoManager* undoManager;
-  juce::ValueTree state;
-  juce::ValueTree undoable;
-  juce::ValueTree edit;
-  juce::ValueTree presets;
+
+  juce::ValueTree state         { ID::AUTOMATE };
+  juce::ValueTree parameters    { apvts.state  };
+  juce::ValueTree edit          { ID::EDIT     };
+  juce::ValueTree presets       { ID::PRESETS  };
 
   static constexpr int defaultClipLength = 1000;
   static constexpr float defaultZoomValue = 0.2f;

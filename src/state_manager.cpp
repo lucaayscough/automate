@@ -6,18 +6,22 @@ namespace atmt {
 StateManager::StateManager(juce::AudioProcessorValueTreeState& _apvts)
   : apvts(_apvts) {
   undoManager = apvts.undoManager;
-  state = apvts.state;
   init();
-  state.addListener(this);
 }
 
 void StateManager::init() {
   JUCE_ASSERT_MESSAGE_THREAD
     
-  undoable = state.getOrCreateChildWithName(ID::UNDOABLE, undoManager);
-  edit = undoable.getOrCreateChildWithName(ID::EDIT, undoManager);
+  state.appendChild(parameters, undoManager);
+  state.appendChild(edit, undoManager);
+  state.appendChild(presets, undoManager);
+
   edit.setProperty(ID::zoom, defaultZoomValue, undoManager);
-  presets = undoable.getOrCreateChildWithName(ID::PRESETS, undoManager);
+
+  undoManager->clearUndoHistory();
+  validate();
+
+  state.addListener(this);
 }
 
 void StateManager::replace(const juce::ValueTree& newState) {
@@ -26,25 +30,34 @@ void StateManager::replace(const juce::ValueTree& newState) {
   juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
   if (lk.lockWasGained()) {
-    auto newUndoable = newState.getChildWithName(ID::UNDOABLE);
-    auto newEdit = newUndoable.getChildWithName(ID::EDIT);
-    auto newPresets  = newUndoable.getChildWithName(ID::PRESETS);
+    parameters.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PARAMETERS), undoManager);
+    edit.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::EDIT), undoManager);
+    presets.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PRESETS), undoManager);
 
-    state.copyPropertiesFrom(newState, undoManager);
-    undoable.copyPropertiesFrom(newUndoable, undoManager);
-    edit.copyPropertiesAndChildrenFrom(newEdit, undoManager);
-    presets.copyPropertiesAndChildrenFrom(newPresets, undoManager);
-      
     undoManager->clearUndoHistory();
     validate();
   }
+}
+
+juce::ValueTree StateManager::getState() {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
+
+  juce::ValueTree copy;
+
+  if (lk.lockWasGained()) {
+    copy = state.createCopy();
+  }
+
+  return copy;
 }
 
 void StateManager::validate() {
   JUCE_ASSERT_MESSAGE_THREAD
 
   jassert(state.isValid());
-  jassert(undoable.isValid());
+  jassert(parameters.isValid());
   jassert(edit.isValid());
   jassert(presets.isValid());
 }

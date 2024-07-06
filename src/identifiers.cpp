@@ -2,7 +2,8 @@
 
 namespace atmt {
 
-const juce::Identifier ID::UNDOABLE         { "UNDOABLE" };
+const juce::Identifier ID::AUTOMATE         { "AUTOMATE" };
+const juce::Identifier ID::PARAMETERS       { "PARAMETERS" };
 const juce::Identifier ID::PRESETS          { "PRESETS" };
 const juce::Identifier ID::PRESET           { "PRESET" };
 const juce::Identifier ID::EDIT             { "EDIT" };
