@@ -136,7 +136,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), undoManager);
     double x1 = mouseX * zoom;
     double dx = (x1 - x0) / zoom;
-    viewport.setViewPosition(viewport.getViewPositionX() + dx, 0);
+    viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
     resized();
   }
 
@@ -151,8 +151,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       if (isOverlapping()) {
         for (auto& overlap : overlaps) {
           auto r = getLocalBounds().toFloat();
-          r.removeFromLeft(overlap.start);
-          r.removeFromRight(getWidth() - overlap.end);
+          r.removeFromLeft(float(overlap.start));
+          r.removeFromRight(float(getWidth() - overlap.end));
           g.fillCheckerBoard(r, 5, 5, juce::Colours::blue, juce::Colours::yellow);
         }
       }

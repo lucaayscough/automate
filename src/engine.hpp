@@ -66,12 +66,12 @@ struct Engine : juce::ValueTree::Listener {
     auto& endParameters   = p2->parameters;
     auto& parameters      = instance->getParameters();
 
-    for (std::size_t i = 0; i < parameters.size(); ++i) {
-      float distance  = endParameters[i] - beginParameters[i] ;
-      float increment = distance * position; 
-      float newValue  = beginParameters[i] + increment;
+    for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
+      auto distance  = endParameters[i] - beginParameters[i] ;
+      auto increment = distance * position; 
+      auto newValue  = beginParameters[i] + increment;
       jassert(!(newValue > 1.f) && !(newValue < 0.f));
-      parameters[int(i)]->setValue(newValue);
+      parameters[int(i)]->setValue(float(newValue));
     }
   }
   
