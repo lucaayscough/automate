@@ -48,6 +48,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     for (auto* clip : clips) {
       clip->setBounds(int(clip->start * zoom), 0, int(clip->getLength() * zoom), getHeight());
     }
+    setClipOverlaps();
   }
 
   void rebuildClips() {
@@ -100,6 +101,32 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     }
   }
 
+  struct Overlap {
+    double start = 0;
+    double end = 0;
+  };
+
+  void setClipOverlaps() {
+    for (auto clip : clips) {
+      clip->clearOverlaps();
+      for (auto other : clips) {
+        if (clip == other) {
+          continue;
+        } else {
+          if (clip->start <= other->start && clip->end >= other->start) {
+            if (clip->end >= other->end) {
+              clip->addOverlap(other->start - clip->start, other->end - clip->start);
+            } else {
+              clip->addOverlap(other->start - clip->start, clip->end - clip->start);
+            }
+          } else if (clip->start >= other->start && other->end >= clip->start) {
+            clip->addOverlap(0, other->end - clip->start);
+          }
+        }
+      }
+    }
+  }
+
   void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override {
     zoomTrack(w.deltaY, e.position.x);
   }
@@ -118,7 +145,21 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     void paint(juce::Graphics& g) {
       g.fillAll(juce::Colours::red);
+      g.drawRect(getLocalBounds());
       g.drawText(name, getLocalBounds(), juce::Justification::centred);
+      
+      if (isOverlapping()) {
+        for (auto& overlap : overlaps) {
+          auto r = getLocalBounds().toFloat();
+          r.removeFromLeft(overlap.start);
+          r.removeFromRight(getWidth() - overlap.end);
+          g.fillCheckerBoard(r, 5, 5, juce::Colours::blue, juce::Colours::yellow);
+        }
+      }
+    }
+
+    bool isOverlapping() {
+      return overlaps.size() > 0 ? true : false;
     }
 
     void mouseDown(const juce::MouseEvent& e) {
@@ -165,15 +206,25 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       return end - start;
     }
 
-    juce::ValueTree editValueTree   { state.getParent() };
+    juce::ValueTree editValueTree { state.getParent() };
 
     // TODO(luca): create coordinate converters and move somewhere else
-    juce::CachedValue<double> zoom   { editValueTree, ID::zoom, undoManager };
+    juce::CachedValue<double> zoom { editValueTree, ID::zoom, undoManager };
 
     static constexpr int trimThreshold = 20;
     bool isTrimDrag = false;
     bool isLeftTrimDrag = false;
     double mouseDownOffset = 0;
+
+    void clearOverlaps() {
+      overlaps.clear();
+    }
+
+    void addOverlap(double overlapStart, double overlapEnd) {
+      overlaps.push_back({ overlapStart * zoom, overlapEnd * zoom }); 
+    }
+
+    std::vector<Overlap> overlaps;
   };
 
   StateManager& manager;
