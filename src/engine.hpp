@@ -28,12 +28,18 @@ struct Engine : juce::ValueTree::Listener {
       if (position.hasValue()) {
         auto time = position->getTimeInSeconds();
         if (time.hasValue()) {
-          // NOTE(luca): a regular int will give us ≈25 days of audio
           uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
-          auto clip = getFirstActiveClip(*time);
-          if (clip) {
-            auto preset = getPresetForClip(clip);
+
+          // TODO(luca): handle more than 2 overlapping clips and clips which have same start time
+          auto clip1 = getFirstActiveClip(*time);
+          auto clip2 = getSecondActiveClip(*time);
+
+          if (clip1 && !clip2) {
+            auto preset = getPresetForClip(clip1);
             setParameters(preset);
+          } else if (clip1 && clip2) {
+            double lerpPos = getClipInterpolationPosition(clip1, clip2, *time);
+            interpolateParameters(getPresetForClip(clip1), getPresetForClip(clip2), lerpPos); 
           }
         }
       }
@@ -42,17 +48,30 @@ struct Engine : juce::ValueTree::Listener {
     }
   }
 
-  void interpolateParameters(int beginIndex, int endIndex, float position) {
-    auto& beginParameters = presets[std::size_t(beginIndex)]->parameters;
-    auto& endParameters   = presets[std::size_t(endIndex)]->parameters;
+  double getClipInterpolationPosition(Clip* clip1, Clip* clip2, double time) {
+    double overlapLength;
+    double offsetFromStart;
+    if (clip1->start < clip2->start) {
+      overlapLength = clip1->end - clip2->start;
+      offsetFromStart = time - clip2->start;
+    } else {
+      overlapLength = clip2->end - clip1->start;
+      offsetFromStart = time - clip1->start;
+    }
+    return offsetFromStart / overlapLength;
+  }
+
+  void interpolateParameters(Preset* p1, Preset* p2, double position) {
+    auto& beginParameters = p1->parameters;
+    auto& endParameters   = p2->parameters;
     auto& parameters      = instance->getParameters();
 
-    for (int i = 0; i < parameters.size(); ++i) {
-      float distance  = endParameters[std::size_t(i)] - beginParameters[std::size_t(i)] ;
+    for (std::size_t i = 0; i < parameters.size(); ++i) {
+      float distance  = endParameters[i] - beginParameters[i] ;
       float increment = distance * position; 
-      float newValue  = beginParameters[std::size_t(i)] + increment;
+      float newValue  = beginParameters[i] + increment;
       jassert(!(newValue > 1.f) && !(newValue < 0.f));
-      parameters[i]->setValue(newValue);
+      parameters[int(i)]->setValue(newValue);
     }
   }
   
@@ -60,6 +79,20 @@ struct Engine : juce::ValueTree::Listener {
     for (auto& clip : clips) {
       if (time >= clip->start && time <= clip->end) {
         return clip.get();
+      }
+    }
+    return nullptr;
+  }
+
+  Clip* getSecondActiveClip(double time) {
+    bool foundFirst = false;
+    for (auto& clip : clips) {
+      if (time >= clip->start && time <= clip->end) {
+        if (foundFirst) {
+          return clip.get();
+        } else {
+          foundFirst = true;
+        }
       }
     }
     return nullptr;
