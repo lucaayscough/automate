@@ -59,9 +59,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   void addClip(juce::ValueTree& clipValueTree) {
     auto clip = new Clip(clipValueTree, undoManager);
-    clip->start = int(clipValueTree[ID::start]);
-    clip->end = int(clipValueTree[ID::end]);
-    clip->name = clipValueTree[ID::name].toString();
     addAndMakeVisible(clip);
     clips.add(clip);
     resized();
@@ -83,7 +80,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override {
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
-    auto start = int(details.localPosition.x / zoom);
+    auto start = details.localPosition.x / zoom;
     manager.addClip(name, start);
   }
 
@@ -125,15 +122,15 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     }
 
     void mouseDrag(const juce::MouseEvent& e) {
-      auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position).toInt();
+      auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
       if (isTrimDrag) {
         if (isLeftTrimDrag) {
-          start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
+          start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
         } else {
-          end.setValue(int((parentLocalPoint.x + mouseDownOffset) / zoom), undoManager);
+          end.setValue((parentLocalPoint.x + mouseDownOffset) / zoom, undoManager);
         }
       } else {
-        int length = getLength();
+        auto length = getLength();
         start.setValue(int((parentLocalPoint.x - mouseDownOffset) / zoom), undoManager);
         end.setValue(start + length, undoManager);
       }
@@ -156,7 +153,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       mouseDownOffset = 0;
     }
 
-    int getLength() {
+    double getLength() {
       return end - start;
     }
 
@@ -168,7 +165,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     static constexpr int trimThreashold = 20;
     bool isTrimDrag = false;
     bool isLeftTrimDrag = false;
-    float mouseDownOffset = 0;
+    double mouseDownOffset = 0;
   };
 
   StateManager& manager;

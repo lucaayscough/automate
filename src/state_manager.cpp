@@ -62,7 +62,7 @@ void StateManager::validate() {
   jassert(presets.isValid());
 }
 
-void StateManager::addClip(const juce::String& name, int start) {
+void StateManager::addClip(const juce::String& name, double start) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   juce::ValueTree clip { ID::CLIP };

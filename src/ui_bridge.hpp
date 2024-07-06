@@ -3,7 +3,7 @@
 namespace atmt {
 
 struct UIBridge {
-  std::atomic<int> playheadPosition = 0;
+  std::atomic<double> playheadPosition = 0;
 };
 
 } // namespace atmt
