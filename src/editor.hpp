@@ -4,6 +4,7 @@
 #include "components.hpp"
 #include "plugin.hpp"
 #include "ui_bridge.hpp"
+#include "timeline.hpp"
 
 namespace atmt {
 
