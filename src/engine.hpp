@@ -22,44 +22,44 @@ struct Engine : juce::ValueTree::Listener {
 
   void process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
     if (instance) {
-      auto playhead = apvts.processor.getPlayHead();
-      auto position = playhead->getPosition();
+      //auto playhead = apvts.processor.getPlayHead();
+      //auto position = playhead->getPosition();
 
-      if (position.hasValue()) {
-        auto time = position->getTimeInSeconds();
-        if (time.hasValue()) {
-          uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
+      //if (position.hasValue()) {
+      //  auto time = position->getTimeInSeconds();
+      //  if (time.hasValue()) {
+      //    uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
 
-          // TODO(luca): handle more than 2 overlapping clips and clips which have same start time
-          auto clip1 = getFirstActiveClip(*time);
-          auto clip2 = getSecondActiveClip(*time);
+      //    // TODO(luca): handle more than 2 overlapping clips and clips which have same start time
+      //    auto clip1 = getFirstActiveClip(*time);
+      //    auto clip2 = getSecondActiveClip(*time);
 
-          if (clip1 && !clip2) {
-            auto preset = getPresetForClip(clip1);
-            setParameters(preset);
-          } else if (clip1 && clip2) {
-            double lerpPos = getClipInterpolationPosition(clip1, clip2, *time);
-            interpolateParameters(getPresetForClip(clip1), getPresetForClip(clip2), lerpPos); 
-          }
-        }
-      }
+      //    if (clip1 && !clip2) {
+      //      auto preset = getPresetForClip(clip1);
+      //      setParameters(preset);
+      //    } else if (clip1 && clip2) {
+      //      double lerpPos = getClipInterpolationPosition(clip1, clip2, *time);
+      //      interpolateParameters(getPresetForClip(clip1), getPresetForClip(clip2), lerpPos); 
+      //    }
+      //  }
+      //}
 
       instance->processBlock(buffer, midiBuffer);
     }
   }
 
-  double getClipInterpolationPosition(Clip* clip1, Clip* clip2, double time) {
-    double overlapLength;
-    double offsetFromStart;
-    if (clip1->start < clip2->start) {
-      overlapLength = clip1->end - clip2->start;
-      offsetFromStart = time - clip2->start;
-    } else {
-      overlapLength = clip2->end - clip1->start;
-      offsetFromStart = time - clip1->start;
-    }
-    return offsetFromStart / overlapLength;
-  }
+  //double getClipInterpolationPosition(Clip* clip1, Clip* clip2, double time) {
+  //  double overlapLength;
+  //  double offsetFromStart;
+  //  if (clip1->start < clip2->start) {
+  //    overlapLength = clip1->end - clip2->start;
+  //    offsetFromStart = time - clip2->start;
+  //  } else {
+  //    overlapLength = clip2->end - clip1->start;
+  //    offsetFromStart = time - clip1->start;
+  //  }
+  //  return offsetFromStart / overlapLength;
+  //}
 
   void interpolateParameters(Preset* p1, Preset* p2, double position) {
     auto& beginParameters = p1->parameters;
@@ -75,28 +75,28 @@ struct Engine : juce::ValueTree::Listener {
     }
   }
   
-  Clip* getFirstActiveClip(double time) {
-    for (auto& clip : clips) {
-      if (time >= clip->start && time <= clip->end) {
-        return clip.get();
-      }
-    }
-    return nullptr;
-  }
+  //Clip* getFirstActiveClip(double time) {
+  //  for (auto& clip : clips) {
+  //    if (time >= clip->start && time <= clip->end) {
+  //      return clip.get();
+  //    }
+  //  }
+  //  return nullptr;
+  //}
 
-  Clip* getSecondActiveClip(double time) {
-    bool foundFirst = false;
-    for (auto& clip : clips) {
-      if (time >= clip->start && time <= clip->end) {
-        if (foundFirst) {
-          return clip.get();
-        } else {
-          foundFirst = true;
-        }
-      }
-    }
-    return nullptr;
-  }
+  //Clip* getSecondActiveClip(double time) {
+  //  bool foundFirst = false;
+  //  for (auto& clip : clips) {
+  //    if (time >= clip->start && time <= clip->end) {
+  //      if (foundFirst) {
+  //        return clip.get();
+  //      } else {
+  //        foundFirst = true;
+  //      }
+  //    }
+  //  }
+  //  return nullptr;
+  //}
 
   Preset* getPresetForClip(Clip* clip) {
     for (auto& preset : presets) {

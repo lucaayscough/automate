@@ -5,11 +5,6 @@
 namespace atmt {
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
-  struct Overlap {
-    double start = 0;
-    double end = 0;
-  };
-
   struct Clip : juce::Component, atmt::Clip {
     Clip(juce::ValueTree& vt, juce::UndoManager* um) : atmt::Clip(vt, um) {}
 
@@ -17,19 +12,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       g.fillAll(juce::Colours::red);
       g.drawRect(getLocalBounds());
       g.drawText(name, getLocalBounds(), juce::Justification::centred);
-      
-      if (isOverlapping()) {
-        for (auto& overlap : overlaps) {
-          auto r = getLocalBounds().toFloat();
-          r.removeFromLeft(float(overlap.start));
-          r.removeFromRight(float(getWidth() - overlap.end));
-          g.fillCheckerBoard(r, 5, 5, juce::Colours::blue, juce::Colours::yellow);
-        }
-      }
-    }
-
-    bool isOverlapping() {
-      return overlaps.size() > 0 ? true : false;
     }
 
     void mouseDown(const juce::MouseEvent& e) {
@@ -42,38 +24,16 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     void mouseDrag(const juce::MouseEvent& e) {
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-      if (isTrimDrag) {
-        if (isLeftTrimDrag) {
-          start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
-        } else {
-          end.setValue((parentLocalPoint.x + mouseDownOffset) / zoom, undoManager);
-        }
-      } else {
-        auto length = getLength();
-        start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
-        end.setValue(start + length, undoManager);
-      }
+      start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
     }
 
     void beginDrag(const juce::MouseEvent& e) {
       mouseDownOffset = e.position.x;
-      if (e.position.x < trimThreshold) {
-        isTrimDrag = true;
-        isLeftTrimDrag = true;
-      } else if (e.position.x > (getLength() * zoom) - trimThreshold) {
-        mouseDownOffset = (getLength() * zoom) - e.position.x;
-        isTrimDrag = true;
-        isLeftTrimDrag = false;
-      }
     }
 
     void endDrag() {
       isTrimDrag = false;
       mouseDownOffset = 0;
-    }
-
-    double getLength() {
-      return end - start;
     }
 
     juce::ValueTree editValueTree { state.getParent() };
@@ -85,16 +45,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     bool isTrimDrag = false;
     bool isLeftTrimDrag = false;
     double mouseDownOffset = 0;
-
-    void clearOverlaps() {
-      overlaps.clear();
-    }
-
-    void addOverlap(double overlapStart, double overlapEnd) {
-      overlaps.push_back({ overlapStart * zoom, overlapEnd * zoom }); 
-    }
-
-    std::vector<Overlap> overlaps;
   };
 
   Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
@@ -116,13 +66,16 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     g.setColour(juce::Colours::black);
     auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
     g.fillRect(time, r.getY(), 2, getHeight());
+    g.setColour(juce::Colours::orange);
+    g.strokePath(automation, juce::PathStrokeType { 1.f });
   }
 
   void resized() override {
+    automation.clear();
     for (auto* clip : clips) {
-      clip->setBounds(int(clip->start * zoom), 0, int(clip->getLength() * zoom), getHeight());
+      clip->setBounds(int(clip->start * zoom), clip->top ? 0 : getHeight() - 25, 25, 25);
+      automation.lineTo(clip->getBounds().getCentre().toFloat());
     }
-    setClipOverlaps();
   }
 
   void rebuildClips() {
@@ -156,7 +109,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
     auto start = details.localPosition.x / zoom;
-    manager.addClip(name, start);
+    auto top = details.localPosition.y < getHeight() / 2;
+    manager.addClip(name, start, top);
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
@@ -169,29 +123,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
     if (vt.hasType(ID::CLIP)) {
-      if (id == ID::start || id == ID::end) {
+      if (id == ID::start || id == ID::top) {
         resized();
-      }
-    }
-  }
-
-  void setClipOverlaps() {
-    for (auto clip : clips) {
-      clip->clearOverlaps();
-      for (auto other : clips) {
-        if (clip == other) {
-          continue;
-        } else {
-          if (clip->start <= other->start && clip->end >= other->start) {
-            if (clip->end >= other->end) {
-              clip->addOverlap(other->start - clip->start, other->end - clip->start);
-            } else {
-              clip->addOverlap(other->start - clip->start, clip->end - clip->start);
-            }
-          } else if (clip->start >= other->start && other->end >= clip->start) {
-            clip->addOverlap(0, other->end - clip->start);
-          }
-        }
       }
     }
   }
@@ -217,6 +150,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
   static constexpr double zoomDeltaScale = 5.0;
   juce::Viewport viewport;
+  juce::Path automation;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };

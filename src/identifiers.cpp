@@ -12,7 +12,7 @@ const juce::Identifier ID::CLIP             { "CLIP" };
 const juce::Identifier ID::pluginID         { "pluginID" };
 const juce::Identifier ID::name             { "name" };
 const juce::Identifier ID::start            { "start" }; 
-const juce::Identifier ID::end              { "end" }; 
+const juce::Identifier ID::top              { "top" }; 
 const juce::Identifier ID::parameters       { "parameters" };
 const juce::Identifier ID::zoom             { "zoom" };
 

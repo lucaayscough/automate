@@ -15,7 +15,7 @@ struct StateManager : juce::ValueTree::Listener
   juce::ValueTree getState();
   void validate();
 
-  void addClip(const juce::String&, double);
+  void addClip(const juce::String&, double, bool);
   void removeClipsIfInvalid(const juce::var&);
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
@@ -33,7 +33,6 @@ struct StateManager : juce::ValueTree::Listener
   juce::ValueTree edit          { ID::EDIT     };
   juce::ValueTree presets       { ID::PRESETS  };
 
-  static constexpr double defaultClipLength = 1;
   static constexpr double defaultZoomValue = 100;
 };
 
@@ -59,9 +58,9 @@ struct Clip {
   juce::ValueTree state;
   juce::UndoManager* undoManager;
 
-  juce::CachedValue<juce::String> name { state, ID::name, undoManager };
-  juce::CachedValue<double> start { state, ID::start, undoManager };
-  juce::CachedValue<double> end   { state, ID::end, undoManager };
+  juce::CachedValue<juce::String> name { state, ID::name,  undoManager };
+  juce::CachedValue<double> start      { state, ID::start, undoManager };
+  juce::CachedValue<bool>   top        { state, ID::top,   undoManager };
 };
 
 } // namespace atmt 

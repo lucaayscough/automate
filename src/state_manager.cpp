@@ -62,12 +62,12 @@ void StateManager::validate() {
   jassert(presets.isValid());
 }
 
-void StateManager::addClip(const juce::String& name, double start) {
+void StateManager::addClip(const juce::String& name, double start, bool top) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   juce::ValueTree clip { ID::CLIP };
   clip.setProperty(ID::start, start, undoManager)
-      .setProperty(ID::end, start + defaultClipLength, undoManager)
+      .setProperty(ID::top, top, undoManager)
       .setProperty(ID::name, name, undoManager);
   edit.addChild(clip, -1, undoManager);
 }
