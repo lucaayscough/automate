@@ -39,6 +39,7 @@ struct Engine : juce::ValueTree::Listener {
           auto clipPair = getClipPair(*time);
 
           if (clipPair.a && !clipPair.b) {
+            DBG("sds");
             auto preset = getPresetForClip(clipPair.a);
             setParameters(preset);
           } else if (clipPair.a && clipPair.b) {
@@ -71,14 +72,13 @@ struct Engine : juce::ValueTree::Listener {
     ClipPair clipPair;
 
     auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->start; }; 
-    auto it = std::find_if(clips.begin(), clips.end(), cond);
+    auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
-    if (it != clips.end()) {
+    if (it != clips.rend()) {
       clipPair.a = it->get();
-
-      if (it + 1 != clips.end()) {
+      if (it + 1 != clips.rend()) {
         clipPair.b = (it + 1)->get();
-      }
+      } 
     } else if (clips.size() > 0) {
       clipPair.a = clips[0].get();
     }
