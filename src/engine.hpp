@@ -79,6 +79,8 @@ struct Engine : juce::ValueTree::Listener {
       if (it + 1 != clips.end()) {
         clipPair.b = (it + 1)->get();
       }
+    } else if (clips.size() > 0) {
+      clipPair.a = clips[0].get();
     }
 
     return clipPair;

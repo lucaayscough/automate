@@ -6,23 +6,28 @@ namespace atmt {
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
   struct Clip : juce::Component, atmt::Clip {
-    Clip(juce::ValueTree& vt, juce::UndoManager* um) : atmt::Clip(vt, um) {}
+    Clip(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um)
+      : atmt::Clip(vt, um), manager(m) {}
 
-    void paint(juce::Graphics& g) {
+    void paint(juce::Graphics& g) override {
       g.fillAll(juce::Colours::red);
       g.drawRect(getLocalBounds());
       g.drawText(name, getLocalBounds(), juce::Justification::centred);
     }
 
-    void mouseDown(const juce::MouseEvent& e) {
+    void mouseDown(const juce::MouseEvent& e) override {
       beginDrag(e);
     }
 
-    void mouseUp(const juce::MouseEvent&) {
+    void mouseDoubleClick(const juce::MouseEvent&) override {
+      manager.removeClip(state); 
+    }
+
+    void mouseUp(const juce::MouseEvent&) override {
       endDrag();
     }
 
-    void mouseDrag(const juce::MouseEvent& e) {
+    void mouseDrag(const juce::MouseEvent& e) override {
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
       start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
     }
@@ -36,6 +41,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       mouseDownOffset = 0;
     }
 
+    StateManager& manager;
     juce::ValueTree editValueTree { state.getParent() };
 
     // TODO(luca): create coordinate converters and move somewhere else
@@ -84,7 +90,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   }
 
   void addClip(juce::ValueTree& clipValueTree) {
-    auto clip = new Clip(clipValueTree, undoManager);
+    auto clip = new Clip(manager, clipValueTree, undoManager);
     addAndMakeVisible(clip);
     clips.add(clip);
   }
@@ -92,7 +98,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void removeClip(juce::ValueTree& clipValueTree) {
     auto name = clipValueTree[ID::name].toString();
     for (int i = 0; i < clips.size(); ++i) {
-      if (clips[i]->name == name) {
+      if (clips[i]->state == clipValueTree) {
         clips.remove(i);
         break;
       }

@@ -56,6 +56,7 @@ struct StateManager : juce::ValueTree::Listener
   void validate();
 
   void addClip(const juce::String&, double, bool);
+  void removeClip(const juce::ValueTree& vt);
   void removeClipsIfInvalid(const juce::var&);
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);

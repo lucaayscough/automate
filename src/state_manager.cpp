@@ -73,6 +73,10 @@ void StateManager::addClip(const juce::String& name, double start, bool top) {
   edit.addChild(clip, -1, undoManager);
 }
 
+void StateManager::removeClip(const juce::ValueTree& vt) {
+  edit.removeChild(vt, undoManager);
+}
+
 void StateManager::removeClipsIfInvalid(const juce::var& preset) {
   JUCE_ASSERT_MESSAGE_THREAD
 
@@ -145,15 +149,15 @@ void StateManager::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTre
     removeClipsIfInvalid(child[ID::name]);
   } else if (parent.hasType(ID::EDIT)) {
     if (child.hasType(ID::CLIP)) {
-      auto name = child[ID::name].toString();
-
-      auto cond = [&] (const std::unique_ptr<Clip>& c) { return name == c->name; };
+      // TODO: don't really know where this should go
+      auto cond = [&] (const std::unique_ptr<Clip>& c) { return child == c->state; };
       auto it = std::find_if(clips.begin(), clips.end(), cond);
 
       if (it != clips.end()) {
         clips.erase(it);
       }
     }
+
     updateAutomation();
   }
 }
