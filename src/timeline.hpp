@@ -57,7 +57,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   }
 
   void timerCallback() override {
-    repaint();
+    repaint(); // NOTE(luca): used for the playead
   }
 
   void paint(juce::Graphics& g) override {
@@ -67,14 +67,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
     g.fillRect(time, r.getY(), 2, getHeight());
     g.setColour(juce::Colours::orange);
-    g.strokePath(automation, juce::PathStrokeType { 1.f });
+    g.strokePath(automation, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
   }
 
   void resized() override {
-    automation.clear();
     for (auto* clip : clips) {
       clip->setBounds(int(clip->start * zoom), clip->top ? 0 : getHeight() - 25, 25, 25);
-      automation.lineTo(clip->getBounds().getCentre().toFloat());
     }
   }
 
@@ -89,7 +87,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     auto clip = new Clip(clipValueTree, undoManager);
     addAndMakeVisible(clip);
     clips.add(clip);
-    resized();
   }
 
   void removeClip(juce::ValueTree& clipValueTree) {
@@ -97,6 +94,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     for (int i = 0; i < clips.size(); ++i) {
       if (clips[i]->name == name) {
         clips.remove(i);
+        break;
       }
     }
   }
@@ -115,14 +113,20 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
     addClip(child);
+    resized();
   }
 
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
     removeClip(child);
+    resized();
   }
 
   void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
-    if (vt.hasType(ID::CLIP)) {
+    if (vt.hasType(ID::EDIT)) {
+      if (id == ID::zoom) {
+        resized();
+      }
+    } else if (vt.hasType(ID::CLIP)) {
       if (id == ID::start || id == ID::top) {
         resized();
       }
@@ -139,7 +143,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     double x1 = mouseX * zoom;
     double dx = (x1 - x0) / zoom;
     viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
-    resized();
   }
 
   StateManager& manager;
@@ -150,7 +153,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
   static constexpr double zoomDeltaScale = 5.0;
   juce::Viewport viewport;
-  juce::Path automation;
+  juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };

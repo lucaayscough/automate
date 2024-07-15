@@ -16,6 +16,7 @@ void StateManager::init() {
   state.appendChild(edit, undoManager);
   state.appendChild(presets, undoManager);
 
+  edit.setProperty(ID::automation, {}, undoManager);
   edit.setProperty(ID::zoom, defaultZoomValue, undoManager);
 
   undoManager->clearUndoHistory();
@@ -114,11 +115,56 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
   return false;
 }
 
-void StateManager::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) {
+void StateManager::updateAutomation() {
+  auto cmp = [] (const std::unique_ptr<Clip>& a, const std::unique_ptr<Clip>& b) { return a->start < b->start; };
+  std::sort(clips.begin(), clips.end(), cmp);
+
+  juce::Path automation;
+  for (auto& clip : clips) {
+    automation.lineTo(float(clip->start), clip->top ? 0 : 1);
+  }
+
+  edit.setProperty(ID::automation, automation.toString(), undoManager);
+}
+
+void StateManager::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  if (parent.hasType(ID::EDIT)) {
+    if (child.hasType(ID::CLIP)) {
+      clips.emplace_back(std::make_unique<Clip>(child, undoManager)); 
+    }
+    updateAutomation();
+  }
+}
+
+void StateManager::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   if (child.hasType(ID::PRESET)) {
     removeClipsIfInvalid(child[ID::name]);
+  } else if (parent.hasType(ID::EDIT)) {
+    if (child.hasType(ID::CLIP)) {
+      auto name = child[ID::name].toString();
+
+      auto cond = [&] (const std::unique_ptr<Clip>& c) { return name == c->name; };
+      auto it = std::find_if(clips.begin(), clips.end(), cond);
+
+      if (it != clips.end()) {
+        clips.erase(it);
+      }
+    }
+    updateAutomation();
+  }
+}
+
+void StateManager::valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  if (vt.hasType(ID::CLIP)) {
+    if (id == ID::start || id == ID::top) {
+      updateAutomation();
+    }
   }
 }
 

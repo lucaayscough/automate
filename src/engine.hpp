@@ -9,6 +9,11 @@
 namespace atmt {
 
 struct Engine : juce::ValueTree::Listener {
+  struct ClipPair {
+    Clip* a = nullptr;
+    Clip* b = nullptr;
+  };
+
   Engine(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
     editTree.addListener(this);
     presetsTree.addListener(this);
@@ -22,44 +27,31 @@ struct Engine : juce::ValueTree::Listener {
 
   void process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
     if (instance) {
-      //auto playhead = apvts.processor.getPlayHead();
-      //auto position = playhead->getPosition();
+      auto playhead = apvts.processor.getPlayHead();
+      auto position = playhead->getPosition();
 
-      //if (position.hasValue()) {
-      //  auto time = position->getTimeInSeconds();
-      //  if (time.hasValue()) {
-      //    uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
+      if (position.hasValue()) {
+        auto time = position->getTimeInSeconds();
+        if (time.hasValue()) {
+          uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
 
-      //    // TODO(luca): handle more than 2 overlapping clips and clips which have same start time
-      //    auto clip1 = getFirstActiveClip(*time);
-      //    auto clip2 = getSecondActiveClip(*time);
+          auto lerpPos = automation.getPointAlongPath(float(*time)).y;
+          auto clipPair = getClipPair(*time);
 
-      //    if (clip1 && !clip2) {
-      //      auto preset = getPresetForClip(clip1);
-      //      setParameters(preset);
-      //    } else if (clip1 && clip2) {
-      //      double lerpPos = getClipInterpolationPosition(clip1, clip2, *time);
-      //      interpolateParameters(getPresetForClip(clip1), getPresetForClip(clip2), lerpPos); 
-      //    }
-      //  }
-      //}
+          if (clipPair.a && !clipPair.b) {
+            auto preset = getPresetForClip(clipPair.a);
+            setParameters(preset);
+          } else if (clipPair.a && clipPair.b) {
+            auto p1 = getPresetForClip(clipPair.a);
+            auto p2 = getPresetForClip(clipPair.b);
+            interpolateParameters(p1, p2, clipPair.a->top ? lerpPos : 1.0 - lerpPos); 
+          }
+        }
+      }
 
       instance->processBlock(buffer, midiBuffer);
     }
   }
-
-  //double getClipInterpolationPosition(Clip* clip1, Clip* clip2, double time) {
-  //  double overlapLength;
-  //  double offsetFromStart;
-  //  if (clip1->start < clip2->start) {
-  //    overlapLength = clip1->end - clip2->start;
-  //    offsetFromStart = time - clip2->start;
-  //  } else {
-  //    overlapLength = clip2->end - clip1->start;
-  //    offsetFromStart = time - clip1->start;
-  //  }
-  //  return offsetFromStart / overlapLength;
-  //}
 
   void interpolateParameters(Preset* p1, Preset* p2, double position) {
     auto& beginParameters = p1->parameters;
@@ -75,28 +67,22 @@ struct Engine : juce::ValueTree::Listener {
     }
   }
   
-  //Clip* getFirstActiveClip(double time) {
-  //  for (auto& clip : clips) {
-  //    if (time >= clip->start && time <= clip->end) {
-  //      return clip.get();
-  //    }
-  //  }
-  //  return nullptr;
-  //}
+  ClipPair getClipPair(double time) {
+    ClipPair clipPair;
 
-  //Clip* getSecondActiveClip(double time) {
-  //  bool foundFirst = false;
-  //  for (auto& clip : clips) {
-  //    if (time >= clip->start && time <= clip->end) {
-  //      if (foundFirst) {
-  //        return clip.get();
-  //      } else {
-  //        foundFirst = true;
-  //      }
-  //    }
-  //  }
-  //  return nullptr;
-  //}
+    auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->start; }; 
+    auto it = std::find_if(clips.begin(), clips.end(), cond);
+
+    if (it != clips.end()) {
+      clipPair.a = it->get();
+
+      if (it + 1 != clips.end()) {
+        clipPair.b = (it + 1)->get();
+      }
+    }
+
+    return clipPair;
+  }
 
   Preset* getPresetForClip(Clip* clip) {
     for (auto& preset : presets) {
@@ -172,16 +158,37 @@ struct Engine : juce::ValueTree::Listener {
   }
 
   void addClip(juce::ValueTree& clipTree) {
-    auto clip = std::make_unique<Clip>(clipTree, undoManager);
-
     proc.suspendProcessing(true);
-    clips.push_back(std::move(clip));
+    clips.emplace_back(std::make_unique<Clip>(clipTree, undoManager));
     proc.suspendProcessing(false);
   }
 
-  void removeClip(int index) {
+  void removeClip(juce::ValueTree& clipTree) {
+    auto name = clipTree[ID::name].toString();
+    auto cond = [name] (const std::unique_ptr<Clip>& c) { return name == c->name; };
+    auto it = std::find_if(clips.begin(), clips.end(), cond);
+
+    if (it != clips.end()) {
+      proc.suspendProcessing(true);
+      clips.erase(it);
+      proc.suspendProcessing(false);
+    } else {
+      jassertfalse;
+    }
+  }
+
+  void sortClipsByStartTime() {
+    using Clip = const std::unique_ptr<Clip>&;
+    auto cmp = [] (Clip a, Clip b) { return a->start < b->start; };
+
     proc.suspendProcessing(true);
-    clips.erase(clips.begin() + index);
+    std::sort(clips.begin(), clips.end(), cmp);
+    proc.suspendProcessing(false);
+  }
+
+  void updateAutomation(const juce::var& v) {
+    proc.suspendProcessing(true);
+    automation.restoreFromString(v.toString());
     proc.suspendProcessing(false);
   }
 
@@ -190,6 +197,7 @@ struct Engine : juce::ValueTree::Listener {
       addPreset(child);
     } else if (child.hasType(ID::CLIP)) {
       addClip(child);
+      sortClipsByStartTime();
     }
   }
 
@@ -197,7 +205,18 @@ struct Engine : juce::ValueTree::Listener {
     if (child.hasType(ID::PRESET)) {
       removePreset(index);
     } else if (child.hasType(ID::CLIP)) {
-      removeClip(index);
+      removeClip(child);
+      sortClipsByStartTime();
+    }
+  }
+
+  void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
+    if (vt.hasType(ID::EDIT) && id == ID::automation) {
+      updateAutomation(vt[id]);
+    } else if (vt.hasType(ID::CLIP)) {
+      if (id == ID::start) {
+        sortClipsByStartTime();
+      }
     }
   }
 
@@ -227,6 +246,8 @@ struct Engine : juce::ValueTree::Listener {
 
   std::vector<std::unique_ptr<Preset>> presets;
   std::vector<std::unique_ptr<Clip>> clips;
+
+  juce::Path automation;
 };
 
 } // namespace atmt

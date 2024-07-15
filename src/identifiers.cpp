@@ -15,5 +15,6 @@ const juce::Identifier ID::start            { "start" };
 const juce::Identifier ID::top              { "top" }; 
 const juce::Identifier ID::parameters       { "parameters" };
 const juce::Identifier ID::zoom             { "zoom" };
+const juce::Identifier ID::automation       { "automation" };
 
 } // namespace atmt
