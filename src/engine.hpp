@@ -39,7 +39,6 @@ struct Engine : juce::ValueTree::Listener {
           auto clipPair = getClipPair(*time);
 
           if (clipPair.a && !clipPair.b) {
-            DBG("sds");
             auto preset = getPresetForClip(clipPair.a);
             setParameters(preset);
           } else if (clipPair.a && clipPair.b) {
