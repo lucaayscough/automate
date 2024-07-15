@@ -30,6 +30,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     void mouseDrag(const juce::MouseEvent& e) override {
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
       start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+
+      if (parentLocalPoint.y > getHeight() / 2) {
+        top.setValue(false, undoManager);
+      } else {
+        top.setValue(true, undoManager);
+      }
     }
 
     void beginDrag(const juce::MouseEvent& e) {
