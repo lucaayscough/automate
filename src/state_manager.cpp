@@ -3,9 +3,7 @@
 
 namespace atmt {
 
-StateManager::StateManager(juce::AudioProcessorValueTreeState& _apvts)
-  : apvts(_apvts) {
-  undoManager = apvts.undoManager;
+StateManager::StateManager(juce::AudioProcessorValueTreeState& a) : apvts(a) {
   init();
 }
 
@@ -16,6 +14,8 @@ void StateManager::init() {
   state.appendChild(edit, undoManager);
   state.appendChild(presets, undoManager);
 
+  edit.setProperty(ID::editMode, false, nullptr);
+  //edit.setProperty(ID::pluginID, {}, undoManager);
   edit.setProperty(ID::automation, {}, undoManager);
   edit.setProperty(ID::zoom, defaultZoomValue, undoManager);
 

@@ -9,17 +9,30 @@ namespace atmt {
 struct DebugTools : juce::Component {
   DebugTools(StateManager& m) : manager(m) {
     addAndMakeVisible(printStateButton);
-    printStateButton.onClick = [this] {
-      DBG(manager.valueTreeToXmlString(manager.state));
-    };
+    addAndMakeVisible(editModeButton);
+
+    printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
+    editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editModeButton.getToggleState() }); };
   }
   
   void resized() override {
-    printStateButton.setBounds(getLocalBounds());
+    auto r = getLocalBounds();
+    printStateButton.setBounds(r.removeFromLeft(getWidth() / 2));
+    editModeButton.setBounds(r);
+  }
+
+  void editModeChangeCallback(const juce::var& v) {
+    editModeButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
+    // TODO(luca): something here is wrong
+    DBG("Change toggle state");
   }
 
   StateManager& manager;
+  juce::ValueTree editTree { manager.edit };
   juce::TextButton printStateButton { "Print State" };
+  juce::ToggleButton editModeButton { "Edit Mode" };
+
+  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr };
 };
 
 struct DescriptionBar : juce::Component {

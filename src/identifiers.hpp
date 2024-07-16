@@ -12,6 +12,7 @@ struct ID {
   static const juce::Identifier EDIT;
   static const juce::Identifier CLIP;
 
+  static const juce::Identifier editMode;
   static const juce::Identifier pluginID;
   static const juce::Identifier name;
   static const juce::Identifier start; 

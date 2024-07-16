@@ -70,7 +70,7 @@ struct StateManager : juce::ValueTree::Listener
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 
   juce::AudioProcessorValueTreeState& apvts;
-  juce::UndoManager* undoManager;
+  juce::UndoManager* undoManager { apvts.undoManager };
 
   juce::ValueTree state         { ID::AUTOMATE };
   juce::ValueTree parameters    { apvts.state  };

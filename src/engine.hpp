@@ -1,5 +1,6 @@
 #pragma once
 
+#include "state_attachment.hpp"
 #include "identifiers.hpp"
 #include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -8,7 +9,7 @@
 
 namespace atmt {
 
-struct Engine : juce::ValueTree::Listener {
+struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
   struct ClipPair {
     Clip* a = nullptr;
     Clip* b = nullptr;
@@ -19,9 +20,16 @@ struct Engine : juce::ValueTree::Listener {
     presetsTree.addListener(this);
   }
 
+  ~Engine() override {
+    if (instance) {
+      instance->removeListener(this);
+    }
+  }
+
   void prepare(double sampleRate, int blockSize) {
     if (instance) {
       instance->prepareToPlay(sampleRate, blockSize);
+      instance->addListener(this);
     }
   }
 
@@ -35,16 +43,18 @@ struct Engine : juce::ValueTree::Listener {
         if (time.hasValue()) {
           uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
 
-          auto lerpPos = automation.getPointAlongPath(float(*time)).y;
-          auto clipPair = getClipPair(*time);
+          if (!editMode) {
+            auto lerpPos = automation.getPointAlongPath(float(*time)).y;
+            auto clipPair = getClipPair(*time);
 
-          if (clipPair.a && !clipPair.b) {
-            auto preset = getPresetForClip(clipPair.a);
-            setParameters(preset);
-          } else if (clipPair.a && clipPair.b) {
-            auto p1 = getPresetForClip(clipPair.a);
-            auto p2 = getPresetForClip(clipPair.b);
-            interpolateParameters(p1, p2, clipPair.a->top ? lerpPos : 1.0 - lerpPos); 
+            if (clipPair.a && !clipPair.b) {
+              auto preset = getPresetForClip(clipPair.a);
+              setParameters(preset);
+            } else if (clipPair.a && clipPair.b) {
+              auto p1 = getPresetForClip(clipPair.a);
+              auto p2 = getPresetForClip(clipPair.b);
+              interpolateParameters(p1, p2, clipPair.a->top ? lerpPos : 1.0 - lerpPos); 
+            }
           }
         }
       }
@@ -221,6 +231,24 @@ struct Engine : juce::ValueTree::Listener {
     }
   }
 
+  void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+  void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override {}
+
+  void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) override {
+    if (!editMode) {
+      editModeAttachment.setValue({ true });
+    }
+  }
+
+  void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override {
+    // TODO(luca): implent this
+  }
+
+  void editModeChangeCallback(const juce::var& v)
+  {
+    editMode = bool(v); 
+  }
+
   bool hasInstance() {
     if (instance)
       return true;
@@ -247,6 +275,9 @@ struct Engine : juce::ValueTree::Listener {
 
   std::vector<std::unique_ptr<Preset>> presets;
   std::vector<std::unique_ptr<Clip>> clips;
+
+  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
+  std::atomic<bool> editMode = false;
 
   juce::Path automation;
 };

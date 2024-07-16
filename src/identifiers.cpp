@@ -9,6 +9,7 @@ const juce::Identifier ID::PRESET           { "PRESET" };
 const juce::Identifier ID::EDIT             { "EDIT" };
 const juce::Identifier ID::CLIP             { "CLIP" };
 
+const juce::Identifier ID::editMode         { "editMode" };
 const juce::Identifier ID::pluginID         { "pluginID" };
 const juce::Identifier ID::name             { "name" };
 const juce::Identifier ID::start            { "start" }; 
