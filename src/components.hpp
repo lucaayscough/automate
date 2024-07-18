@@ -12,7 +12,7 @@ struct DebugTools : juce::Component {
     addAndMakeVisible(editModeButton);
 
     printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
-    editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editModeButton.getToggleState() }); };
+    editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
   }
   
   void resized() override {
@@ -23,12 +23,11 @@ struct DebugTools : juce::Component {
 
   void editModeChangeCallback(const juce::var& v) {
     editModeButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
-    // TODO(luca): something here is wrong
-    DBG("Change toggle state");
   }
 
   StateManager& manager;
   juce::ValueTree editTree { manager.edit };
+  juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
   juce::ToggleButton editModeButton { "Edit Mode" };
 
