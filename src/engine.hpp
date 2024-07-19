@@ -79,17 +79,17 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
   
   ClipPair getClipPair(double time) {
     ClipPair clipPair;
-
+    
     auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->start; }; 
-    auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
+    auto it = std::find_if(clips.begin(), clips.end(), cond);
 
-    if (it != clips.rend()) {
+    if (it != clips.end()) {
       clipPair.a = it->get();
-      if (it + 1 != clips.rend()) {
-        clipPair.b = (it + 1)->get();
-      } 
-    } else if (clips.size() > 0) {
-      clipPair.a = clips[0].get();
+      if (std::next(it) != clips.end()) {
+        clipPair.b = std::next(it)->get();
+      }
+    } else {
+      clipPair.a = clips.front().get();
     }
 
     return clipPair;
@@ -244,8 +244,7 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
     // TODO(luca): implent this
   }
 
-  void editModeChangeCallback(const juce::var& v)
-  {
+  void editModeChangeCallback(const juce::var& v) {
     editMode = bool(v); 
   }
 
