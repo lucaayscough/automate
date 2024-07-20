@@ -23,6 +23,8 @@ private:
   StateManager& manager { proc.manager };
   UIBridge& uiBridge { proc.uiBridge };
 
+  juce::TooltipWindow tooltipWindow { this };
+
   int width = 1280;
   int height = 720;
 

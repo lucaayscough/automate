@@ -5,14 +5,15 @@
 namespace atmt {
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
-  struct Clip : juce::Component, atmt::Clip {
+  struct Clip : juce::Component, atmt::Clip, juce::SettableTooltipClient {
     Clip(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um)
-      : atmt::Clip(vt, um), manager(m) {}
+      : atmt::Clip(vt, um), manager(m) {
+      setTooltip(name);
+    }
 
     void paint(juce::Graphics& g) override {
-      g.fillAll(juce::Colours::red);
-      g.drawRect(getLocalBounds());
-      g.drawText(name, getLocalBounds(), juce::Justification::centred);
+      g.setColour(juce::Colours::red);
+      g.fillEllipse(getLocalBounds().toFloat());
     }
 
     void mouseDown(const juce::MouseEvent& e) override {
@@ -60,9 +61,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   };
 
   struct AutomationLane : juce::Component {
-    AutomationLane(StateManager& m) : manager(m) {
-      
-    }
+    AutomationLane(StateManager& m) : manager(m) {}
 
     void paint(juce::Graphics& g) override {
       g.setColour(juce::Colours::orange);
