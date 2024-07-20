@@ -37,6 +37,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       } else {
         top.setValue(true, undoManager);
       }
+
+      manager.updateAutomation();
     }
 
     void beginDrag(const juce::MouseEvent& e) {
@@ -136,23 +138,9 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void rebuildClips() {
     clips.clear();
     for (auto child : editTree) {
-      addClip(child);
-    }
-  }
-
-  void addClip(juce::ValueTree& clipValueTree) {
-    auto clip = new Clip(manager, clipValueTree, undoManager);
-    addAndMakeVisible(clip);
-    clips.add(clip);
-  }
-
-  void removeClip(juce::ValueTree& clipValueTree) {
-    auto name = clipValueTree[ID::name].toString();
-    for (int i = 0; i < clips.size(); ++i) {
-      if (clips[i]->state == clipValueTree) {
-        clips.remove(i);
-        break;
-      }
+      auto clip = new Clip(manager, child, undoManager);
+      addAndMakeVisible(clip);
+      clips.add(clip);
     }
   }
 
@@ -168,13 +156,13 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     manager.addClip(name, start, top);
   }
 
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
-    addClip(child);
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override {
+    rebuildClips();
     resized();
   }
 
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int) override { 
-    removeClip(child);
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override { 
+    rebuildClips();
     resized();
   }
 

@@ -71,10 +71,12 @@ void StateManager::addClip(const juce::String& name, double start, bool top) {
       .setProperty(ID::top, top, undoManager)
       .setProperty(ID::name, name, undoManager);
   edit.addChild(clip, -1, undoManager);
+  updateAutomation();
 }
 
 void StateManager::removeClip(const juce::ValueTree& vt) {
   edit.removeChild(vt, undoManager);
+  updateAutomation();
 }
 
 void StateManager::removeClipsIfInvalid(const juce::var& preset) {
@@ -138,7 +140,6 @@ void StateManager::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree&
     if (child.hasType(ID::CLIP)) {
       clips.emplace_back(std::make_unique<Clip>(child, undoManager)); 
     }
-    updateAutomation();
   }
 }
 
@@ -156,18 +157,6 @@ void StateManager::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTre
       if (it != clips.end()) {
         clips.erase(it);
       }
-    }
-
-    updateAutomation();
-  }
-}
-
-void StateManager::valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  if (vt.hasType(ID::CLIP)) {
-    if (id == ID::start || id == ID::top) {
-      updateAutomation();
     }
   }
 }
