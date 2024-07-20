@@ -44,7 +44,9 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
           uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
 
           if (!editMode) {
-            auto lerpPos = automation.getPointAlongPath(float(*time)).y;
+            // TODO(luca): find nicer way of doing this scaling
+            auto lerpPos = automation.getPointAlongPath(float(*time), juce::AffineTransform::scale(1, 0.000001f)).y * 1000000.0;
+            jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
             auto clipPair = getClipPair(*time);
 
             if (clipPair.a && !clipPair.b) {
