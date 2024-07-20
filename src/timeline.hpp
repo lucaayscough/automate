@@ -53,7 +53,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     StateManager& manager;
     juce::ValueTree editValueTree { state.getParent() };
 
-    // TODO(luca): create coordinate converters and move somewhere else
     juce::CachedValue<double> zoom { editValueTree, ID::zoom, undoManager };
 
     static constexpr int trimThreshold = 20;
