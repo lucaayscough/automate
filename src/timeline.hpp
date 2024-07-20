@@ -59,7 +59,25 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     double mouseDownOffset = 0;
   };
 
+  struct AutomationLane : juce::Component {
+    AutomationLane(StateManager& m) : manager(m) {
+      
+    }
+
+    void paint(juce::Graphics& g) override {
+      g.setColour(juce::Colours::orange);
+      g.strokePath(automation, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
+    }
+
+    StateManager& manager;
+    juce::UndoManager* undoManager { manager.undoManager };
+    juce::ValueTree editTree { manager.edit };
+    juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
+    juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
+  };
+
   Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
+    addAndMakeVisible(automationLane);
     rebuildClips();
     editTree.addListener(this);
     startTimerHz(60);
@@ -75,16 +93,31 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void paint(juce::Graphics& g) override {
     auto r = getLocalBounds();
     g.fillAll(juce::Colours::grey);
+
+    g.setColour(juce::Colours::coral);
+    g.fillRect(timelineBounds);
+
+    g.setColour(juce::Colours::aqua);
+    g.fillRect(presetLaneTopBounds);
+    g.fillRect(presetLaneBottomBounds);
+
     g.setColour(juce::Colours::black);
     auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
     g.fillRect(time, r.getY(), 2, getHeight());
-    g.setColour(juce::Colours::orange);
-    g.strokePath(automation, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
   }
 
   void resized() override {
+    auto r = getLocalBounds();
+
+    timelineBounds          = r.removeFromTop(timelineHeight);
+    presetLaneTopBounds     = r.removeFromTop(presetLaneHeight);
+    presetLaneBottomBounds  = r.removeFromBottom(presetLaneHeight);
+    automationLane.setBounds(r);
+
     for (auto* clip : clips) {
-      clip->setBounds(int(clip->start * zoom), clip->top ? 0 : getHeight() - 25, 25, 25);
+      clip->setBounds(int(clip->start * zoom) - presetLaneHeight / 2,
+                      clip->top ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
+                      presetLaneHeight, presetLaneHeight);
     }
   }
 
@@ -161,11 +194,18 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   UIBridge& uiBridge;
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.edit };
+  AutomationLane automationLane { manager };
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
   static constexpr double zoomDeltaScale = 5.0;
   juce::Viewport viewport;
-  juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
+
+  static constexpr int timelineHeight = 20;
+  static constexpr int presetLaneHeight = 25;
+
+  juce::Rectangle<int> timelineBounds;
+  juce::Rectangle<int> presetLaneTopBounds;
+  juce::Rectangle<int> presetLaneBottomBounds;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
