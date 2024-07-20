@@ -90,7 +90,7 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
       if (std::next(it) != clips.end()) {
         clipPair.b = std::next(it)->get();
       }
-    } else {
+    } else if (!clips.empty()) {
       clipPair.a = clips.front().get();
     }
 

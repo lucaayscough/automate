@@ -89,6 +89,8 @@ void StateManager::removeClipsIfInvalid(const juce::var& preset) {
       --i;
     }
   }
+
+  updateAutomation();
 }
 
 void StateManager::savePreset(const juce::String& name) {
@@ -108,6 +110,7 @@ void StateManager::removePreset(const juce::String& name) {
 
   auto preset = presets.getChildWithProperty(ID::name, name);
   presets.removeChild(preset, undoManager);
+  removeClipsIfInvalid(preset[ID::name]);
 }
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
@@ -146,11 +149,8 @@ void StateManager::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree&
 void StateManager::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  if (child.hasType(ID::PRESET)) {
-    removeClipsIfInvalid(child[ID::name]);
-  } else if (parent.hasType(ID::EDIT)) {
+  if (parent.hasType(ID::EDIT)) {
     if (child.hasType(ID::CLIP)) {
-      // TODO: don't really know where this should go
       auto cond = [&] (const std::unique_ptr<Clip>& c) { return child == c->state; };
       auto it = std::find_if(clips.begin(), clips.end(), cond);
 
