@@ -1,11 +1,10 @@
 # Getting started
 
 ```bash
-git clone --recurse-submodules git@github.com:ctralie/TheRealConcatenator
+git clone --recurse-submodules git@github.com:lucaayscough/automate
 
-cmake -B build
-cmake --build build
+mkdir build && cmake -B build && cmake --build build
 
 # You can find the built binaries in e.g.
-# build/Concatenator_artefacts/Debug/Standalone
+# build/Automate_artefacts/Debug/Standalone
 ```
