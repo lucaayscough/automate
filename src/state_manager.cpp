@@ -21,8 +21,6 @@ void StateManager::init() {
 
   undoManager->clearUndoHistory();
   validate();
-
-  state.addListener(this);
 }
 
 void StateManager::replace(const juce::ValueTree& newState) {
@@ -80,8 +78,6 @@ void StateManager::removeClip(const juce::ValueTree& vt) {
 }
 
 void StateManager::removeClipsIfInvalid(const juce::var& preset) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
   for (int i = 0; i < edit.getNumChildren(); ++i) {
     const auto& clip = edit.getChild(i);
     if (clip[ID::name].toString() == preset.toString()) {
@@ -125,40 +121,12 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
 }
 
 void StateManager::updateAutomation() {
-  auto cmp = [] (const std::unique_ptr<Clip>& a, const std::unique_ptr<Clip>& b) { return a->start < b->start; };
-  std::sort(clips.begin(), clips.end(), cmp);
-
   juce::Path automation;
-  for (auto& clip : clips) {
+  for (auto& clip : clips.clips) {
     automation.lineTo(float(clip->start), clip->top ? 0 : 1);
   }
 
   edit.setProperty(ID::automation, automation.toString(), undoManager);
-}
-
-void StateManager::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  if (parent.hasType(ID::EDIT)) {
-    if (child.hasType(ID::CLIP)) {
-      clips.emplace_back(std::make_unique<Clip>(child, undoManager)); 
-    }
-  }
-}
-
-void StateManager::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  if (parent.hasType(ID::EDIT)) {
-    if (child.hasType(ID::CLIP)) {
-      auto cond = [&] (const std::unique_ptr<Clip>& c) { return child == c->state; };
-      auto it = std::find_if(clips.begin(), clips.end(), cond);
-
-      if (it != clips.end()) {
-        clips.erase(it);
-      }
-    }
-  }
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

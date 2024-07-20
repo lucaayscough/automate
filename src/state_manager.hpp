@@ -19,7 +19,9 @@ struct juce::VariantConverter<juce::Path> {
 
 namespace atmt {
 
-struct Preset {
+struct TreeWrapper {};
+
+struct Preset : TreeWrapper {
   Preset(juce::ValueTree& t, juce::UndoManager* um) : state(t), undoManager(um) {
     jassert(t.isValid());
     jassert(t.hasType(ID::PRESET));
@@ -32,7 +34,7 @@ struct Preset {
   std::vector<float> parameters;
 };
 
-struct Clip {
+struct Clip : TreeWrapper {
   Clip(juce::ValueTree& t, juce::UndoManager* um) : state(t), undoManager(um) {
     jassert(t.isValid());
     jassert(t.hasType(ID::CLIP));
@@ -46,7 +48,38 @@ struct Clip {
   juce::CachedValue<bool>   top        { state, ID::top,   undoManager };
 };
 
-struct StateManager : juce::ValueTree::Listener
+struct Clips : juce::ValueTree::Listener {
+  Clips(juce::ValueTree& t, juce::UndoManager* um)
+    : state(t), undoManager(um) {
+    t.hasType(ID::EDIT);
+    state.addListener(this);
+  }
+
+  void rebuild() {
+    clips.clear();
+    for (auto child : state) {
+      if (child.hasType(ID::CLIP)) {
+        clips.emplace_back(std::make_unique<Clip>(child, undoManager)); 
+      }
+    }
+    auto cmp = [] (const std::unique_ptr<Clip>& a, const std::unique_ptr<Clip>& b) { return a->start < b->start; };
+    std::sort(clips.begin(), clips.end(), cmp);
+  }
+  
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
+    rebuild();
+  }
+
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) {
+    rebuild();
+  }
+   
+  juce::ValueTree state;
+  juce::UndoManager* undoManager;
+  std::vector<std::unique_ptr<Clip>> clips;
+};
+
+struct StateManager
 {
   StateManager(juce::AudioProcessorValueTreeState&);
 
@@ -63,9 +96,6 @@ struct StateManager : juce::ValueTree::Listener
   bool doesPresetNameExist(const juce::String&);
   void updateAutomation();
 
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override;
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override;
-
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 
   juce::AudioProcessorValueTreeState& apvts;
@@ -75,8 +105,8 @@ struct StateManager : juce::ValueTree::Listener
   juce::ValueTree parameters    { apvts.state  };
   juce::ValueTree edit          { ID::EDIT     };
   juce::ValueTree presets       { ID::PRESETS  };
-
-  std::vector<std::unique_ptr<Clip>> clips;
+ 
+  Clips clips { edit, undoManager };
 
   static constexpr double defaultZoomValue = 100;
 };
