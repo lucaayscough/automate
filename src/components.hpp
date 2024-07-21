@@ -141,8 +141,8 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
       addAndMakeVisible(selectorButton);
       addAndMakeVisible(removeButton);
 
-      // TODO(luca): this may not be needed because it may be incompatible with our interface
-      //selectorButton.onClick = [this] () -> void { proc.engine.restorePreset(getName()); };
+      // TODO(luca): find more appropriate way of doing this 
+      selectorButton.onClick = [this] () -> void { static_cast<PluginProcessor*>(&manager.apvts.processor)->engine.restoreFromPreset(getName()); };
       removeButton.onClick   = [this] () -> void { manager.removePreset(getName()); };
     }
 

@@ -47,11 +47,11 @@ struct Engine : juce::AudioProcessorListener {
             auto clipPair = getClipPair(*time);
 
             if (clipPair.a && !clipPair.b) {
-              auto preset = getPresetForClip(clipPair.a);
+              auto preset = presets.getPresetForClip(clipPair.a);
               setParameters(preset);
             } else if (clipPair.a && clipPair.b) {
-              auto p1 = getPresetForClip(clipPair.a);
-              auto p2 = getPresetForClip(clipPair.b);
+              auto p1 = presets.getPresetForClip(clipPair.a);
+              auto p2 = presets.getPresetForClip(clipPair.b);
               interpolateParameters(p1, p2, clipPair.a->top ? lerpPos : 1.0 - lerpPos); 
             }
           }
@@ -94,16 +94,6 @@ struct Engine : juce::AudioProcessorListener {
     return clipPair;
   }
 
-  Preset* getPresetForClip(Clip* clip) {
-    for (auto& preset : presets) {
-      if (preset->name == clip->name) {
-        return preset.get();
-      }
-    }
-    jassertfalse;
-    return nullptr;
-  }
-
   void setParameters(Preset* preset) {
     auto presetParameters = *preset->parameters;
     auto& parameters = instance->getParameters();
@@ -130,18 +120,19 @@ struct Engine : juce::AudioProcessorListener {
     }
   }
 
-  // TODO(luca): as noted elsewhere, this may not have a place in plugin, or
-  // if it does, we should have a property in the vt which specifies which preset
-  // is currently selected
-  void restoreFromPreset(const juce::String&) {
-    //jassert(instance);
+  void restoreFromPreset(const juce::String& name) {
+    jassert(instance);
 
-    //auto preset = presetsTree.getChildWithProperty(ID::name, name);
-    //auto index = presetsTree.indexOf(preset);
-    //auto parameters = instance->getParameters();
-    //for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
-    //  parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
-    //}
+    editModeAttachment.setValue({ true });
+
+    proc.suspendProcessing(true);
+    auto preset = presets.getPresetFromName(name);
+    auto presetParameters = *(preset->parameters);
+    auto parameters = instance->getParameters();
+    for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
+      parameters[int(i)]->setValue(presetParameters[i]); 
+    }
+    proc.suspendProcessing(false);
   }
 
   void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}

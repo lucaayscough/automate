@@ -124,6 +124,22 @@ struct Presets : ObjectList<Preset> {
   Presets OBJECT_LIST_INIT { v.hasType(ID::PRESETS); }
 
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PRESET); }
+
+  Preset* getPresetForClip(Clip* clip) {
+    for (auto& preset : objects) {
+      if (preset->name == clip->name) {
+        return preset.get();
+      }
+    }
+    jassertfalse;
+    return nullptr;
+  }
+
+  Preset* getPresetFromName(const juce::String& name) {
+      auto cond = [name] (std::unique_ptr<Preset>& other) { return other->name == name; };
+      auto it = std::find_if(begin(), end(), cond); 
+      return it != end() ? it->get() : nullptr;
+  }
 };
 
 struct StateManager
