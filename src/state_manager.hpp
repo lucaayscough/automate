@@ -17,66 +17,113 @@ struct juce::VariantConverter<juce::Path> {
   }
 };
 
+template<>
+struct juce::VariantConverter<std::vector<float>> {
+  static std::vector<float> fromVar(const var& v) {
+    auto mb = v.getBinaryData();
+    auto len = std::size_t(mb->getSize());
+    auto data = (float*)mb->getData();
+    std::vector<float> vec; 
+    vec.resize(len / sizeof(float));
+    std::memcpy(vec.data(), data, len);
+    return vec;
+  }
+  
+  static juce::var toVar(const std::vector<float>& vec) {
+    return { vec.data(), vec.size() * sizeof(float) };
+  }
+};
+
 namespace atmt {
 
-struct TreeWrapper {};
-
-struct Preset : TreeWrapper {
-  Preset(juce::ValueTree& t, juce::UndoManager* um) : state(t), undoManager(um) {
-    jassert(t.isValid());
-    jassert(t.hasType(ID::PRESET));
+struct TreeWrapper {
+  TreeWrapper(juce::ValueTree& v, juce::UndoManager* um) : state(v), undoManager(um) {
+    jassert(v.isValid());
   }
 
   juce::ValueTree state;
-  juce::UndoManager* undoManager;
+  juce::UndoManager* undoManager = nullptr;
+};
+
+struct Preset : TreeWrapper {
+  Preset(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
+    jassert(v.hasType(ID::PRESET));
+  }
 
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
-  std::vector<float> parameters;
+  juce::CachedValue<std::vector<float>> parameters { state, ID::parameters, undoManager };
 };
 
 struct Clip : TreeWrapper {
-  Clip(juce::ValueTree& t, juce::UndoManager* um) : state(t), undoManager(um) {
-    jassert(t.isValid());
-    jassert(t.hasType(ID::CLIP));
+  Clip(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
+    jassert(v.hasType(ID::CLIP));
   }
 
-  juce::ValueTree state;
-  juce::UndoManager* undoManager;
-
-  juce::CachedValue<juce::String> name { state, ID::name,  undoManager };
-  juce::CachedValue<double> start      { state, ID::start, undoManager };
-  juce::CachedValue<bool>   top        { state, ID::top,   undoManager };
+  juce::CachedValue<juce::String> name { state, ID::name, undoManager };
+  juce::CachedValue<double> start { state, ID::start, undoManager };
+  juce::CachedValue<bool> top { state, ID::top, undoManager };
 };
 
-struct Clips : juce::ValueTree::Listener {
-  Clips(juce::ValueTree& t, juce::UndoManager* um)
-    : state(t), undoManager(um) {
-    t.hasType(ID::EDIT);
+template<typename T>
+struct ObjectList : TreeWrapper, juce::ValueTree::Listener {
+  ObjectList(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
+    rebuild();
     state.addListener(this);
   }
 
+  virtual bool isType(const juce::ValueTree&) = 0;
+  virtual void sort() {}
+  
   void rebuild() {
-    clips.clear();
+    if (proc) proc->suspendProcessing(true);
+
+    objects.clear();
     for (auto child : state) {
-      if (child.hasType(ID::CLIP)) {
-        clips.emplace_back(std::make_unique<Clip>(child, undoManager)); 
+      if (isType(child)) {
+        objects.emplace_back(std::make_unique<T>(child, undoManager)); 
       }
     }
-    auto cmp = [] (const std::unique_ptr<Clip>& a, const std::unique_ptr<Clip>& b) { return a->start < b->start; };
-    std::sort(clips.begin(), clips.end(), cmp);
-  }
-  
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
-    rebuild();
+    sort();
+
+    if (proc) proc->suspendProcessing(false);
   }
 
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) {
-    rebuild();
-  }
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&)              override { rebuild(); }
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int)       override { rebuild(); }
+  void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&)  override { rebuild(); }
+
+  auto begin() { return objects.begin(); }
+  auto end() { return objects.end(); }
+
+  auto begin() const { return objects.begin(); }
+  auto end() const { return objects.end(); }
+
+  bool empty() { return objects.empty(); }
+  auto& front() { return objects.front(); }
    
-  juce::ValueTree state;
-  juce::UndoManager* undoManager;
-  std::vector<std::unique_ptr<Clip>> clips;
+  juce::AudioProcessor* proc = nullptr;
+  std::vector<std::unique_ptr<T>> objects;
+};
+
+#define OBJECT_LIST_INIT (juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : ObjectList(v, um, p)
+
+struct Clips : ObjectList<Clip> {
+  Clips OBJECT_LIST_INIT {
+    v.hasType(ID::EDIT);
+  }
+
+  bool isType(const juce::ValueTree& v) override { return v.hasType(ID::CLIP); }
+
+  void sort() override {
+    auto cmp = [] (std::unique_ptr<Clip>& a, std::unique_ptr<Clip>& b) { return a->start < b->start; };
+    std::sort(objects.begin(), objects.end(), cmp);
+  }
+};
+
+struct Presets : ObjectList<Preset> {
+  Presets OBJECT_LIST_INIT { v.hasType(ID::PRESETS); }
+
+  bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PRESET); }
 };
 
 struct StateManager

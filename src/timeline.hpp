@@ -99,10 +99,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     viewport.setScrollBarsShown(false, true, true, true);
   }
 
-  void timerCallback() override {
-    repaint(); // NOTE(luca): used for the playead
-  }
-
   void paint(juce::Graphics& g) override {
     auto r = getLocalBounds();
     g.fillAll(juce::Colours::grey);
@@ -132,6 +128,10 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
                       clip->top ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
                       presetLaneHeight, presetLaneHeight);
     }
+  }
+
+  void timerCallback() override {
+    repaint(); // NOTE(luca): used for the playead
   }
 
   void rebuildClips() {
@@ -197,6 +197,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
   static constexpr double zoomDeltaScale = 5.0;
+
   juce::Viewport viewport;
 
   static constexpr int timelineHeight = 20;

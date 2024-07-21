@@ -9,16 +9,13 @@
 
 namespace atmt {
 
-struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
+struct Engine : juce::AudioProcessorListener {
   struct ClipPair {
     Clip* a = nullptr;
     Clip* b = nullptr;
   };
 
-  Engine(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
-    editTree.addListener(this);
-    presetsTree.addListener(this);
-  }
+  Engine(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {}
 
   ~Engine() override {
     if (instance) {
@@ -45,7 +42,7 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
 
           if (!editMode) {
             // TODO(luca): find nicer way of doing this scaling
-            auto lerpPos = automation.getPointAlongPath(float(*time), juce::AffineTransform::scale(1, 0.000001f)).y * 1000000.0;
+            auto lerpPos = automation->getPointAlongPath(float(*time), juce::AffineTransform::scale(1, 0.000001f)).y * 1000000.0;
             jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
             auto clipPair = getClipPair(*time);
 
@@ -66,12 +63,12 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
   }
 
   void interpolateParameters(Preset* p1, Preset* p2, double position) {
-    auto& beginParameters = p1->parameters;
-    auto& endParameters   = p2->parameters;
+    auto beginParameters = *p1->parameters;
+    auto endParameters   = *p2->parameters;
     auto& parameters      = instance->getParameters();
 
     for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
-      auto distance  = endParameters[i] - beginParameters[i] ;
+      auto distance  = endParameters[i] - beginParameters[i];
       auto increment = distance * position; 
       auto newValue  = beginParameters[i] + increment;
       jassert(!(newValue > 1.f) && !(newValue < 0.f));
@@ -108,7 +105,7 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
   }
 
   void setParameters(Preset* preset) {
-    auto& presetParameters = preset->parameters;
+    auto presetParameters = *preset->parameters;
     auto& parameters = instance->getParameters();
 
     for (int i = 0; i < parameters.size(); ++i) {
@@ -145,92 +142,6 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
     //for (std::size_t i = 0; i < presetParameters[std::size_t(index)].size(); ++i) {
     //  parameters[int(i)]->setValue(presetParameters[std::size_t(index)][i]); 
     //}
-  }
-
-  void addPreset(juce::ValueTree& presetTree) {
-    auto parametersVar = presetTree[ID::parameters];
-    auto mb = parametersVar.getBinaryData();
-    auto len = mb->getSize() / sizeof(float);
-    auto data = (float*)mb->getData();
-
-    auto preset = std::make_unique<Preset>(presetTree, undoManager);
-
-    for (std::size_t i = 0; i < len; ++i) {
-      preset->parameters.push_back(data[i]);
-    }
-
-    proc.suspendProcessing(true);
-    presets.push_back(std::move(preset));
-    proc.suspendProcessing(false);
-  }
-
-  void removePreset(int index) {
-    proc.suspendProcessing(true);
-    presets.erase(presets.begin() + index);
-    proc.suspendProcessing(false);
-  }
-
-  void addClip(juce::ValueTree& clipTree) {
-    proc.suspendProcessing(true);
-    clips.emplace_back(std::make_unique<Clip>(clipTree, undoManager));
-    proc.suspendProcessing(false);
-  }
-
-  void removeClip(juce::ValueTree& clipTree) {
-    auto name = clipTree[ID::name].toString();
-    auto cond = [name] (const std::unique_ptr<Clip>& c) { return name == c->name; };
-    auto it = std::find_if(clips.begin(), clips.end(), cond);
-
-    if (it != clips.end()) {
-      proc.suspendProcessing(true);
-      clips.erase(it);
-      proc.suspendProcessing(false);
-    } else {
-      jassertfalse;
-    }
-  }
-
-  void sortClipsByStartTime() {
-    using Clip = const std::unique_ptr<Clip>&;
-    auto cmp = [] (Clip a, Clip b) { return a->start < b->start; };
-
-    proc.suspendProcessing(true);
-    std::sort(clips.begin(), clips.end(), cmp);
-    proc.suspendProcessing(false);
-  }
-
-  void updateAutomation(const juce::var& v) {
-    proc.suspendProcessing(true);
-    automation.restoreFromString(v.toString());
-    proc.suspendProcessing(false);
-  }
-
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) override {
-    if (child.hasType(ID::PRESET)) {
-      addPreset(child);
-    } else if (child.hasType(ID::CLIP)) {
-      addClip(child);
-      sortClipsByStartTime();
-    }
-  }
-
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, int index) override {
-    if (child.hasType(ID::PRESET)) {
-      removePreset(index);
-    } else if (child.hasType(ID::CLIP)) {
-      removeClip(child);
-      sortClipsByStartTime();
-    }
-  }
-
-  void valueTreePropertyChanged(juce::ValueTree& vt, const juce::Identifier& id) override {
-    if (vt.hasType(ID::EDIT) && id == ID::automation) {
-      updateAutomation(vt[id]);
-    } else if (vt.hasType(ID::CLIP)) {
-      if (id == ID::start) {
-        sortClipsByStartTime();
-      }
-    }
   }
 
   void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
@@ -274,13 +185,13 @@ struct Engine : juce::ValueTree::Listener, juce::AudioProcessorListener {
   juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
 
-  std::vector<std::unique_ptr<Preset>> presets;
-  std::vector<std::unique_ptr<Clip>> clips;
+  Presets presets { presetsTree, undoManager, &proc };
+  Clips clips { editTree, undoManager, &proc };
+
+  juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
   std::atomic<bool> editMode = false;
-
-  juce::Path automation;
 };
 
 } // namespace atmt

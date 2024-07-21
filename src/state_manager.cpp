@@ -122,7 +122,7 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
 
 void StateManager::updateAutomation() {
   juce::Path automation;
-  for (auto& clip : clips.clips) {
+  for (auto& clip : clips) {
     automation.lineTo(float(clip->start), clip->top ? 0 : 1);
   }
 
