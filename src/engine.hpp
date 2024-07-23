@@ -66,6 +66,8 @@ struct Engine : juce::AudioProcessorListener {
     auto& endParameters   = p2->_parameters;
     auto& parameters      = instance->getParameters();
 
+    jassert(p1 && p2);
+
     auto numParameters = p1->_numParameters < p2->_numParameters ? p1->_numParameters.load() : p2->_numParameters.load();
 
     for (std::size_t i = 0; i < numParameters; ++i) {
@@ -96,6 +98,8 @@ struct Engine : juce::AudioProcessorListener {
   }
 
   void setParameters(Preset* preset) {
+    jassert(preset);
+
     auto presetParameters = *preset->parameters;
     auto& parameters = instance->getParameters();
 

@@ -59,7 +59,7 @@ struct Preset : TreeWrapper {
   }
 
   void rebuild() override {
-    _id = id;
+    _id = std::int64_t(state[ID::id]);
 
     auto p = *parameters;
     auto n = p.size();
@@ -89,9 +89,9 @@ struct Clip : TreeWrapper {
   }
 
   void rebuild() override {
-    _id = id;
-    _start = start;
-    _top   = top;
+    _id = std::int64_t(state[ID::id]);
+    _start = double(state[ID::start]);
+    _top = bool(state[ID::top]);
   }
 
   juce::CachedValue<std::int64_t> id { state, ID::id, undoManager };
@@ -195,8 +195,9 @@ struct Automation : TreeWrapper {
     if (proc) proc->suspendProcessing(true);
 
     automation.clear();
-    for (auto& clip : clips) {
-      automation.lineTo(float(clip->start), clip->top ? 0 : 1);
+
+    for (const auto& child : state) {
+      automation.lineTo(float(child[ID::start]), bool(child[ID::top]) ? 0 : 1);
     }
 
     if (proc) proc->suspendProcessing(false);
@@ -205,7 +206,6 @@ struct Automation : TreeWrapper {
   juce::Path& get() { return automation; }
 
   juce::AudioProcessor* proc = nullptr;
-  Clips clips { state, undoManager, proc };
   juce::Path automation;
   static constexpr float kFlat = 0.000001f;
   static constexpr float kExpand = 1000000.f;
