@@ -41,8 +41,7 @@ struct Engine : juce::AudioProcessorListener {
           uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
 
           if (!editMode) {
-            // TODO(luca): find nicer way of doing this scaling
-            auto lerpPos = automation->getPointAlongPath(float(*time), juce::AffineTransform::scale(1, 0.000001f)).y * 1000000.0;
+            auto lerpPos = automation.getLerpPos(*time);
             jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
             auto clipPair = getClipPair(*time);
 
@@ -178,8 +177,7 @@ struct Engine : juce::AudioProcessorListener {
 
   Presets presets { presetsTree, undoManager, &proc };
   Clips clips { editTree, undoManager, &proc };
-
-  juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
+  Automation automation { editTree, undoManager, &proc };
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
   std::atomic<bool> editMode = false;

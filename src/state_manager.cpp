@@ -17,7 +17,6 @@ void StateManager::init() {
 
   editTree.setProperty(ID::editMode, false, nullptr);
   //editTree.setProperty(ID::pluginID, {}, undoManager);
-  editTree.setProperty(ID::automation, {}, undoManager);
   editTree.setProperty(ID::zoom, defaultZoomValue, undoManager);
 
   undoManager->clearUndoHistory();
@@ -71,12 +70,10 @@ void StateManager::addClip(std::int64_t id, const juce::String& name, double sta
       .setProperty(ID::start, start, undoManager)
       .setProperty(ID::top, top, undoManager);
   editTree.addChild(clip, -1, undoManager);
-  updateAutomation();
 }
 
 void StateManager::removeClip(const juce::ValueTree& vt) {
   editTree.removeChild(vt, undoManager);
-  updateAutomation();
 }
 
 void StateManager::removeClipsIfInvalid(const juce::var& preset) {
@@ -87,8 +84,6 @@ void StateManager::removeClipsIfInvalid(const juce::var& preset) {
       --i;
     }
   }
-
-  updateAutomation();
 }
 
 void StateManager::savePreset(const juce::String& name) {
@@ -135,15 +130,6 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
     }
   }
   return false;
-}
-
-void StateManager::updateAutomation() {
-  juce::Path automation;
-  for (auto& clip : clips) {
-    automation.lineTo(float(clip->start), clip->top ? 0 : 1);
-  }
-
-  editTree.setProperty(ID::automation, automation.toString(), undoManager);
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

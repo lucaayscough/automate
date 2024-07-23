@@ -37,8 +37,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
       } else {
         top.setValue(true, undoManager);
       }
-
-      manager.updateAutomation();
     }
 
     void beginDrag(const juce::MouseEvent& e) {
@@ -66,16 +64,15 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     void paint(juce::Graphics& g) override {
       g.setColour(juce::Colours::orange);
-      g.strokePath(automation, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
+      g.strokePath(automation.get(), juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
       g.fillEllipse(hoverBounds);
     }
 
     void mouseMove(const juce::MouseEvent& e) override {
       auto x = e.position.x / zoom;
-      // TODO(luca): find nicer way of doing this scaling
-      auto hoverPoint = automation->getPointAlongPath(float(x), juce::AffineTransform::scale(1, 0.000001f)); 
+      auto hoverPoint = automation.getPointFromXIntersection(x); 
       hoverPoint.x = e.position.x;
-      hoverPoint.y *= getHeight() * 1000000.f;
+      hoverPoint.y *= getHeight() * Automation::kExpand;
       hoverBounds.setCentre(hoverPoint);
       hoverBounds.setSize(10, 10);
     }
@@ -84,7 +81,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     juce::UndoManager* undoManager { manager.undoManager };
     juce::ValueTree editTree { manager.editTree };
     juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
-    juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
+    Automation automation { editTree, undoManager };
 
     juce::Rectangle<float> hoverBounds;
   };

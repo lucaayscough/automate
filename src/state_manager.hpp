@@ -177,6 +177,40 @@ struct Presets : ObjectList<Preset> {
   }
 };
 
+struct Automation : TreeWrapper {
+  Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
+    jassert(v.hasType(ID::EDIT));
+    rebuild();
+  }
+  
+  double getLerpPos(double time) {
+    return getPointFromXIntersection(time).y * kExpand;
+  }
+
+  juce::Point<float> getPointFromXIntersection(double x) {
+    return automation.getPointAlongPath(float(x), juce::AffineTransform::scale(1, kFlat));
+  }
+
+  void rebuild() override {
+    if (proc) proc->suspendProcessing(true);
+
+    automation.clear();
+    for (auto& clip : clips) {
+      automation.lineTo(float(clip->start), clip->top ? 0 : 1);
+    }
+
+    if (proc) proc->suspendProcessing(false);
+  }
+
+  juce::Path& get() { return automation; }
+
+  juce::AudioProcessor* proc = nullptr;
+  Clips clips { state, undoManager, proc };
+  juce::Path automation;
+  static constexpr float kFlat = 0.000001f;
+  static constexpr float kExpand = 1000000.f;
+};
+
 struct StateManager
 {
   StateManager(juce::AudioProcessorValueTreeState&);
@@ -193,7 +227,6 @@ struct StateManager
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
-  void updateAutomation();
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 

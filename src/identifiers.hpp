@@ -19,7 +19,6 @@ struct ID {
   static const juce::Identifier top; 
   static const juce::Identifier parameters;
   static const juce::Identifier zoom;
-  static const juce::Identifier automation;
   static const juce::Identifier id;
 };
 
