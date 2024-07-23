@@ -10,15 +10,22 @@ struct DebugTools : juce::Component {
   DebugTools(StateManager& m) : manager(m) {
     addAndMakeVisible(printStateButton);
     addAndMakeVisible(editModeButton);
+    addAndMakeVisible(undoButton);
+    addAndMakeVisible(redoButton);
 
     printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
     editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
+    undoButton      .onClick = [this] { undoManager->undo(); };
+    redoButton      .onClick = [this] { undoManager->redo(); };
   }
   
   void resized() override {
     auto r = getLocalBounds();
-    printStateButton.setBounds(r.removeFromLeft(getWidth() / 2));
-    editModeButton.setBounds(r);
+    auto width = getWidth() / 4;
+    printStateButton.setBounds(r.removeFromLeft(width));
+    editModeButton.setBounds(r.removeFromLeft(width));
+    undoButton.setBounds(r.removeFromLeft(width));
+    redoButton.setBounds(r);
   }
 
   void editModeChangeCallback(const juce::var& v) {
@@ -26,9 +33,12 @@ struct DebugTools : juce::Component {
   }
 
   StateManager& manager;
+  juce::UndoManager* undoManager;
   juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
+  juce::TextButton undoButton { "Undo" };
+  juce::TextButton redoButton { "Redo" };
   juce::ToggleButton editModeButton { "Edit Mode" };
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr };
