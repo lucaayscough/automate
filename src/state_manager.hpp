@@ -36,10 +36,17 @@ struct juce::VariantConverter<std::vector<float>> {
 
 namespace atmt {
 
-struct TreeWrapper {
+struct TreeWrapper : juce::ValueTree::Listener {
   TreeWrapper(juce::ValueTree& v, juce::UndoManager* um) : state(v), undoManager(um) {
     jassert(v.isValid());
+    state.addListener(this);
   }
+
+  virtual void rebuild() {}
+
+  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&)              override { rebuild(); }
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int)       override { rebuild(); }
+  void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&)  override { rebuild(); }
 
   juce::ValueTree state;
   juce::UndoManager* undoManager = nullptr;
@@ -48,33 +55,63 @@ struct TreeWrapper {
 struct Preset : TreeWrapper {
   Preset(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
     jassert(v.hasType(ID::PRESET));
+    rebuild();
   }
 
+  void rebuild() override {
+    _id = id;
+
+    auto p = *parameters;
+    auto n = p.size();
+    for (std::size_t i = 0; i < n; ++i) {
+      if (i < _numParameters) {
+        _parameters[i] = p[i]; 
+      } else {
+        _parameters.emplace_back(p[i]);
+      }
+    }
+    _numParameters = n;
+  }
+
+  juce::CachedValue<std::int64_t> id { state, ID::id, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
   juce::CachedValue<std::vector<float>> parameters { state, ID::parameters, undoManager };
+
+  std::atomic<std::int64_t> _id = 0; 
+  std::deque<std::atomic<float>> _parameters;
+  std::atomic<std::size_t> _numParameters = 0;
 };
 
 struct Clip : TreeWrapper {
   Clip(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
     jassert(v.hasType(ID::CLIP));
+    rebuild();
   }
 
+  void rebuild() override {
+    _id = id;
+    _start = start;
+    _top   = top;
+  }
+
+  juce::CachedValue<std::int64_t> id { state, ID::id, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
   juce::CachedValue<double> start { state, ID::start, undoManager };
   juce::CachedValue<bool> top { state, ID::top, undoManager };
+
+  std::atomic<std::int64_t> _id = 0;
+  std::atomic<double> _start = 0;
+  std::atomic<bool> _top = false;
 };
 
 template<typename T>
-struct ObjectList : TreeWrapper, juce::ValueTree::Listener {
-  ObjectList(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
-    rebuild();
-    state.addListener(this);
-  }
+struct ObjectList : TreeWrapper {
+  ObjectList(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {}
 
   virtual bool isType(const juce::ValueTree&) = 0;
   virtual void sort() {}
   
-  void rebuild() {
+  void rebuild() override {
     if (proc) proc->suspendProcessing(true);
 
     objects.clear();
@@ -88,18 +125,13 @@ struct ObjectList : TreeWrapper, juce::ValueTree::Listener {
     if (proc) proc->suspendProcessing(false);
   }
 
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&)              override { rebuild(); }
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int)       override { rebuild(); }
-  void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&)  override { rebuild(); }
-
-  auto begin() { return objects.begin(); }
-  auto end() { return objects.end(); }
-
-  auto begin() const { return objects.begin(); }
-  auto end() const { return objects.end(); }
-
-  bool empty() { return objects.empty(); }
-  auto& front() { return objects.front(); }
+  auto begin()        { return objects.begin(); }
+  auto end()          { return objects.end(); }
+  auto begin() const  { return objects.begin(); }
+  auto end()   const  { return objects.end(); }
+  std::size_t size()  { return objects.size();  }
+  bool empty()        { return objects.empty(); }
+  auto& front()       { return objects.front(); }
    
   juce::AudioProcessor* proc = nullptr;
   std::vector<std::unique_ptr<T>> objects;
@@ -108,8 +140,9 @@ struct ObjectList : TreeWrapper, juce::ValueTree::Listener {
 #define OBJECT_LIST_INIT (juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : ObjectList(v, um, p)
 
 struct Clips : ObjectList<Clip> {
-  Clips OBJECT_LIST_INIT {
-    v.hasType(ID::EDIT);
+  Clips OBJECT_LIST_INIT { 
+    jassert(v.hasType(ID::EDIT));
+    rebuild();
   }
 
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::CLIP); }
@@ -121,24 +154,26 @@ struct Clips : ObjectList<Clip> {
 };
 
 struct Presets : ObjectList<Preset> {
-  Presets OBJECT_LIST_INIT { v.hasType(ID::PRESETS); }
+  Presets OBJECT_LIST_INIT {
+    jassert(v.hasType(ID::PRESETS));
+    rebuild();
+  }
 
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PRESET); }
 
   Preset* getPresetForClip(Clip* clip) {
     for (auto& preset : objects) {
-      if (preset->name == clip->name) {
+      if (preset->_id == clip->_id) {
         return preset.get();
       }
     }
-    jassertfalse;
     return nullptr;
   }
 
   Preset* getPresetFromName(const juce::String& name) {
-      auto cond = [name] (std::unique_ptr<Preset>& other) { return other->name == name; };
-      auto it = std::find_if(begin(), end(), cond); 
-      return it != end() ? it->get() : nullptr;
+    auto cond = [name] (std::unique_ptr<Preset>& other) { return other->name == name; };
+    auto it = std::find_if(begin(), end(), cond); 
+    return it != end() ? it->get() : nullptr;
   }
 };
 
@@ -151,7 +186,8 @@ struct StateManager
   juce::ValueTree getState();
   void validate();
 
-  void addClip(const juce::String&, double, bool);
+  // TODO(luca): these will need to be refactored
+  void addClip(std::int64_t, const juce::String&, double, bool);
   void removeClip(const juce::ValueTree& vt);
   void removeClipsIfInvalid(const juce::var&);
   void savePreset(const juce::String& name);
@@ -164,13 +200,15 @@ struct StateManager
   juce::AudioProcessorValueTreeState& apvts;
   juce::UndoManager* undoManager { apvts.undoManager };
 
-  juce::ValueTree state         { ID::AUTOMATE };
-  juce::ValueTree parameters    { apvts.state  };
-  juce::ValueTree edit          { ID::EDIT     };
-  juce::ValueTree presets       { ID::PRESETS  };
+  juce::ValueTree state             { ID::AUTOMATE };
+  juce::ValueTree parametersTree    { apvts.state  };
+  juce::ValueTree editTree          { ID::EDIT     };
+  juce::ValueTree presetsTree       { ID::PRESETS  };
  
-  Clips clips { edit, undoManager };
+  Presets presets { presetsTree, undoManager };
+  Clips clips     { editTree,    undoManager };
 
+  juce::Random rand;
   static constexpr double defaultZoomValue = 100;
 };
 

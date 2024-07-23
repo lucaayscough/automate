@@ -26,7 +26,7 @@ struct DebugTools : juce::Component {
   }
 
   StateManager& manager;
-  juce::ValueTree editTree { manager.edit };
+  juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
   juce::ToggleButton editModeButton { "Edit Mode" };
@@ -166,7 +166,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   };
 
   StateManager& manager;
-  juce::ValueTree presetsTree { manager.presets };
+  juce::ValueTree presetsTree { manager.presetsTree };
   Title title;
   juce::OwnedArray<Preset> presets;
   juce::TextEditor presetNameInput;

@@ -4,20 +4,21 @@
 namespace atmt {
 
 StateManager::StateManager(juce::AudioProcessorValueTreeState& a) : apvts(a) {
+  rand.setSeedRandomly();
   init();
 }
 
 void StateManager::init() {
   JUCE_ASSERT_MESSAGE_THREAD
     
-  state.appendChild(parameters, undoManager);
-  state.appendChild(edit, undoManager);
-  state.appendChild(presets, undoManager);
+  state.appendChild(parametersTree, undoManager);
+  state.appendChild(editTree, undoManager);
+  state.appendChild(presetsTree, undoManager);
 
-  edit.setProperty(ID::editMode, false, nullptr);
-  //edit.setProperty(ID::pluginID, {}, undoManager);
-  edit.setProperty(ID::automation, {}, undoManager);
-  edit.setProperty(ID::zoom, defaultZoomValue, undoManager);
+  editTree.setProperty(ID::editMode, false, nullptr);
+  //editTree.setProperty(ID::pluginID, {}, undoManager);
+  editTree.setProperty(ID::automation, {}, undoManager);
+  editTree.setProperty(ID::zoom, defaultZoomValue, undoManager);
 
   undoManager->clearUndoHistory();
   validate();
@@ -29,9 +30,9 @@ void StateManager::replace(const juce::ValueTree& newState) {
   juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
   if (lk.lockWasGained()) {
-    parameters.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PARAMETERS), undoManager);
-    edit.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::EDIT), undoManager);
-    presets.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PRESETS), undoManager);
+    parametersTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PARAMETERS), undoManager);
+    editTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::EDIT), undoManager);
+    presetsTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PRESETS), undoManager);
 
     undoManager->clearUndoHistory();
     validate();
@@ -56,32 +57,33 @@ void StateManager::validate() {
   JUCE_ASSERT_MESSAGE_THREAD
 
   jassert(state.isValid());
-  jassert(parameters.isValid());
-  jassert(edit.isValid());
-  jassert(presets.isValid());
+  jassert(parametersTree.isValid());
+  jassert(editTree.isValid());
+  jassert(presetsTree.isValid());
 }
 
-void StateManager::addClip(const juce::String& name, double start, bool top) {
+void StateManager::addClip(std::int64_t id, const juce::String& name, double start, bool top) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   juce::ValueTree clip { ID::CLIP };
-  clip.setProperty(ID::start, start, undoManager)
-      .setProperty(ID::top, top, undoManager)
-      .setProperty(ID::name, name, undoManager);
-  edit.addChild(clip, -1, undoManager);
+  clip.setProperty(ID::id, id, undoManager)
+      .setProperty(ID::name, name, undoManager)
+      .setProperty(ID::start, start, undoManager)
+      .setProperty(ID::top, top, undoManager);
+  editTree.addChild(clip, -1, undoManager);
   updateAutomation();
 }
 
 void StateManager::removeClip(const juce::ValueTree& vt) {
-  edit.removeChild(vt, undoManager);
+  editTree.removeChild(vt, undoManager);
   updateAutomation();
 }
 
 void StateManager::removeClipsIfInvalid(const juce::var& preset) {
-  for (int i = 0; i < edit.getNumChildren(); ++i) {
-    const auto& clip = edit.getChild(i);
+  for (int i = 0; i < editTree.getNumChildren(); ++i) {
+    const auto& clip = editTree.getChild(i);
     if (clip[ID::name].toString() == preset.toString()) {
-      edit.removeChild(i, undoManager);
+      editTree.removeChild(i, undoManager);
       --i;
     }
   }
@@ -95,24 +97,39 @@ void StateManager::savePreset(const juce::String& name) {
   auto& proc = *static_cast<PluginProcessor*>(&apvts.processor);
   std::vector<float> values;
   proc.engine.getCurrentParameterValues(values);
+
+  std::int64_t id = 0;
+  {
+    bool foundValidID = false;
+    while (!foundValidID) {
+      id = rand.nextInt64();
+      auto cond = [id] (const std::unique_ptr<Preset>& p) { return p->id == id; };
+      auto it = std::find_if(presets.begin(), presets.end(), cond);
+      if (it == presets.end()) {
+        foundValidID = true; 
+      }
+    }
+  }
+
   juce::ValueTree preset { ID::PRESET };
+  preset.setProperty(ID::id, id, undoManager);
   preset.setProperty(ID::name, name, undoManager);
   preset.setProperty(ID::parameters, { values.data(), values.size() * sizeof(float) }, undoManager);
-  presets.addChild(preset, -1, undoManager);
+  presetsTree.addChild(preset, -1, undoManager);
 }
 
 void StateManager::removePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  auto preset = presets.getChildWithProperty(ID::name, name);
-  presets.removeChild(preset, undoManager);
+  auto preset = presetsTree.getChildWithProperty(ID::name, name);
+  presetsTree.removeChild(preset, undoManager);
   removeClipsIfInvalid(preset[ID::name]);
 }
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  for (const auto& preset : presets) {
+  for (const auto& preset : presetsTree) {
     if (preset[ID::name].toString() == name) {
       return true;
     }
@@ -126,7 +143,7 @@ void StateManager::updateAutomation() {
     automation.lineTo(float(clip->start), clip->top ? 0 : 1);
   }
 
-  edit.setProperty(ID::automation, automation.toString(), undoManager);
+  editTree.setProperty(ID::automation, automation.toString(), undoManager);
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

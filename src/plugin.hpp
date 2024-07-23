@@ -62,7 +62,7 @@ public:
 
 private:
   ChangeAttachment knownPluginListAttachment { knownPluginList, CHANGE_CB(knownPluginListChangeCallback) };
-  StateAttachment pluginIDAttachment { manager.edit, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
+  StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
 };

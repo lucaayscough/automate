@@ -42,7 +42,7 @@ private:
   Track track { manager, uiBridge };
 
   ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
-  StateAttachment pluginIDAttachment { manager.edit, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
+  StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
 
   std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;
 

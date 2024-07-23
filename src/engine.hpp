@@ -52,7 +52,7 @@ struct Engine : juce::AudioProcessorListener {
             } else if (clipPair.a && clipPair.b) {
               auto p1 = presets.getPresetForClip(clipPair.a);
               auto p2 = presets.getPresetForClip(clipPair.b);
-              interpolateParameters(p1, p2, clipPair.a->top ? lerpPos : 1.0 - lerpPos); 
+              interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
             }
           }
         }
@@ -63,11 +63,13 @@ struct Engine : juce::AudioProcessorListener {
   }
 
   void interpolateParameters(Preset* p1, Preset* p2, double position) {
-    auto beginParameters = *p1->parameters;
-    auto endParameters   = *p2->parameters;
+    auto& beginParameters = p1->_parameters;
+    auto& endParameters   = p2->_parameters;
     auto& parameters      = instance->getParameters();
 
-    for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
+    auto numParameters = p1->_numParameters < p2->_numParameters ? p1->_numParameters.load() : p2->_numParameters.load();
+
+    for (std::size_t i = 0; i < numParameters; ++i) {
       auto distance  = endParameters[i] - beginParameters[i];
       auto increment = distance * position; 
       auto newValue  = beginParameters[i] + increment;
@@ -79,7 +81,7 @@ struct Engine : juce::AudioProcessorListener {
   ClipPair getClipPair(double time) {
     ClipPair clipPair;
     
-    auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->start; }; 
+    auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->_start; }; 
     auto it = std::find_if(clips.begin(), clips.end(), cond);
 
     if (it != clips.end()) {
@@ -155,15 +157,13 @@ struct Engine : juce::AudioProcessorListener {
   bool hasInstance() {
     if (instance)
       return true;
-    else
-      return false;
+    return false;
   }
 
   juce::AudioProcessorEditor* getEditor() {
     if (hasInstance() && instance->hasEditor())
       return instance->createEditor();
-    else
-      return nullptr;
+    return nullptr;
   }
 
   StateManager& manager;
@@ -171,8 +171,8 @@ struct Engine : juce::AudioProcessorListener {
   juce::UndoManager* undoManager { manager.undoManager };
   juce::AudioProcessorValueTreeState& apvts { manager.apvts };
   juce::AudioProcessor& proc { apvts.processor };
-  juce::ValueTree editTree { manager.edit };
-  juce::ValueTree presetsTree { manager.presets };
+  juce::ValueTree editTree { manager.editTree };
+  juce::ValueTree presetsTree { manager.presetsTree };
   juce::ChangeBroadcaster instanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
 

@@ -82,7 +82,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     StateManager& manager;
     juce::UndoManager* undoManager { manager.undoManager };
-    juce::ValueTree editTree { manager.edit };
+    juce::ValueTree editTree { manager.editTree };
     juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
     juce::CachedValue<juce::Path> automation { editTree, ID::automation, undoManager };
 
@@ -150,9 +150,11 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override {
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
+    auto preset = presets.getPresetFromName(name);
+    auto id = *preset->id;
     auto start = details.localPosition.x / zoom;
     auto top = details.localPosition.y < getHeight() / 2;
-    manager.addClip(name, start, top);
+    manager.addClip(id, name, start, top);
   }
 
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override {
@@ -192,7 +194,9 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   StateManager& manager;
   UIBridge& uiBridge;
   juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree editTree { manager.edit };
+  juce::ValueTree editTree { manager.editTree };
+  juce::ValueTree presetsTree { manager.presetsTree };
+  Presets presets { presetsTree, undoManager };
   AutomationLane automationLane { manager };
   juce::OwnedArray<Clip> clips;
   juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
