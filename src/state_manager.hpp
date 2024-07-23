@@ -197,8 +197,10 @@ struct Automation : TreeWrapper {
 
     automation.clear();
 
-    for (const auto& child : state) {
-      automation.lineTo(float(child[ID::start]), bool(child[ID::top]) ? 0 : 1);
+    Clips clips { state, undoManager };
+
+    for (const auto& clip : clips) {
+      automation.lineTo(float(clip->start), clip->top ? 0 : 1);
     }
 
     if (proc) proc->suspendProcessing(false);
