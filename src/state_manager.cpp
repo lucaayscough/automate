@@ -98,7 +98,7 @@ void StateManager::savePreset(const juce::String& name) {
     bool foundValidID = false;
     while (!foundValidID) {
       id = rand.nextInt64();
-      auto cond = [id] (const std::unique_ptr<Preset>& p) { return p->id == id; };
+      auto cond = [id] (const std::unique_ptr<Preset>& p) { return p->_id == id; };
       auto it = std::find_if(presets.begin(), presets.end(), cond);
       if (it == presets.end()) {
         foundValidID = true; 

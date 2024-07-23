@@ -3,6 +3,7 @@
 #include "identifiers.hpp"
 #include <juce_data_structures/juce_data_structures.h>
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <span>
 
 template<>
 struct juce::VariantConverter<juce::Path> {
@@ -61,21 +62,21 @@ struct Preset : TreeWrapper {
   void rebuild() override {
     _id = std::int64_t(state[ID::id]);
 
-    auto p = *parameters;
-    auto n = p.size();
-    for (std::size_t i = 0; i < n; ++i) {
-      if (i < _numParameters) {
-        _parameters[i] = p[i]; 
-      } else {
-        _parameters.emplace_back(p[i]);
+    {
+      auto mb = state[ID::parameters].getBinaryData();
+      std::span<float> p { (float*)mb->getData(), mb->getSize() / sizeof(float) };
+      for (std::size_t i = 0; i < p.size(); ++i) {
+        if (i < _numParameters) {
+          _parameters[i] = p[i]; 
+        } else {
+          _parameters.emplace_back(p[i]);
+        }
       }
+      _numParameters = p.size();
     }
-    _numParameters = n;
   }
 
-  juce::CachedValue<std::int64_t> id { state, ID::id, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
-  juce::CachedValue<std::vector<float>> parameters { state, ID::parameters, undoManager };
 
   std::atomic<std::int64_t> _id = 0; 
   std::deque<std::atomic<float>> _parameters;
@@ -94,7 +95,6 @@ struct Clip : TreeWrapper {
     _top = bool(state[ID::top]);
   }
 
-  juce::CachedValue<std::int64_t> id { state, ID::id, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
   juce::CachedValue<double> start { state, ID::start, undoManager };
   juce::CachedValue<bool> top { state, ID::top, undoManager };
@@ -167,6 +167,7 @@ struct Presets : ObjectList<Preset> {
         return preset.get();
       }
     }
+    jassertfalse;
     return nullptr;
   }
 

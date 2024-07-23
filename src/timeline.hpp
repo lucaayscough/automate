@@ -148,7 +148,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     jassert(!details.description.isVoid());
     auto name = details.description.toString();
     auto preset = presets.getPresetFromName(name);
-    auto id = *preset->id;
+    auto id = preset->_id.load();
     auto start = details.localPosition.x / zoom;
     auto top = details.localPosition.y < getHeight() / 2;
     manager.addClip(id, name, start, top);
