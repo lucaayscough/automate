@@ -17,12 +17,11 @@ private:
   juce::var getValue();
   void performUpdate();
   void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier& i) override;
-  void valueTreeRedirected(juce::ValueTree&) override;
 
   juce::ValueTree state;
   juce::Identifier identifier;
   std::function<void(juce::var)> callback; 
-  juce::UndoManager* undoManager;
+  juce::UndoManager* undoManager = nullptr;
 };
 
 } // namespace atmt

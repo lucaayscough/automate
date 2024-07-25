@@ -20,7 +20,7 @@ PluginProcessor::~PluginProcessor() {
 
 void PluginProcessor::knownPluginListChangeCallback() {
   auto plugins = knownPluginList.getTypes();
-
+  undoManager.beginNewTransaction(); 
   if (plugins.size() > 0) {
     auto id = plugins[0].createIdentifierString();
     pluginIDAttachment.setValue(id);

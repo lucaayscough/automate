@@ -63,6 +63,7 @@ void StateManager::validate() {
 
 void StateManager::addClip(std::int64_t id, const juce::String& name, double start, bool top) {
   JUCE_ASSERT_MESSAGE_THREAD
+  undoManager->beginNewTransaction();
 
   juce::ValueTree clip { ID::CLIP };
   clip.setProperty(ID::id, id, undoManager)
@@ -73,6 +74,7 @@ void StateManager::addClip(std::int64_t id, const juce::String& name, double sta
 }
 
 void StateManager::removeClip(const juce::ValueTree& vt) {
+  undoManager->beginNewTransaction();
   editTree.removeChild(vt, undoManager);
 }
 
@@ -88,6 +90,8 @@ void StateManager::removeClipsIfInvalid(const juce::var& preset) {
 
 void StateManager::savePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
+
+  undoManager->beginNewTransaction();
 
   auto& proc = *static_cast<PluginProcessor*>(&apvts.processor);
   std::vector<float> values;
@@ -115,6 +119,8 @@ void StateManager::savePreset(const juce::String& name) {
 
 void StateManager::removePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
+
+  undoManager->beginNewTransaction();
 
   auto preset = presetsTree.getChildWithProperty(ID::name, name);
   presetsTree.removeChild(preset, undoManager);

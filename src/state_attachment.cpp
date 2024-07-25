@@ -41,8 +41,4 @@ void StateAttachment::valueTreePropertyChanged(juce::ValueTree&, const juce::Ide
   }
 }
 
-void StateAttachment::valueTreeRedirected(juce::ValueTree&) {
-  jassertfalse;
-}
-
 } // namespace atmt
