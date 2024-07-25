@@ -54,11 +54,47 @@ void PluginProcessor::prepareToPlay(double sampleRate, int blockSize) {
 
 void PluginProcessor::releaseResources() {}
 
+void PluginProcessor::signalPlay() {
+  play = true;
+}
+
+void PluginProcessor::signalRewind() {
+  rewind = true;
+}
+
+void PluginProcessor::signalStop() {
+  stop = true;
+}
+
 void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
     buffer.clear(i, 0, buffer.getNumSamples());
+
+  if (play) {
+    auto playhead = getPlayHead();
+    if (playhead) {
+      playhead->transportPlay(true);
+    }
+    play = false;
+  }
+
+  if (stop) {
+    auto playhead = getPlayHead();
+    if (playhead) {
+      playhead->transportPlay(false);
+    }
+    stop = false;
+  }
+
+  if (rewind) {
+    auto playhead = getPlayHead();
+    if (playhead) {
+      playhead->transportRewind();
+    }
+    rewind = false;
+  }
 
   engine.process(buffer, midiBuffer);
 }

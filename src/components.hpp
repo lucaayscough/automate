@@ -10,6 +10,9 @@ struct DebugTools : juce::Component {
   DebugTools(StateManager& m) : manager(m) {
     addAndMakeVisible(printStateButton);
     addAndMakeVisible(killButton);
+    addAndMakeVisible(playButton);
+    addAndMakeVisible(stopButton);
+    addAndMakeVisible(rewindButton);
     addAndMakeVisible(editModeButton);
     addAndMakeVisible(undoButton);
     addAndMakeVisible(redoButton);
@@ -17,16 +20,22 @@ struct DebugTools : juce::Component {
     printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
     editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
     killButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->knownPluginList.clear(); };
+    playButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalPlay(); };
+    stopButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalStop(); };
+    rewindButton    .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalRewind(); };
     undoButton      .onClick = [this] { undoManager->undo(); };
     redoButton      .onClick = [this] { undoManager->redo(); };
   }
   
   void resized() override {
     auto r = getLocalBounds();
-    auto width = getWidth() / 5;
+    auto width = getWidth() / getNumChildComponents();
     printStateButton.setBounds(r.removeFromLeft(width));
     editModeButton.setBounds(r.removeFromLeft(width));
     killButton.setBounds(r.removeFromLeft(width));
+    playButton.setBounds(r.removeFromLeft(width));
+    stopButton.setBounds(r.removeFromLeft(width));
+    rewindButton.setBounds(r.removeFromLeft(width));
     undoButton.setBounds(r.removeFromLeft(width));
     redoButton.setBounds(r);
   }
@@ -42,6 +51,9 @@ struct DebugTools : juce::Component {
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
   juce::TextButton killButton { "Kill" };
+  juce::TextButton playButton { "Play" };
+  juce::TextButton stopButton { "Stop" };
+  juce::TextButton rewindButton { "Rewind" };
   juce::TextButton undoButton { "Undo" };
   juce::TextButton redoButton { "Redo" };
   juce::ToggleButton editModeButton { "Edit Mode" };

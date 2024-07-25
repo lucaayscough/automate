@@ -24,8 +24,10 @@ public:
 
   bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
 
+  void signalPlay();
+  void signalRewind();
+  void signalStop();
   void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
-  using AudioProcessor::processBlock;
 
   juce::AudioProcessorEditor* createEditor() override;
   bool hasEditor() const override;
@@ -52,6 +54,10 @@ public:
   StateManager manager { apvts };
   UIBridge uiBridge;
   Engine engine { manager, uiBridge }; 
+
+  std::atomic<bool> play = false;
+  std::atomic<bool> stop = false;
+  std::atomic<bool> rewind = false;
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
