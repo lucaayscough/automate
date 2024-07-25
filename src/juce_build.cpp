@@ -9,3 +9,4 @@
 #include "state_attachment.cpp"
 #include "plugin.cpp"
 #include "editor.cpp"
+#include "engine.cpp"

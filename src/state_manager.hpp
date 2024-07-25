@@ -162,13 +162,12 @@ struct Presets : ObjectList<Preset> {
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PRESET); }
 
   Preset* getPresetForClip(Clip* clip) {
-    for (auto& preset : objects) {
-      if (preset->_id == clip->_id) {
-        return preset.get();
-      }
+    auto cond = [clip] (const std::unique_ptr<Preset>& p) { return p->_id == clip->_id; };
+    auto it = std::find_if(begin(), end(), cond);
+    if (it == end()) {
+      jassertfalse; 
     }
-    jassertfalse;
-    return nullptr;
+    return it->get();
   }
 
   Preset* getPresetFromName(const juce::String& name) {
