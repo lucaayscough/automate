@@ -72,28 +72,30 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
     buffer.clear(i, 0, buffer.getNumSamples());
 
-  if (play) {
-    auto playhead = getPlayHead();
-    if (playhead) {
+  auto playhead = getPlayHead();
+  if (playhead) {
+    uiBridge.controlPlayhead = playhead->canControlTransport();
+
+    auto position = playhead->getPosition();
+    if (position.hasValue()) {
+      auto bpm = position->getBpm();
+      if (bpm.hasValue()) {
+        uiBridge.bpm = *bpm; 
+      }
+    }
+
+    if (play) {
       playhead->transportPlay(true);
+      play = false;
     }
-    play = false;
-  }
-
-  if (stop) {
-    auto playhead = getPlayHead();
-    if (playhead) {
+    if (stop) {
       playhead->transportPlay(false);
+      stop = false;
     }
-    stop = false;
-  }
-
-  if (rewind) {
-    auto playhead = getPlayHead();
-    if (playhead) {
+    if (rewind) {
       playhead->transportRewind();
+      rewind = false;
     }
-    rewind = false;
   }
 
   engine.process(buffer, midiBuffer);

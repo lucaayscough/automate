@@ -5,9 +5,40 @@
 namespace atmt {
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
+  struct Grid {
+    void reset() {
+      interval = 0;
+      x = 0;
+    }
+
+    void calculateBeatInterval(double bpm, double zoom) {
+      reset();
+      double mul = 1;
+      while (interval < intervalMin) {
+        interval = mul / bpm * zoom;
+        mul += 1;
+      }
+    }
+
+    double getNext() {
+      x += interval;
+      return x;
+    }
+
+    double getQuantized(double time) {
+      int div = int(time / interval);
+      double left  = div * interval;
+      return time - left < interval / 2 ? left : left + interval;
+    }
+
+    double interval = 0;
+    static constexpr double intervalMin = 20;
+    double x = 0;
+  };
+
   struct Clip : juce::Component, atmt::Clip, juce::SettableTooltipClient {
-    Clip(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um)
-      : atmt::Clip(vt, um), manager(m) {
+    Clip(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g)
+      : atmt::Clip(vt, um), manager(m), grid(g) {
       setTooltip(name);
     }
 
@@ -30,7 +61,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     void mouseDrag(const juce::MouseEvent& e) override {
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-      start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+      start.setValue(grid.getQuantized(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
       if (parentLocalPoint.y > getHeight() / 2) {
         top.setValue(false, undoManager);
       } else {
@@ -49,7 +80,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     }
 
     StateManager& manager;
-    juce::ValueTree editValueTree { state.getParent() };
+    juce::ValueTree editValueTree { manager.editTree };
+    Grid& grid;
 
     juce::CachedValue<double> zoom { editValueTree, ID::zoom, nullptr };
 
@@ -107,6 +139,21 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     g.fillRect(presetLaneTopBounds);
     g.fillRect(presetLaneBottomBounds);
 
+    {
+      auto bpm = uiBridge.bpm.load();
+      grid.calculateBeatInterval(bpm, zoom);
+
+      if (bpm > 0) {
+        g.setColour(juce::Colours::darkgrey);
+
+        auto x = grid.getNext();
+        while (x < getWidth()) {
+          g.fillRect(x, r.getY(), 1, getHeight());
+          x = grid.getNext();
+        }
+      }
+    }
+
     g.setColour(juce::Colours::black);
     auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
     g.fillRect(time, r.getY(), 2, getHeight());
@@ -128,13 +175,13 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   }
 
   void timerCallback() override {
-    repaint(); // NOTE(luca): used for the playead
+    repaint();
   }
 
   void rebuildClips() {
     clips.clear();
     for (auto child : editTree) {
-      auto clip = new Clip(manager, child, undoManager);
+      auto clip = new Clip(manager, child, undoManager, grid);
       addAndMakeVisible(clip);
       clips.add(clip);
     }
@@ -149,7 +196,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     auto name = details.description.toString();
     auto preset = presets.getPresetFromName(name);
     auto id = preset->_id.load();
-    auto start = details.localPosition.x / zoom;
+    auto start = grid.getQuantized(details.localPosition.x) / zoom;
     auto top = details.localPosition.y < getHeight() / 2;
     manager.addClip(id, name, start, top);
   }
@@ -207,6 +254,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::Rectangle<int> timelineBounds;
   juce::Rectangle<int> presetLaneTopBounds;
   juce::Rectangle<int> presetLaneBottomBounds;
+
+  Grid grid;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
