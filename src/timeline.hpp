@@ -30,7 +30,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
     void mouseDrag(const juce::MouseEvent& e) override {
       auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-      undoManager->beginNewTransaction();
       start.setValue((parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
       if (parentLocalPoint.y > getHeight() / 2) {
         top.setValue(false, undoManager);
@@ -40,6 +39,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     }
 
     void beginDrag(const juce::MouseEvent& e) {
+      undoManager->beginNewTransaction();
       mouseDownOffset = e.position.x;
     }
 
@@ -51,7 +51,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     StateManager& manager;
     juce::ValueTree editValueTree { state.getParent() };
 
-    juce::CachedValue<double> zoom { editValueTree, ID::zoom, undoManager };
+    juce::CachedValue<double> zoom { editValueTree, ID::zoom, nullptr };
 
     static constexpr int trimThreshold = 20;
     bool isTrimDrag = false;
@@ -80,7 +80,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
     StateManager& manager;
     juce::UndoManager* undoManager { manager.undoManager };
     juce::ValueTree editTree { manager.editTree };
-    juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
+    juce::CachedValue<double> zoom { editTree, ID::zoom, nullptr };
     Automation automation { editTree, undoManager };
 
     juce::Rectangle<float> hoverBounds;
@@ -182,8 +182,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   void zoomTrack(double amount, double mouseX) {
     double x0 = mouseX * zoom;
-    undoManager->beginNewTransaction();
-    zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), undoManager);
+    zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
     double x1 = mouseX * zoom;
     double dx = (x1 - x0) / zoom;
     viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
@@ -197,7 +196,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   Presets presets { presetsTree, undoManager };
   AutomationLane automationLane { manager };
   juce::OwnedArray<Clip> clips;
-  juce::CachedValue<double> zoom { editTree, ID::zoom, undoManager };
+  juce::CachedValue<double> zoom { editTree, ID::zoom, nullptr };
   static constexpr double zoomDeltaScale = 5.0;
 
   juce::Viewport viewport;

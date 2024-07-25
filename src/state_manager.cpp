@@ -17,7 +17,7 @@ void StateManager::init() {
 
   editTree.setProperty(ID::editMode, false, nullptr);
   //editTree.setProperty(ID::pluginID, {}, undoManager);
-  editTree.setProperty(ID::zoom, defaultZoomValue, undoManager);
+  editTree.setProperty(ID::zoom, defaultZoomValue, nullptr);
 
   undoManager->clearUndoHistory();
   validate();
