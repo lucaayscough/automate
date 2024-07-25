@@ -5,15 +5,14 @@ namespace atmt {
 
 PluginEditor::PluginEditor(PluginProcessor& _proc)
   : AudioProcessorEditor(&_proc), proc(_proc) {
-  addAndMakeVisible(debugTools);
-  addAndMakeVisible(descriptionBar);
-  addAndMakeVisible(statesPanel);
-  addAndMakeVisible(pluginList);
-  addAndMakeVisible(track.viewport);
-
   setSize(width, height);
   setResizable(true, true);
-  instanceChangeCallback();
+
+  if (proc.engine.hasInstance()) {
+    showInstanceScreen(); 
+  } else {
+    showDefaultScreen();
+  }
 }
 
 void PluginEditor::paint(juce::Graphics& g) {
@@ -24,16 +23,37 @@ void PluginEditor::resized() {
   auto r = getLocalBounds();
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
 
-  // TODO(luca): tidy up
-  track.setSize(10000, trackHeight);
-  track.viewport.setBounds(r.removeFromBottom(trackHeight));
+  if (instance) {
+    // TODO(luca): tidy up
+    track.setSize(10000, trackHeight);
+    track.viewport.setBounds(r.removeFromBottom(trackHeight));
 
-  statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
-  pluginList.setBounds(r.removeFromRight(pluginListWidth));
-  descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
+    descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
+    statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
+    instance->setBounds(r.removeFromTop(instance->getHeight()));
+  } else {
+    pluginList.setBounds(r);
+  }
+}
 
-  if (instanceEditor) {
-    instanceEditor->setBounds(r.removeFromTop(instanceEditor->getHeight()));
+void PluginEditor::showDefaultScreen() {
+  removeAllChildren();
+  instance.reset();
+  addAndMakeVisible(pluginList);
+  setSize(width, height);
+}
+
+void PluginEditor::showInstanceScreen() {
+  removeAllChildren();
+  instance.reset(proc.engine.getEditor());
+
+  if (instance) {
+    addAndMakeVisible(debugTools);
+    addAndMakeVisible(descriptionBar);
+    addAndMakeVisible(statesPanel);
+    addAndMakeVisible(track.viewport);
+    addAndMakeVisible(instance.get());
+    setSize(instance->getWidth()  + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
   }
 }
 
@@ -45,13 +65,12 @@ void PluginEditor::pluginIDChangeCallback(const juce::var& v) {
   }
 }
 
-void PluginEditor::instanceChangeCallback() {
-  instanceEditor.reset(proc.engine.getEditor());
-  if (instanceEditor) {
-    addAndMakeVisible(instanceEditor.get());
-    setSize(instanceEditor->getWidth()  + statesPanelWidth + pluginListWidth,
-            instanceEditor->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
-  }
+void PluginEditor::createInstanceChangeCallback() {
+  showInstanceScreen();
+}
+
+void PluginEditor::killInstanceChangeCallback() {
+  showDefaultScreen();
 }
 
 } // namespace atmt

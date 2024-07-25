@@ -19,6 +19,7 @@ struct Engine : juce::AudioProcessorListener {
   Engine(StateManager&, UIBridge&);
   ~Engine() override;
 
+  void kill();
   void prepare(double, int);
   void process(juce::AudioBuffer<float>&, juce::MidiBuffer&);
   void interpolateParameters(Preset*, Preset*, double);
@@ -46,7 +47,8 @@ struct Engine : juce::AudioProcessorListener {
   juce::AudioProcessor& proc { apvts.processor };
   juce::ValueTree editTree { manager.editTree };
   juce::ValueTree presetsTree { manager.presetsTree };
-  juce::ChangeBroadcaster instanceBroadcaster;
+  juce::ChangeBroadcaster createInstanceBroadcaster;
+  juce::ChangeBroadcaster killInstanceBroadcaster;
   std::unique_ptr<juce::AudioPluginInstance> instance; 
 
   Presets presets { presetsTree, undoManager, &proc };

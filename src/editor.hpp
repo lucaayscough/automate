@@ -16,8 +16,12 @@ public:
   void resized() override;
 
 private:
+  void showDefaultScreen();
+  void showInstanceScreen();
+
   void pluginIDChangeCallback(const juce::var&);
-  void instanceChangeCallback();
+  void createInstanceChangeCallback();
+  void killInstanceChangeCallback();
 
   PluginProcessor& proc;
   StateManager& manager { proc.manager };
@@ -25,8 +29,8 @@ private:
 
   juce::TooltipWindow tooltipWindow { this, 0 };
 
-  int width = 1280;
-  int height = 720;
+  int width  = 350;
+  int height = 350;
 
   int debugToolsHeight = 30;
   int descriptionBarHeight = 100;
@@ -41,10 +45,11 @@ private:
 
   Track track { manager, uiBridge };
 
-  ChangeAttachment instanceAttachment { proc.engine.instanceBroadcaster, CHANGE_CB(instanceChangeCallback) };
+  ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
+  ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };
   StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
 
-  std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;
+  std::unique_ptr<juce::AudioProcessorEditor> instance;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

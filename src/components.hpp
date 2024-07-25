@@ -9,21 +9,24 @@ namespace atmt {
 struct DebugTools : juce::Component {
   DebugTools(StateManager& m) : manager(m) {
     addAndMakeVisible(printStateButton);
+    addAndMakeVisible(killButton);
     addAndMakeVisible(editModeButton);
     addAndMakeVisible(undoButton);
     addAndMakeVisible(redoButton);
 
     printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
     editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
+    killButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->knownPluginList.clear(); };
     undoButton      .onClick = [this] { undoManager->undo(); };
     redoButton      .onClick = [this] { undoManager->redo(); };
   }
   
   void resized() override {
     auto r = getLocalBounds();
-    auto width = getWidth() / 4;
+    auto width = getWidth() / 5;
     printStateButton.setBounds(r.removeFromLeft(width));
     editModeButton.setBounds(r.removeFromLeft(width));
+    killButton.setBounds(r.removeFromLeft(width));
     undoButton.setBounds(r.removeFromLeft(width));
     redoButton.setBounds(r);
   }
@@ -33,10 +36,12 @@ struct DebugTools : juce::Component {
   }
 
   StateManager& manager;
+  juce::AudioProcessor& proc { manager.apvts.processor };
   juce::UndoManager* undoManager;
   juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
+  juce::TextButton killButton { "Kill" };
   juce::TextButton undoButton { "Undo" };
   juce::TextButton redoButton { "Redo" };
   juce::ToggleButton editModeButton { "Edit Mode" };

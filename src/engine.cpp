@@ -10,6 +10,13 @@ Engine::~Engine() {
   }
 }
 
+void Engine::kill() {
+  proc.suspendProcessing(true);
+  killInstanceBroadcaster.sendSynchronousChangeMessage();
+  instance.reset();
+  proc.suspendProcessing(false);
+}
+
 void Engine::prepare(double sampleRate, int blockSize) {
   if (instance) {
     instance->prepareToPlay(sampleRate, blockSize);
@@ -95,7 +102,7 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
   jassert(_instance);
 
   instance = std::move(_instance);
-  instanceBroadcaster.sendChangeMessage();
+  createInstanceBroadcaster.sendChangeMessage();
 }
 
 void Engine::getCurrentParameterValues(std::vector<float>& values) {

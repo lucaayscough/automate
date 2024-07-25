@@ -24,6 +24,8 @@ void PluginProcessor::knownPluginListChangeCallback() {
   if (plugins.size() > 0) {
     auto id = plugins[0].createIdentifierString();
     pluginIDAttachment.setValue(id);
+  } else {
+    pluginIDAttachment.setValue("");
   }
 }
 
@@ -38,6 +40,8 @@ void PluginProcessor::pluginIDChangeCallback(const juce::var& v) {
       engine.setPluginInstance(instance);
       prepareToPlay(getSampleRate(), getBlockSize());
     }
+  } else {
+    engine.kill();
   }
   suspendProcessing(false);
 }
