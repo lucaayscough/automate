@@ -37,7 +37,7 @@ struct DebugTools : juce::Component {
 
   StateManager& manager;
   juce::AudioProcessor& proc { manager.apvts.processor };
-  juce::UndoManager* undoManager;
+  juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
   juce::TextButton printStateButton { "Print State" };
