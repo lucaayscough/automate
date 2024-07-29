@@ -76,6 +76,7 @@ struct Preset : TreeWrapper {
     }
   }
 
+  juce::CachedValue<std::vector<float>> parameters { state, ID::parameters, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
 
   std::atomic<std::int64_t> _id = 0; 
@@ -228,6 +229,7 @@ struct StateManager
   void removeClip(const juce::ValueTree& vt);
   void removeClipsIfInvalid(const juce::var&);
   void clearEdit();
+  void overwritePreset(const juce::String& name);
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
@@ -236,6 +238,7 @@ struct StateManager
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 
   juce::AudioProcessorValueTreeState& apvts;
+  juce::AudioProcessor& proc { apvts.processor };
   juce::UndoManager* undoManager { apvts.undoManager };
 
   juce::ValueTree state             { ID::AUTOMATE };

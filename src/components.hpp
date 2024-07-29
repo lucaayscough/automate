@@ -85,6 +85,8 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     addAndMakeVisible(presetNameInput);
     addAndMakeVisible(savePresetButton);
 
+    // TODO(luca): the vt listeners can probably go now
+
     savePresetButton.onClick = [this] () -> void {
       auto name = presetNameInput.getText();
       if (presetNameInput.getText() != "" && !manager.doesPresetNameExist(name)) {
@@ -161,22 +163,28 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   };
 
   struct Preset : juce::Component {
-    Preset(StateManager& m, const juce::String& name) : manager(m) {
-      setName(name);
-      selectorButton.setButtonText(name);
+    Preset(StateManager& m, const juce::String& n) : manager(m) {
+      setName(n);
+      selectorButton.setButtonText(n);
 
       addAndMakeVisible(selectorButton);
+      addAndMakeVisible(overwriteButton);
       addAndMakeVisible(removeButton);
 
       // TODO(luca): find more appropriate way of doing this 
-      selectorButton.onClick = [this] () -> void { static_cast<PluginProcessor*>(&manager.apvts.processor)->engine.restoreFromPreset(getName()); };
-      removeButton.onClick   = [this] () -> void { manager.removePreset(getName()); };
+      selectorButton.onClick = [this] () {
+        static_cast<PluginProcessor*>(&proc)->engine.restoreFromPreset(getName());
+      };
+
+      overwriteButton.onClick = [this] () { manager.overwritePreset(getName()); };
+      removeButton.onClick    = [this] () { manager.removePreset(getName()); };
     }
 
     void resized() {
       auto r = getLocalBounds();
-      r.removeFromLeft(getWidth() / 4);
+      r.removeFromLeft(getWidth() / 8);
       removeButton.setBounds(r.removeFromRight(getWidth() / 4));
+      overwriteButton.setBounds(r.removeFromLeft(getWidth() / 6));
       selectorButton.setBounds(r);
     }
 
@@ -188,8 +196,10 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     }
 
     StateManager& manager;
+    juce::AudioProcessor& proc { manager.proc };
     juce::TextButton selectorButton;
     juce::TextButton removeButton { "X" };
+    juce::TextButton overwriteButton { "Overwrite" };
   };
 
   StateManager& manager;

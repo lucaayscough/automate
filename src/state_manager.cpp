@@ -93,14 +93,25 @@ void StateManager::clearEdit() {
   undoManager->clearUndoHistory();
 }
 
-void StateManager::savePreset(const juce::String& name) {
+void StateManager::overwritePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-
   undoManager->beginNewTransaction();
 
-  auto& proc = *static_cast<PluginProcessor*>(&apvts.processor);
+  auto& _proc = *static_cast<PluginProcessor*>(&proc);
   std::vector<float> values;
-  proc.engine.getCurrentParameterValues(values);
+  _proc.engine.getCurrentParameterValues(values);
+
+  auto preset = presets.getPresetFromName(name); 
+  preset->parameters.setValue(values, undoManager);
+}
+
+void StateManager::savePreset(const juce::String& name) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  undoManager->beginNewTransaction();
+
+  auto& _proc = *static_cast<PluginProcessor*>(&proc);
+  std::vector<float> values;
+  _proc.engine.getCurrentParameterValues(values);
 
   std::int64_t id = 0;
   {
