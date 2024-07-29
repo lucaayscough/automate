@@ -126,9 +126,9 @@ struct ObjectList : TreeWrapper {
   }
 
   auto begin()        { return objects.begin(); }
-  auto end()          { return objects.end(); }
+  auto end()          { return objects.end();   }
   auto begin() const  { return objects.begin(); }
-  auto end()   const  { return objects.end(); }
+  auto end()   const  { return objects.end();   }
   std::size_t size()  { return objects.size();  }
   bool empty()        { return objects.empty(); }
   auto& front()       { return objects.front(); }
@@ -164,10 +164,7 @@ struct Presets : ObjectList<Preset> {
   Preset* getPresetForClip(Clip* clip) {
     auto cond = [clip] (const std::unique_ptr<Preset>& p) { return p->_id == clip->_id; };
     auto it = std::find_if(begin(), end(), cond);
-    if (it == end()) {
-      jassertfalse; 
-    }
-    return it->get();
+    return it != end() ? it->get() : nullptr;
   }
 
   Preset* getPresetFromName(const juce::String& name) {

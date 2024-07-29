@@ -45,7 +45,10 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
           } else if (clipPair.a && clipPair.b) {
             auto p1 = presets.getPresetForClip(clipPair.a);
             auto p2 = presets.getPresetForClip(clipPair.b);
-            interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
+
+            if (p1 && p2) {
+              interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
+            } 
           }
         }
       }
