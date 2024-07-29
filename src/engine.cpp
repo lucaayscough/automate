@@ -78,12 +78,14 @@ ClipPair Engine::getClipPair(double time) {
   ClipPair clipPair;
   
   auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->_start; }; 
-  auto it = std::find_if(clips.begin(), clips.end(), cond);
+  auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
-  if (it != clips.end()) {
-    clipPair.a = it->get();
-    if (std::next(it) != clips.end()) {
-      clipPair.b = std::next(it)->get();
+  if (it != clips.rend()) {
+    if (it == clips.rbegin()) {
+      clipPair.a = it->get();
+    } else {
+      clipPair.a = it->get();
+      clipPair.b = std::prev(it)->get();
     }
   } else if (!clips.empty()) {
     clipPair.a = clips.front().get();

@@ -125,13 +125,17 @@ struct ObjectList : TreeWrapper {
     if (proc) proc->suspendProcessing(false);
   }
 
-  auto begin()        { return objects.begin(); }
-  auto end()          { return objects.end();   }
-  auto begin() const  { return objects.begin(); }
-  auto end()   const  { return objects.end();   }
-  std::size_t size()  { return objects.size();  }
-  bool empty()        { return objects.empty(); }
-  auto& front()       { return objects.front(); }
+  auto begin()        { return objects.begin();   }
+  auto end()          { return objects.end();     }
+  auto begin() const  { return objects.begin();   }
+  auto end()   const  { return objects.end();     }
+  auto rbegin()       { return objects.rbegin();  }
+  auto rend()         { return objects.rend();    }
+  auto rbegin() const { return objects.rbegin();  }
+  auto rend()   const { return objects.rend();    }
+  std::size_t size()  { return objects.size();    }
+  bool empty()        { return objects.empty();   }
+  auto& front()       { return objects.front();   }
    
   juce::AudioProcessor* proc = nullptr;
   std::vector<std::unique_ptr<T>> objects;
