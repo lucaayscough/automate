@@ -4,38 +4,39 @@
 
 namespace atmt {
 
+struct Grid {
+  void reset() {
+    interval = 0;
+    x = 0;
+  }
+
+  void calculateBeatInterval(double bpm, double zoom) {
+    jassert(bpm > 0 && zoom > 0);
+    reset();
+    double mul = 1;
+    while (interval < intervalMin) {
+      interval = mul / bpm * zoom;
+      mul += 1;
+    }
+  }
+
+  double getNext() {
+    x += interval;
+    return x;
+  }
+
+  double getQuantized(double time) {
+    int div = int(time / interval);
+    double left  = div * interval;
+    return time - left < interval / 2 ? left : left + interval;
+  }
+
+  double interval = 0;
+  static constexpr double intervalMin = 20;
+  double x = 0;
+};
+
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
-  struct Grid {
-    void reset() {
-      interval = 0;
-      x = 0;
-    }
-
-    void calculateBeatInterval(double bpm, double zoom) {
-      reset();
-      double mul = 1;
-      while (interval < intervalMin) {
-        interval = mul / bpm * zoom;
-        mul += 1;
-      }
-    }
-
-    double getNext() {
-      x += interval;
-      return x;
-    }
-
-    double getQuantized(double time) {
-      int div = int(time / interval);
-      double left  = div * interval;
-      return time - left < interval / 2 ? left : left + interval;
-    }
-
-    double interval = 0;
-    static constexpr double intervalMin = 20;
-    double x = 0;
-  };
-
   struct Clip : juce::Component, atmt::Clip, juce::SettableTooltipClient {
     Clip(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g)
       : atmt::Clip(vt, um), manager(m), grid(g) {
@@ -148,7 +149,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
         auto x = grid.getNext();
         while (x < getWidth()) {
-          g.fillRect(x, r.getY(), 1, getHeight());
+          g.fillRect(float(x), float(r.getY()), 1.f, float(getHeight()));
           x = grid.getNext();
         }
       }

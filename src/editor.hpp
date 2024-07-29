@@ -22,6 +22,7 @@ private:
   void pluginIDChangeCallback(const juce::var&);
   void createInstanceChangeCallback();
   void killInstanceChangeCallback();
+  void childBoundsChanged(juce::Component*) override;
 
   PluginProcessor& proc;
   StateManager& manager { proc.manager };

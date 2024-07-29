@@ -223,9 +223,11 @@ struct StateManager
   void addClip(std::int64_t, const juce::String&, double, bool);
   void removeClip(const juce::ValueTree& vt);
   void removeClipsIfInvalid(const juce::var&);
+  void clearEdit();
   void savePreset(const juce::String& name);
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
+  void clearPresets();
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 

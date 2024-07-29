@@ -16,7 +16,7 @@ void StateManager::init() {
   state.appendChild(presetsTree, undoManager);
 
   editTree.setProperty(ID::editMode, false, nullptr);
-  //editTree.setProperty(ID::pluginID, {}, undoManager);
+  editTree.setProperty(ID::pluginID, {}, undoManager);
   editTree.setProperty(ID::zoom, defaultZoomValue, nullptr);
 
   undoManager->clearUndoHistory();
@@ -88,6 +88,11 @@ void StateManager::removeClipsIfInvalid(const juce::var& preset) {
   }
 }
 
+void StateManager::clearEdit() {
+  editTree.removeAllChildren(undoManager);
+  undoManager->clearUndoHistory();
+}
+
 void StateManager::savePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
 
@@ -136,6 +141,11 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
     }
   }
   return false;
+}
+
+void StateManager::clearPresets() {
+  presetsTree.removeAllChildren(undoManager);
+  undoManager->clearUndoHistory();
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

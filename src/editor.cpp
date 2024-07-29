@@ -6,7 +6,7 @@ namespace atmt {
 PluginEditor::PluginEditor(PluginProcessor& _proc)
   : AudioProcessorEditor(&_proc), proc(_proc) {
   setSize(width, height);
-  setResizable(true, true);
+  setResizable(false, false);
 
   if (proc.engine.hasInstance()) {
     showInstanceScreen(); 
@@ -53,7 +53,7 @@ void PluginEditor::showInstanceScreen() {
     addAndMakeVisible(statesPanel);
     addAndMakeVisible(track.viewport);
     addAndMakeVisible(instance.get());
-    setSize(instance->getWidth()  + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
+    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
   }
 }
 
@@ -71,6 +71,14 @@ void PluginEditor::createInstanceChangeCallback() {
 
 void PluginEditor::killInstanceChangeCallback() {
   showDefaultScreen();
+}
+
+void PluginEditor::childBoundsChanged(juce::Component* c) {
+  if (c == instance.get()) {
+    if (instance) {
+      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
+    }
+  }
 }
 
 } // namespace atmt
