@@ -40,12 +40,11 @@ struct PathView : juce::Component, Path {
   void paint(juce::Graphics&) override;
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent&) override;
-  void mouseUp(const juce::MouseEvent&) override;
+  void mouseDoubleClick(const juce::MouseEvent&) override;
 
   StateManager& manager;
   Grid& grid;
   juce::CachedValue<double> zoom { manager.editTree, ID::zoom, nullptr };
-  double mouseDownOffset = 0;
   static constexpr int size = 10;
   static constexpr int posOffset = size / 2;
 };
@@ -57,6 +56,7 @@ struct AutomationLane : juce::Component {
   void addPath(juce::ValueTree&);
   void mouseMove(const juce::MouseEvent&) override;
   void mouseDown(const juce::MouseEvent&) override;
+  void mouseExit(const juce::MouseEvent&) override;
 
   StateManager& manager;
   Grid& grid;

@@ -241,6 +241,7 @@ struct StateManager
   bool doesPresetNameExist(const juce::String&);
   void clearPresets();
   void addPath(double, double);
+  void removePath(const juce::ValueTree&);
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 

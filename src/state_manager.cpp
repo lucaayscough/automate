@@ -214,6 +214,12 @@ void StateManager::addPath(double start, double y) {
   editTree.appendChild(path, undoManager);
 }
 
+void StateManager::removePath(const juce::ValueTree& v) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  undoManager->beginNewTransaction();
+  editTree.removeChild(v, undoManager);
+}
+
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {
   std::function<juce::String(const juce::ValueTree&, juce::String)> printTree = [&] (const juce::ValueTree& v, juce::String indentation) -> juce::String {
     auto printChildren = [&] (const juce::ValueTree& vRec, juce::String indentationRec) -> juce::String {

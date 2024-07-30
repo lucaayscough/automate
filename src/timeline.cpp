@@ -72,7 +72,7 @@ void ClipView::endDrag() {
 PathView::PathView(StateManager& m, juce::ValueTree& v, juce::UndoManager* um, Grid& g) : Path(v, um), manager(m), grid(g) {}
 
 void PathView::paint(juce::Graphics& g) {
-  if (isMouseOver()) {
+  if (isMouseOverOrDragging()) {
     g.setColour(juce::Colours::red);
   } else {
     g.setColour(juce::Colours::orange);
@@ -80,9 +80,8 @@ void PathView::paint(juce::Graphics& g) {
   g.fillEllipse(getLocalBounds().toFloat());
 }
 
-void PathView::mouseDown(const juce::MouseEvent& e) {
+void PathView::mouseDown(const juce::MouseEvent&) {
   undoManager->beginNewTransaction();
-  mouseDownOffset = e.position.x;
 }
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
@@ -94,8 +93,8 @@ void PathView::mouseDrag(const juce::MouseEvent& e) {
   y.setValue(newY, undoManager);
 }
 
-void PathView::mouseUp(const juce::MouseEvent& e) {
-  mouseDownOffset = 0;
+void PathView::mouseDoubleClick(const juce::MouseEvent&) {
+  manager.removePath(state);
 }
 
 AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {}
@@ -113,14 +112,13 @@ void AutomationLane::paint(juce::Graphics& g) {
 
 void AutomationLane::resized() {
   for (auto& path : paths) {
-    path->setBounds(float(path->start * zoom) - PathView::posOffset,
-                    float(path->y * getHeight()) - PathView::posOffset,
+    path->setBounds(int(path->start * zoom) - PathView::posOffset,
+                    int(path->y * getHeight()) - PathView::posOffset,
                     PathView::size, PathView::size);
   }
 }
 
 void AutomationLane::addPath(juce::ValueTree& v) {
-  DBG("AutomationLane::addPath()");
   auto path = new PathView(manager, v, undoManager, grid);
   addAndMakeVisible(path);
   paths.add(path);
@@ -139,12 +137,15 @@ void AutomationLane::mouseMove(const juce::MouseEvent& e) {
 
 // TODO(luca): clean up
 void AutomationLane::mouseDown(const juce::MouseEvent& e) {
-  DBG("AutomationLane::mouseDown()");
   auto x = e.position.x / zoom;
   auto hoverPoint = automation.getPointFromXIntersection(x); 
   hoverPoint.x = e.position.x;
   hoverPoint.y *= getHeight() * Automation::kExpand;
   manager.addPath(hoverPoint.x / zoom, hoverPoint.y / getHeight());
+}
+
+void AutomationLane::mouseExit(const juce::MouseEvent&) {
+  hoverBounds = juce::Rectangle<float>();
 }
 
 Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
