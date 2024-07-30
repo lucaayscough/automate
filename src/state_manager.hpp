@@ -105,6 +105,20 @@ struct Clip : TreeWrapper {
   std::atomic<bool> _top = false;
 };
 
+struct Path : TreeWrapper {
+  Path(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
+    jassert(v.hasType(ID::PATH));
+    rebuild();
+  }
+
+  juce::CachedValue<double> start { state, ID::start, undoManager };
+  juce::CachedValue<double> y { state, ID::y, undoManager };
+
+  std::atomic<std::int64_t> _id = 0;
+  std::atomic<double> _start = 0;
+  std::atomic<double> _y = 0;
+};
+
 template<typename T>
 struct ObjectList : TreeWrapper {
   ObjectList(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {}
@@ -133,7 +147,7 @@ struct ObjectList : TreeWrapper {
   auto rbegin()       { return objects.rbegin();  }
   auto rend()         { return objects.rend();    }
   auto rbegin() const { return objects.rbegin();  }
-  auto rend()   const { return objects.rend();    }
+  auto rend() const   { return objects.rend();    }
   std::size_t size()  { return objects.size();    }
   bool empty()        { return objects.empty();   }
   auto& front()       { return objects.front();   }
@@ -155,6 +169,20 @@ struct Clips : ObjectList<Clip> {
   void sort() override {
     auto cmp = [] (std::unique_ptr<Clip>& a, std::unique_ptr<Clip>& b) { return a->start < b->start; };
     std::sort(objects.begin(), objects.end(), cmp);
+  }
+};
+
+struct Paths : ObjectList<Path> {
+  Paths OBJECT_LIST_INIT { 
+    jassert(v.hasType(ID::EDIT));
+    rebuild();
+  }
+
+  bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PATH); }
+
+  void sort() override {
+    auto cmp = [] (std::unique_ptr<Path>& a, std::unique_ptr<Path>& b) { return a->start < b->start; };
+    std::sort(begin(), end(), cmp);
   }
 };
 
@@ -180,34 +208,12 @@ struct Presets : ObjectList<Preset> {
 };
 
 struct Automation : TreeWrapper {
-  Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
-    jassert(v.hasType(ID::EDIT));
-    rebuild();
-  }
+  Automation(juce::ValueTree&, juce::UndoManager*, juce::AudioProcessor*);
   
-  double getLerpPos(double time) {
-    return getPointFromXIntersection(time).y * kExpand;
-  }
-
-  juce::Point<float> getPointFromXIntersection(double x) {
-    return automation.getPointAlongPath(float(x), juce::AffineTransform::scale(1, kFlat));
-  }
-
-  void rebuild() override {
-    if (proc) proc->suspendProcessing(true);
-
-    automation.clear();
-
-    Clips clips { state, undoManager };
-
-    for (const auto& clip : clips) {
-      automation.lineTo(float(clip->start), clip->top ? 0 : 1);
-    }
-
-    if (proc) proc->suspendProcessing(false);
-  }
-
-  juce::Path& get() { return automation; }
+  double getLerpPos(double);
+  juce::Point<float> getPointFromXIntersection(double);
+  void rebuild() override;
+  juce::Path& get();
 
   juce::AudioProcessor* proc = nullptr;
   juce::Path automation;
@@ -234,6 +240,7 @@ struct StateManager
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
   void clearPresets();
+  void addPath(double, double);
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 

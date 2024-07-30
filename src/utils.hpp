@@ -4,7 +4,7 @@
 
 namespace atmt {
 
-struct Path {
+struct FilePath {
   using File = juce::File;
 
   static void init();

@@ -3,6 +3,49 @@
 
 namespace atmt {
 
+Automation::Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
+  jassert(v.hasType(ID::EDIT));
+  rebuild();
+}
+
+double Automation::getLerpPos(double time) {
+  return getPointFromXIntersection(time).y * kExpand;
+}
+
+juce::Point<float> Automation::getPointFromXIntersection(double x) {
+  return automation.getPointAlongPath(float(x), juce::AffineTransform::scale(1, kFlat));
+}
+
+void Automation::rebuild() {
+  if (proc) proc->suspendProcessing(true);
+
+  automation.clear();
+
+  Clips clips { state, undoManager }; 
+  Paths paths { state, undoManager };
+   
+  std::vector<juce::Point<float>> points;
+
+  for (const auto& clip : clips) {
+    points.emplace_back(float(clip->start), float(clip->top ? 0 : 1));
+  }
+
+  for (const auto& path : paths) {
+    points.emplace_back(float(path->start), float(path->y));
+  }
+
+  auto cmp = [] (juce::Point<float> a, juce::Point<float> b) { return a.x < b.x; };
+  std::sort(points.begin(), points.end(), cmp);
+
+  for (auto p : points) {
+    automation.lineTo(p.x, p.y);
+  }
+
+  if (proc) proc->suspendProcessing(false);
+}
+
+juce::Path& Automation::get() { return automation; }
+
 StateManager::StateManager(juce::AudioProcessorValueTreeState& a) : apvts(a) {
   rand.setSeedRandomly();
   init();
@@ -135,7 +178,6 @@ void StateManager::savePreset(const juce::String& name) {
 
 void StateManager::removePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-
   undoManager->beginNewTransaction();
 
   auto preset = presetsTree.getChildWithProperty(ID::name, name);
@@ -157,6 +199,19 @@ bool StateManager::doesPresetNameExist(const juce::String& name) {
 void StateManager::clearPresets() {
   presetsTree.removeAllChildren(undoManager);
   undoManager->clearUndoHistory();
+}
+
+void StateManager::addPath(double start, double y) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  jassert(start >= 0 && y >= 0 && y <= 1);
+
+  undoManager->beginNewTransaction();
+
+  juce::ValueTree path(ID::PATH);
+  path.setProperty(ID::start, start, undoManager)
+      .setProperty(ID::y, y, undoManager);
+
+  editTree.appendChild(path, undoManager);
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

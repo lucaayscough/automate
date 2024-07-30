@@ -15,7 +15,6 @@ struct ClipPair {
 };
 
 struct Engine : juce::AudioProcessorListener {
-
   Engine(StateManager&, UIBridge&);
   ~Engine() override;
 

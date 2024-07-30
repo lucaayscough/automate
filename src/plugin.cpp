@@ -9,7 +9,7 @@ namespace atmt {
 
 PluginProcessor::PluginProcessor()
   : AudioProcessor(DEFAULT_BUSES) {
-  Path::init();
+  FilePath::init();
   loadKnownPluginList(knownPluginList);
   apfm.addDefaultFormats();
 }
