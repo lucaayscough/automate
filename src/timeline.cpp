@@ -135,12 +135,15 @@ void AutomationLane::addPath(juce::ValueTree& v) {
 
 // TODO(luca): clean up
 void AutomationLane::mouseMove(const juce::MouseEvent& e) {
-  auto x = e.position.x / zoom;
-  auto hoverPoint = automation.getPointFromXIntersection(x); 
-  hoverPoint.x = e.position.x;
-  hoverPoint.y *= getHeight() * Automation::kExpand;
-  hoverBounds.setCentre(hoverPoint);
-  hoverBounds.setSize(10, 10);
+  juce::Point<float> hoverPoint;
+  automation.get().getNearestPoint(e.position, hoverPoint, juce::AffineTransform::scale(float(zoom), getHeight()));
+  auto distance = hoverPoint.getDistanceFrom(e.position);
+  if (distance < mouseOverDistance) {
+    hoverBounds.setCentre(hoverPoint);
+    hoverBounds.setSize(10, 10);
+  } else {
+    hoverBounds = juce::Rectangle<float>();
+  }
 }
 
 // TODO(luca): clean up

@@ -66,6 +66,7 @@ struct AutomationLane : juce::Component {
   Automation automation { editTree, undoManager };
   juce::Rectangle<float> hoverBounds;
   juce::OwnedArray<PathView> paths;
+  static constexpr int mouseOverDistance = 10;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationLane)
 };
