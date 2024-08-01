@@ -111,6 +111,8 @@ void AutomationLane::paint(juce::Graphics& g) {
 }
 
 void AutomationLane::resized() {
+  zoom.forceUpdateOfCachedValue();
+
   for (auto& path : paths) {
     path->setBounds(int(path->start * zoom) - PathView::posOffset,
                     int(path->y * getHeight()) - PathView::posOffset,
@@ -252,6 +254,7 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
   if (v.hasType(ID::EDIT)) {
     if (id == ID::zoom) {
       resized();
+      automationLane.resized();
     }
   } else if (v.hasType(ID::CLIP)) {
     if (id == ID::start || id == ID::top) {
@@ -270,10 +273,10 @@ void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDeta
 
 void Track::zoomTrack(double amount, double mouseX) {
   double x0 = mouseX * zoom;
-  zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
   double x1 = mouseX * zoom;
   double dx = (x1 - x0) / zoom;
   viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
+  zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
 }
 
 } // namespace atmt

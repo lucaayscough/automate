@@ -91,9 +91,12 @@ struct Clip : TreeWrapper {
   }
 
   void rebuild() override {
+    name.forceUpdateOfCachedValue();
+    start.forceUpdateOfCachedValue();
+    top.forceUpdateOfCachedValue();
     _id = std::int64_t(state[ID::id]);
-    _start = double(state[ID::start]);
-    _top = bool(state[ID::top]);
+    _start = start;
+    _top = top;
   }
 
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
@@ -111,10 +114,16 @@ struct Path : TreeWrapper {
     rebuild();
   }
 
+  void rebuild() override {
+    start.forceUpdateOfCachedValue();
+    y.forceUpdateOfCachedValue();
+    _start = start;
+    _y = y;
+  }
+
   juce::CachedValue<double> start { state, ID::start, undoManager };
   juce::CachedValue<double> y { state, ID::y, undoManager };
 
-  std::atomic<std::int64_t> _id = 0;
   std::atomic<double> _start = 0;
   std::atomic<double> _y = 0;
 };
