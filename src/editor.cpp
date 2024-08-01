@@ -3,7 +3,7 @@
 
 namespace atmt {
 
-PluginEditor::PluginEditor(PluginProcessor& _proc)
+Editor::Editor(Plugin& _proc)
   : AudioProcessorEditor(&_proc), proc(_proc) {
   setSize(width, height);
   setResizable(false, false);
@@ -15,11 +15,11 @@ PluginEditor::PluginEditor(PluginProcessor& _proc)
   }
 }
 
-void PluginEditor::paint(juce::Graphics& g) {
+void Editor::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::black);
 }
 
-void PluginEditor::resized() {
+void Editor::resized() {
   auto r = getLocalBounds();
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
 
@@ -36,14 +36,14 @@ void PluginEditor::resized() {
   }
 }
 
-void PluginEditor::showDefaultScreen() {
+void Editor::showDefaultScreen() {
   removeAllChildren();
   instance.reset();
   addAndMakeVisible(pluginList);
   setSize(width, height);
 }
 
-void PluginEditor::showInstanceScreen() {
+void Editor::showInstanceScreen() {
   removeAllChildren();
   instance.reset(proc.engine.getEditor());
 
@@ -57,7 +57,7 @@ void PluginEditor::showInstanceScreen() {
   }
 }
 
-void PluginEditor::pluginIDChangeCallback(const juce::var& v) {
+void Editor::pluginIDChangeCallback(const juce::var& v) {
   auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
 
   if (description) {
@@ -65,15 +65,15 @@ void PluginEditor::pluginIDChangeCallback(const juce::var& v) {
   }
 }
 
-void PluginEditor::createInstanceChangeCallback() {
+void Editor::createInstanceChangeCallback() {
   showInstanceScreen();
 }
 
-void PluginEditor::killInstanceChangeCallback() {
+void Editor::killInstanceChangeCallback() {
   showDefaultScreen();
 }
 
-void PluginEditor::childBoundsChanged(juce::Component* c) {
+void Editor::childBoundsChanged(juce::Component* c) {
   if (c == instance.get()) {
     if (instance) {
       setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);

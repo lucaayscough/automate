@@ -140,7 +140,7 @@ void StateManager::overwritePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
   undoManager->beginNewTransaction();
 
-  auto& _proc = *static_cast<PluginProcessor*>(&proc);
+  auto& _proc = *static_cast<Plugin*>(&proc);
   std::vector<float> values;
   _proc.engine.getCurrentParameterValues(values);
 
@@ -152,7 +152,7 @@ void StateManager::savePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
   undoManager->beginNewTransaction();
 
-  auto& _proc = *static_cast<PluginProcessor*>(&proc);
+  auto& _proc = *static_cast<Plugin*>(&proc);
   std::vector<float> values;
   _proc.engine.getCurrentParameterValues(values);
 

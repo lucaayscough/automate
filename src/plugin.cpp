@@ -7,18 +7,18 @@
 
 namespace atmt {
 
-PluginProcessor::PluginProcessor()
+Plugin::Plugin()
   : AudioProcessor(DEFAULT_BUSES) {
   FilePath::init();
   loadKnownPluginList(knownPluginList);
   apfm.addDefaultFormats();
 }
 
-PluginProcessor::~PluginProcessor() {
+Plugin::~Plugin() {
   saveKnownPluginList(knownPluginList);
 }
 
-void PluginProcessor::knownPluginListChangeCallback() {
+void Plugin::knownPluginListChangeCallback() {
   auto plugins = knownPluginList.getTypes();
   undoManager.beginNewTransaction(); 
 
@@ -30,7 +30,7 @@ void PluginProcessor::knownPluginListChangeCallback() {
   }
 }
 
-void PluginProcessor::pluginIDChangeCallback(const juce::var& v) {
+void Plugin::pluginIDChangeCallback(const juce::var& v) {
   suspendProcessing(true);
   juce::String errorMessage;
   auto id = v.toString();
@@ -51,27 +51,27 @@ void PluginProcessor::pluginIDChangeCallback(const juce::var& v) {
   suspendProcessing(false);
 }
 
-void PluginProcessor::prepareToPlay(double sampleRate, int blockSize) {
+void Plugin::prepareToPlay(double sampleRate, int blockSize) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(sampleRate > 0 && blockSize > 0);
   engine.prepare(sampleRate, blockSize);
 }
 
-void PluginProcessor::releaseResources() {}
+void Plugin::releaseResources() {}
 
-void PluginProcessor::signalPlay() {
+void Plugin::signalPlay() {
   play = true;
 }
 
-void PluginProcessor::signalRewind() {
+void Plugin::signalRewind() {
   rewind = true;
 }
 
-void PluginProcessor::signalStop() {
+void Plugin::signalStop() {
   stop = true;
 }
 
-void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
+void Plugin::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
@@ -109,7 +109,7 @@ void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
 // ================================================================================
 #pragma region JUCE boilerplate
 
-bool PluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
+bool Plugin::isBusesLayoutSupported(const BusesLayout& layouts) const {
   auto outputLayout = layouts.getMainOutputChannelSet();
 
   std::vector<juce::AudioChannelSet> supportedLayouts = {
@@ -124,24 +124,24 @@ bool PluginProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   return false;
 }
 
-const juce::String PluginProcessor::getName() const { return JucePlugin_Name; }
+const juce::String Plugin::getName() const { return JucePlugin_Name; }
 
-bool PluginProcessor::acceptsMidi()  const { return false; }
-bool PluginProcessor::producesMidi() const { return false; }
-bool PluginProcessor::isMidiEffect() const { return false; }
-bool PluginProcessor::hasEditor()    const { return true;  }
+bool Plugin::acceptsMidi()  const { return false; }
+bool Plugin::producesMidi() const { return false; }
+bool Plugin::isMidiEffect() const { return false; }
+bool Plugin::hasEditor()    const { return true;  }
 
-juce::AudioProcessorEditor* PluginProcessor::createEditor() {
-  return new PluginEditor(*this);
+juce::AudioProcessorEditor* Plugin::createEditor() {
+  return new Editor(*this);
 }
 
-void PluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
+void Plugin::getStateInformation(juce::MemoryBlock& destData) {
   auto state = manager.getState();
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
 }
 
-void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
+void Plugin::setStateInformation(const void* data, int sizeInBytes) {
   std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
   if (xmlState.get()) {
     if (xmlState->hasTagName(manager.state.getType())) {
@@ -151,17 +151,17 @@ void PluginProcessor::setStateInformation(const void* data, int sizeInBytes) {
   }
 }
 
-double PluginProcessor::getTailLengthSeconds() const      { return 0.0; }
-int PluginProcessor::getNumPrograms()                     { return 1;   }
-int PluginProcessor::getCurrentProgram()                  { return 0;   }
-void PluginProcessor::setCurrentProgram(int)              {}
-const juce::String PluginProcessor::getProgramName(int)   { return {};  }
-void PluginProcessor::changeProgramName(int, const juce::String&) {}
+double Plugin::getTailLengthSeconds() const      { return 0.0; }
+int Plugin::getNumPrograms()                     { return 1;   }
+int Plugin::getCurrentProgram()                  { return 0;   }
+void Plugin::setCurrentProgram(int)              {}
+const juce::String Plugin::getProgramName(int)   { return {};  }
+void Plugin::changeProgramName(int, const juce::String&) {}
 
 } // namespace atmt
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
-  return new atmt::PluginProcessor();
+  return new atmt::Plugin();
 }
 
 #undef DEFAULT_BUSES

@@ -8,9 +8,9 @@
 
 namespace atmt {
 
-class PluginEditor : public juce::AudioProcessorEditor, public juce::DragAndDropContainer {
+class Editor : public juce::AudioProcessorEditor, public juce::DragAndDropContainer {
 public:
-  explicit PluginEditor(PluginProcessor&);
+  explicit Editor(Plugin&);
 
   void paint(juce::Graphics&) override;
   void resized() override;
@@ -24,7 +24,7 @@ private:
   void killInstanceChangeCallback();
   void childBoundsChanged(juce::Component*) override;
 
-  PluginProcessor& proc;
+  Plugin& proc;
   StateManager& manager { proc.manager };
   UIBridge& uiBridge { proc.uiBridge };
 
@@ -52,7 +52,7 @@ private:
 
   std::unique_ptr<juce::AudioProcessorEditor> instance;
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
 };
 
 } // namespace atmt

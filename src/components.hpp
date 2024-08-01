@@ -19,10 +19,10 @@ struct DebugTools : juce::Component {
 
     printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
     editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
-    killButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->knownPluginList.clear(); };
-    playButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalPlay(); };
-    stopButton      .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalStop(); };
-    rewindButton    .onClick = [this] { static_cast<PluginProcessor*>(&proc)->signalRewind(); };
+    killButton      .onClick = [this] { static_cast<Plugin*>(&proc)->knownPluginList.clear(); };
+    playButton      .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
+    stopButton      .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
+    rewindButton    .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
     undoButton      .onClick = [this] { undoManager->undo(); };
     redoButton      .onClick = [this] { undoManager->redo(); };
   }
@@ -173,7 +173,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
 
       // TODO(luca): find more appropriate way of doing this 
       selectorButton.onClick = [this] () {
-        static_cast<PluginProcessor*>(&proc)->engine.restoreFromPreset(getName());
+        static_cast<Plugin*>(&proc)->engine.restoreFromPreset(getName());
       };
 
       overwriteButton.onClick = [this] () { manager.overwritePreset(getName()); };

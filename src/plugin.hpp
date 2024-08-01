@@ -11,10 +11,10 @@
 
 namespace atmt {
 
-class PluginProcessor : public juce::AudioProcessor {
+class Plugin : public juce::AudioProcessor {
 public:
-  PluginProcessor();
-  ~PluginProcessor() override;
+  Plugin();
+  ~Plugin() override;
 
   void knownPluginListChangeCallback();
   void pluginIDChangeCallback(const juce::var& v);
@@ -70,7 +70,7 @@ private:
   ChangeAttachment knownPluginListAttachment { knownPluginList, CHANGE_CB(knownPluginListChangeCallback) };
   StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginProcessor)
+  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Plugin)
 };
 
 } // namespace atmt
