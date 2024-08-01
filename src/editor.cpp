@@ -24,10 +24,8 @@ void Editor::resized() {
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
 
   if (instance) {
-    // TODO(luca): tidy up
-    track.setSize(10000, trackHeight);
-    track.viewport.setBounds(r.removeFromBottom(trackHeight));
-
+    track.viewport.setBounds(r.removeFromBottom(Track::height));
+    track.resized(); // NOTE(luca): need viewport to conform
     descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
     statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
     instance->setBounds(r.removeFromTop(instance->getHeight()));
@@ -53,7 +51,7 @@ void Editor::showInstanceScreen() {
     addAndMakeVisible(statesPanel);
     addAndMakeVisible(track.viewport);
     addAndMakeVisible(instance.get());
-    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
+    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight);
   }
 }
 
@@ -76,7 +74,7 @@ void Editor::killInstanceChangeCallback() {
 void Editor::childBoundsChanged(juce::Component* c) {
   if (c == instance.get()) {
     if (instance) {
-      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + trackHeight + debugToolsHeight);
+      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight);
     }
   }
 }

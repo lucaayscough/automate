@@ -76,6 +76,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void paint(juce::Graphics&) override;
   void resized() override;
   void timerCallback() override;
+  int getTrackWidth();
   void rebuildClips();
   bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override;
   void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override;
@@ -103,6 +104,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   static constexpr int timelineHeight = 20;
   static constexpr int presetLaneHeight = 25;
+  static constexpr int height = 200;
 
   juce::Rectangle<int> timelineBounds;
   juce::Rectangle<int> presetLaneTopBounds;

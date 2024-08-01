@@ -37,7 +37,6 @@ private:
   int descriptionBarHeight = 100;
   int statesPanelWidth = 150;
   int pluginListWidth = 150;
-  int trackHeight = 200;
 
   DebugTools debugTools { manager };
   DescriptionBar descriptionBar;

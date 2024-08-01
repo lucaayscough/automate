@@ -167,6 +167,7 @@ Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
   viewport.setViewedComponent(this, false);
   viewport.setScrollBarPosition(false, false);
   viewport.setScrollBarsShown(false, true, true, true);
+  setSize(getTrackWidth(), height);
 }
 
 void Track::paint(juce::Graphics& g) {
@@ -201,6 +202,9 @@ void Track::paint(juce::Graphics& g) {
 }
 
 void Track::resized() {
+  // TODO(luca): this will often run resized() twice
+  setSize(getTrackWidth(), height);
+
   auto r = getLocalBounds();
 
   timelineBounds          = r.removeFromTop(timelineHeight);
@@ -219,6 +223,25 @@ void Track::timerCallback() {
   repaint();
 }
 
+int Track::getTrackWidth() {
+  double width = 0;
+
+  for (auto* c : clips) {
+    if (c->start > width) {
+      width = c->start;
+    }
+  }
+
+  for (auto* p : automationLane.paths) {
+    if (p->start > width) {
+      width = p->start;
+    }
+  }
+
+  width *= zoom;
+  return width > getParentWidth() ? int(width) : getParentWidth();
+}
+
 // TODO(luca): tidy up 
 void Track::rebuildClips() {
   clips.clear();
@@ -233,6 +256,8 @@ void Track::rebuildClips() {
       automationLane.addPath(child);
     }
   }
+
+  resized();
 }
 
 bool Track::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) {
@@ -251,12 +276,10 @@ void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
 
 void Track::valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
   rebuildClips();
-  resized();
 }
 
 void Track::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) { 
   rebuildClips();
-  resized();
 }
 
 void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier& id) {
@@ -271,6 +294,7 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
     } 
   } else if (v.hasType(ID::PATH)) {
     if (id == ID::start || id == ID::y) {
+      resized();
       automationLane.resized();
     }
   }
