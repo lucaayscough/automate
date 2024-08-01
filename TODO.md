@@ -2,8 +2,6 @@
 
 ## Automation
 
-- Click to add path
-- Click and drag to move path
 - Curved paths
 
 ## Grid
