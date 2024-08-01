@@ -101,7 +101,13 @@ AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {
 
 void AutomationLane::paint(juce::Graphics& g) {
   g.setColour(juce::Colours::orange);
-  g.strokePath(automation.get(), juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
+  
+  {
+    auto p = automation.get();
+    auto pos = p.getCurrentPosition();
+    p.lineTo(float(getWidth() / zoom), pos.y);
+    g.strokePath(p, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
+  }
 
   auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };  
   auto it = std::find_if(paths.begin(), paths.end(), cond);
