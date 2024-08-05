@@ -26,31 +26,22 @@ void Engine::prepare(double sampleRate, int blockSize) {
 
 void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
-    auto playhead = apvts.processor.getPlayHead();
-    auto position = playhead->getPosition();
+    if (!editMode) {
+      auto time = double(uiBridge.playheadPosition);
+      auto lerpPos = automation.getLerpPos(time);
+      jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
+      auto clipPair = getClipPair(time);
 
-    if (position.hasValue()) {
-      auto time = position->getTimeInSeconds();
-      if (time.hasValue()) {
-        uiBridge.playheadPosition.store(*time, std::memory_order_relaxed);
+      if (clipPair.a && !clipPair.b) {
+        auto preset = presets.getPresetForClip(clipPair.a);
+        setParameters(preset);
+      } else if (clipPair.a && clipPair.b) {
+        auto p1 = presets.getPresetForClip(clipPair.a);
+        auto p2 = presets.getPresetForClip(clipPair.b);
 
-        if (!editMode) {
-          auto lerpPos = automation.getLerpPos(*time);
-          jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
-          auto clipPair = getClipPair(*time);
-
-          if (clipPair.a && !clipPair.b) {
-            auto preset = presets.getPresetForClip(clipPair.a);
-            setParameters(preset);
-          } else if (clipPair.a && clipPair.b) {
-            auto p1 = presets.getPresetForClip(clipPair.a);
-            auto p2 = presets.getPresetForClip(clipPair.b);
-
-            if (p1 && p2) {
-              interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
-            } 
-          }
-        }
+        if (p1 && p2) {
+          interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
+        } 
       }
     }
 

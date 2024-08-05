@@ -24,4 +24,8 @@ void saveKnownPluginList(juce::KnownPluginList& kpl) {
   xml->writeTo(FilePath::knownPluginList);
 }
 
+double secondsToPpq(double bpm, double seconds) {
+  return 60.0 * seconds / bpm;
+}
+
 } // namespace atmt

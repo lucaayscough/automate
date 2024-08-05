@@ -14,5 +14,6 @@ struct FilePath {
 
 void loadKnownPluginList(juce::KnownPluginList&);
 void saveKnownPluginList(juce::KnownPluginList&);
+double secondsToPpq(double, double);
 
 } // namespace atmt

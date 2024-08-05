@@ -2,29 +2,40 @@
 
 namespace atmt {
 
-void Grid::reset() {
-  interval = 0;
+void Grid::reset(f64 zoom) {
+  jassert(zoom > 0);
+  
+  // TODO(luca): make this less stupid
   x = 0;
-}
+  _x = 0;
+  barCount = 0;
+  beatCount = 0;
 
-void Grid::calculateBeatInterval(double bpm, double zoom) {
-  jassert(bpm > 0 && zoom > 0);
-  reset();
-  double mul = 1;
+  interval = zoom * (ts.denominator / 4.0);
+  _interval = u32(interval);
+  beatInterval = _interval;
+  barInterval = beatInterval * ts.numerator;
+
   while (interval < intervalMin) {
-    interval = mul / bpm * zoom;
-    mul += 1;
+    interval *= 2; 
+    _interval *= 2;
   }
 }
 
-double Grid::getNext() {
+Grid::BeatIndicator Grid::getNext() {
+  BeatIndicator b { int(barCount + 1), int(beatCount + 1), int(x) };
+
   x += interval;
-  return x;
+  _x += _interval;
+
+  beatCount = (_x / beatInterval) % ts.numerator;
+  barCount = _x / barInterval;
+  return b;
 }
 
-double Grid::getQuantized(double time) {
+f64 Grid::getQuantized(f64 time) {
   int div = int(time / interval);
-  double left  = div * interval;
+  f64 left  = div * interval;
   return time - left < interval / 2 ? left : left + interval;
 }
 
@@ -86,8 +97,8 @@ void PathView::mouseDown(const juce::MouseEvent&) {
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  auto newX = double(grid.getQuantized(parentLocalPoint.x) / zoom);
-  auto newY = double(parentLocalPoint.y / getParentComponent()->getHeight());
+  auto newX = f64(grid.getQuantized(parentLocalPoint.x) / zoom);
+  auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
   newY = std::clamp(newY, 0.0, 1.0);
   start.setValue(newX, undoManager);
   y.setValue(newY, undoManager);
@@ -105,8 +116,8 @@ void AutomationLane::paint(juce::Graphics& g) {
   {
     auto p = automation.get();
     auto pos = p.getCurrentPosition();
-    p.lineTo(float(getWidth() / zoom), pos.y);
-    g.strokePath(p, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(float(zoom), getHeight()));
+    p.lineTo(f32(getWidth() / zoom), pos.y);
+    g.strokePath(p, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(f32(zoom), getHeight()));
   }
 
   auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };  
@@ -135,14 +146,14 @@ void AutomationLane::addPath(juce::ValueTree& v) {
 
 // TODO(luca): clean up
 void AutomationLane::mouseMove(const juce::MouseEvent& e) {
-  juce::Point<float> hoverPoint;
-  automation.get().getNearestPoint(e.position, hoverPoint, juce::AffineTransform::scale(float(zoom), getHeight()));
+  juce::Point<f32> hoverPoint;
+  automation.get().getNearestPoint(e.position, hoverPoint, juce::AffineTransform::scale(f32(zoom), getHeight()));
   auto distance = hoverPoint.getDistanceFrom(e.position);
   if (distance < mouseOverDistance) {
     hoverBounds.setCentre(hoverPoint);
     hoverBounds.setSize(10, 10);
   } else {
-    hoverBounds = juce::Rectangle<float>();
+    hoverBounds = juce::Rectangle<f32>();
   }
 }
 
@@ -156,7 +167,7 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
 }
 
 void AutomationLane::mouseExit(const juce::MouseEvent&) {
-  hoverBounds = juce::Rectangle<float>();
+  hoverBounds = juce::Rectangle<f32>();
 }
 
 Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
@@ -182,23 +193,32 @@ void Track::paint(juce::Graphics& g) {
   g.fillRect(presetLaneBottomBounds);
 
   {
-    auto bpm = uiBridge.bpm.load();
-    grid.calculateBeatInterval(bpm, zoom);
+    grid.ts.numerator = uiBridge.numerator;
+    grid.ts.denominator = uiBridge.denominator;
+    zoom.forceUpdateOfCachedValue();
+    grid.reset(zoom);
 
-    if (bpm > 0) {
-      g.setColour(juce::Colours::darkgrey);
+    g.setFont(10);
 
-      auto x = grid.getNext();
-      while (x < getWidth()) {
-        g.fillRect(float(x), float(r.getY()), 1.f, float(getHeight()));
-        x = grid.getNext();
+    auto b = grid.getNext();
+    while (b.x < getWidth()) {
+      auto beatText = juce::String(b.bar);
+      if (b.beat > 1) {
+        beatText << "." + juce::String(b.beat);
       }
+
+      g.setColour(juce::Colours::black);
+      g.drawText(beatText, b.x, r.getY(), 40, 20, juce::Justification::left);
+
+      g.setColour(juce::Colours::darkgrey);
+      g.fillRect(f32(b.x), f32(r.getY()), 1.f, f32(getHeight()));
+      b = grid.getNext();
     }
   }
 
   g.setColour(juce::Colours::black);
-  auto time = int(uiBridge.playheadPosition.load(std::memory_order_relaxed) * zoom);
-  g.fillRect(time, r.getY(), 2, getHeight());
+  auto time = uiBridge.playheadPosition.load();
+  g.fillRect(int(time * zoom), r.getY(), 2, getHeight());
 }
 
 void Track::resized() {
@@ -224,7 +244,7 @@ void Track::timerCallback() {
 }
 
 int Track::getTrackWidth() {
-  double width = 0;
+  f64 width = 0;
 
   for (auto* c : clips) {
     if (c->start > width) {
@@ -304,10 +324,10 @@ void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDeta
   zoomTrack(w.deltaY, e.position.x);
 }
 
-void Track::zoomTrack(double amount, double mouseX) {
-  double x0 = mouseX * zoom;
-  double x1 = mouseX * zoom;
-  double dx = (x1 - x0) / zoom;
+void Track::zoomTrack(f64 amount, f64 mouseX) {
+  f64 x0 = mouseX * zoom;
+  f64 x1 = mouseX * zoom;
+  f64 dx = (x1 - x0) / zoom;
   viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
   zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
 }

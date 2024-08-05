@@ -1,18 +1,36 @@
 #pragma once
 
+#include "types.h"
 #include "state_manager.hpp"
 
 namespace atmt {
 
 struct Grid {
-  void reset();
-  void calculateBeatInterval(double, double);
-  double getNext();
-  double getQuantized(double);
+  struct BeatIndicator {
+    int bar = 1;
+    int beat = 1;
+    int x = 0;
+  };
 
-  double interval = 0;
-  static constexpr double intervalMin = 20;
-  double x = 0;
+  struct TimeSignature {
+    u32 numerator = 4;
+    u32 denominator = 4;
+  };
+
+  void reset(f64);
+  BeatIndicator getNext();
+  f64 getQuantized(f64);
+
+  TimeSignature ts;
+  static constexpr f64 intervalMin = 40;
+  f64 x = 0;
+  f64 interval = 0;
+  u32 _x = 0;
+  u32 _interval = 0;
+  u32 beatInterval = 0;
+  u32 barInterval = 0;
+  u32 barCount  = 0;
+  u32 beatCount = 0;
 };
 
 struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
@@ -28,11 +46,11 @@ struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
   StateManager& manager;
   juce::ValueTree editValueTree { manager.editTree };
   Grid& grid;
-  juce::CachedValue<double> zoom { editValueTree, ID::zoom, nullptr };
+  juce::CachedValue<f64> zoom { editValueTree, ID::zoom, nullptr };
   static constexpr int trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
-  double mouseDownOffset = 0;
+  f64 mouseDownOffset = 0;
 };
 
 struct PathView : juce::Component, Path {
@@ -44,7 +62,7 @@ struct PathView : juce::Component, Path {
 
   StateManager& manager;
   Grid& grid;
-  juce::CachedValue<double> zoom { manager.editTree, ID::zoom, nullptr };
+  juce::CachedValue<f64> zoom { manager.editTree, ID::zoom, nullptr };
   static constexpr int size = 10;
   static constexpr int posOffset = size / 2;
 };
@@ -62,9 +80,9 @@ struct AutomationLane : juce::Component {
   Grid& grid;
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.editTree };
-  juce::CachedValue<double> zoom { editTree, ID::zoom, nullptr };
+  juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
   Automation automation { editTree, undoManager };
-  juce::Rectangle<float> hoverBounds;
+  juce::Rectangle<f32> hoverBounds;
   juce::OwnedArray<PathView> paths;
   static constexpr int mouseOverDistance = 10;
 
@@ -84,7 +102,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override;
   void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
-  void zoomTrack(double, double);
+  void zoomTrack(f64, f64);
 
   StateManager& manager;
   UIBridge& uiBridge;
@@ -97,8 +115,8 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   AutomationLane automationLane { manager, grid };
   juce::OwnedArray<ClipView> clips;
-  juce::CachedValue<double> zoom { editTree, ID::zoom, nullptr };
-  static constexpr double zoomDeltaScale = 5.0;
+  juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
+  static constexpr f64 zoomDeltaScale = 5.0;
 
   juce::Viewport viewport;
 

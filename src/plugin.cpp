@@ -81,11 +81,24 @@ void Plugin::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mi
   if (playhead) {
     uiBridge.controlPlayhead = playhead->canControlTransport();
 
+    // TODO(luca): do time conversion if necessary and ensure that all necessary information
+    // including bpm etc is handled in hosts that do not provide them
     auto position = playhead->getPosition();
     if (position.hasValue()) {
+      auto ppq = position->getPpqPosition();
+      if (ppq.hasValue()) {
+        uiBridge.playheadPosition.store(*ppq);
+      }
+
       auto bpm = position->getBpm();
       if (bpm.hasValue()) {
         uiBridge.bpm = *bpm; 
+      }
+
+      auto timeSignature = position->getTimeSignature();
+      if (timeSignature.hasValue()) {
+        uiBridge.numerator = u32(timeSignature->numerator);
+        uiBridge.denominator = u32(timeSignature->denominator);
       }
     }
 
