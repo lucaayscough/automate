@@ -9,14 +9,21 @@ void Grid::reset(f64 zoom) {
   barCount = 0;
   beatCount = 0;
 
-  interval = zoom * (ts.denominator / 4.0);
+  interval = zoom / (ts.denominator / 4.0);
   beatInterval = 1;
   barInterval = ts.numerator;
 
-  while (interval < intervalMin) {
-    interval *= 2;
+  while (interval * beatInterval < intervalMin) {
     beatInterval *= 2;
+
+    if (beatInterval > barInterval) {
+      beatInterval -= beatInterval % barInterval;
+    } else {
+      beatInterval += barInterval - beatInterval;
+    }
   }
+
+  interval *= beatInterval;
 }
 
 Grid::BeatIndicator Grid::getNext() {
