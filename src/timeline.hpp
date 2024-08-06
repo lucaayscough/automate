@@ -17,9 +17,12 @@ struct Grid {
     u32 denominator = 4;
   };
 
-  void reset(f64);
-  BeatIndicator getNext();
+  void reset(f64, f64);
   f64 getQuantized(f64);
+
+  void narrow();
+  void widen();
+  void triplet();
 
   TimeSignature ts;
   static constexpr f64 intervalMin = 40;
@@ -31,6 +34,12 @@ struct Grid {
   u32 barInterval = 0;
   u32 barCount  = 0;
   u32 beatCount = 0;
+
+  bool tripletMode = false;
+  i32 gridWidth = 0;
+
+  std::vector<BeatIndicator> beatIndicators;
+  std::vector<i32> xs;
 };
 
 struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {

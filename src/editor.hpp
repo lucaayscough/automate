@@ -23,6 +23,7 @@ private:
   void createInstanceChangeCallback();
   void killInstanceChangeCallback();
   void childBoundsChanged(juce::Component*) override;
+  bool keyPressed(const juce::KeyPress&) override;
 
   Plugin& proc;
   StateManager& manager { proc.manager };

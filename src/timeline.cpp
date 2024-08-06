@@ -2,8 +2,11 @@
 
 namespace atmt {
 
-void Grid::reset(f64 zoom) {
+void Grid::reset(f64 zoom, f64 maxWidth) {
   jassert(zoom > 0);
+
+  xs.clear();
+  beatIndicators.clear();
   
   x = 0;
   barCount = 0;
@@ -24,28 +27,59 @@ void Grid::reset(f64 zoom) {
   }
 
   interval *= beatInterval;
-}
 
-Grid::BeatIndicator Grid::getNext() {
-  BeatIndicator b { i32(barCount + 1), i32(beatCount + 1), i32(x) };
+  u32 count = 0;
 
-  x += interval;
+  while (x < maxWidth) {
+    BeatIndicator b { i32(barCount + 1), i32(beatCount + 1), i32(x) };
+    beatIndicators.push_back(b);
 
-  for (u32 i = 0; i < beatInterval; ++i) {
-    beatCount = (beatCount + 1) % barInterval;
+    if (gridWidth == 0) {
+      xs.push_back(x);
+    } else if (gridWidth == 1) {
+      if (count % 2 == 0) {
+        xs.push_back(x);
+      }
+    } else if (gridWidth == 2) {
+      if (count % 4 == 0) {
+        xs.push_back(x);
+      }
+    }
 
-    if (!beatCount) {
-      ++barCount;
+    ++count;
+
+    x += interval;
+
+    for (u32 i = 0; i < beatInterval; ++i) {
+      beatCount = (beatCount + 1) % barInterval;
+
+      if (!beatCount) {
+        ++barCount;
+      }
     }
   }
-  
-  return b;
 }
 
 f64 Grid::getQuantized(f64 time) {
   i32 div = i32(time / interval);
   f64 left  = div * interval;
   return time - left < interval / 2 ? left : left + interval;
+}
+
+void Grid::narrow() {
+  if (gridWidth > -2) {
+    --gridWidth;
+  }
+}
+
+void Grid::widen() {
+  if (gridWidth < 2) {
+    ++gridWidth;
+  }
+}
+
+void Grid::triplet() {
+  tripletMode = !tripletMode;
 }
 
 ClipView::ClipView(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g) : Clip(vt, um), manager(m), grid(g) {
@@ -205,26 +239,23 @@ void Track::paint(juce::Graphics& g) {
   g.fillRect(presetLaneBottomBounds);
 
   {
-    grid.ts.numerator = uiBridge.numerator;
-    grid.ts.denominator = uiBridge.denominator;
-    zoom.forceUpdateOfCachedValue();
-    grid.reset(zoom);
-
     g.setFont(10);
 
-    auto b = grid.getNext();
-    while (b.x < getWidth()) {
+    g.setColour(juce::Colours::black);
+
+    for (auto& b : grid.beatIndicators) {
       auto beatText = juce::String(b.bar);
       if (b.beat > 1) {
         beatText << "." + juce::String(b.beat);
       }
 
-      g.setColour(juce::Colours::black);
       g.drawText(beatText, b.x, r.getY(), 40, 20, juce::Justification::left);
+    }
 
-      g.setColour(juce::Colours::darkgrey);
-      g.fillRect(f32(b.x), f32(r.getY()), 1.f, f32(getHeight()));
-      b = grid.getNext();
+    g.setColour(juce::Colours::darkgrey);
+
+    for (u32 i = 0; i < grid.xs.size(); ++i) {
+      g.fillRect(f32(grid.xs[i]), f32(r.getY()), 1.f, f32(getHeight()));
     }
   }
 
@@ -252,6 +283,11 @@ void Track::resized() {
 }
 
 void Track::timerCallback() {
+  grid.ts.numerator = uiBridge.numerator;
+  grid.ts.denominator = uiBridge.denominator;
+  zoom.forceUpdateOfCachedValue();
+  grid.reset(zoom, getWidth());
+
   repaint();
 }
 

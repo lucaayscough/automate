@@ -13,6 +13,8 @@ Editor::Editor(Plugin& _proc)
   } else {
     showDefaultScreen();
   }
+
+  setWantsKeyboardFocus(true);
 }
 
 void Editor::paint(juce::Graphics& g) {
@@ -77,6 +79,34 @@ void Editor::childBoundsChanged(juce::Component* c) {
       setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight);
     }
   }
+}
+
+bool Editor::keyPressed(const juce::KeyPress& k) {
+  auto modifier = k.getModifiers(); 
+  auto code = k.getKeyCode();
+
+  static constexpr i32 keyNum1 = 49;
+  static constexpr i32 keyNum2 = 50;
+  static constexpr i32 keyNum3 = 51;
+
+  if (modifier == juce::ModifierKeys::commandModifier) {
+    switch (code) {
+      case keyNum1: {
+        track.grid.narrow(); 
+        return true;
+      } break;
+      case keyNum2: {
+        track.grid.widen(); 
+        return true;
+      } break;
+      case keyNum3: {
+        track.grid.triplet(); 
+        return true;
+      } break;
+    };
+  }
+
+  return false;
 }
 
 } // namespace atmt
