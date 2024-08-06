@@ -5,20 +5,17 @@ namespace atmt {
 void Grid::reset(f64 zoom) {
   jassert(zoom > 0);
   
-  // TODO(luca): make this less stupid
   x = 0;
-  _x = 0;
   barCount = 0;
   beatCount = 0;
 
   interval = zoom * (ts.denominator / 4.0);
-  _interval = u32(interval);
-  beatInterval = _interval;
-  barInterval = beatInterval * ts.numerator;
+  beatInterval = 1;
+  barInterval = ts.numerator;
 
   while (interval < intervalMin) {
-    interval *= 2; 
-    _interval *= 2;
+    interval *= 2;
+    beatInterval *= 2;
   }
 }
 
@@ -26,10 +23,15 @@ Grid::BeatIndicator Grid::getNext() {
   BeatIndicator b { int(barCount + 1), int(beatCount + 1), int(x) };
 
   x += interval;
-  _x += _interval;
 
-  beatCount = (_x / beatInterval) % ts.numerator;
-  barCount = _x / barInterval;
+  for (u32 i = 0; i < beatInterval; ++i) {
+    beatCount = (beatCount + 1) % barInterval;
+
+    if (!beatCount) {
+      ++barCount;
+    }
+  }
+  
   return b;
 }
 

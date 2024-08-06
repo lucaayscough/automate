@@ -23,10 +23,10 @@ struct Grid {
 
   TimeSignature ts;
   static constexpr f64 intervalMin = 40;
+
   f64 x = 0;
   f64 interval = 0;
-  u32 _x = 0;
-  u32 _interval = 0;
+
   u32 beatInterval = 0;
   u32 barInterval = 0;
   u32 barCount  = 0;
