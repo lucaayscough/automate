@@ -172,7 +172,10 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
   auto hoverPoint = automation.getPointFromXIntersection(x); 
   hoverPoint.x = e.position.x;
   hoverPoint.y *= getHeight() * Automation::kExpand;
-  manager.addPath(hoverPoint.x / zoom, hoverPoint.y / getHeight());
+  auto distance = hoverPoint.getDistanceFrom(e.position);
+  if (distance < mouseOverDistance) {
+    manager.addPath(hoverPoint.x / zoom, hoverPoint.y / getHeight());
+  } 
 }
 
 void AutomationLane::mouseExit(const juce::MouseEvent&) {
