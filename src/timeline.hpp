@@ -7,9 +7,9 @@ namespace atmt {
 
 struct Grid {
   struct BeatIndicator {
-    int bar = 1;
-    int beat = 1;
-    int x = 0;
+    i32 bar = 1;
+    i32 beat = 1;
+    i32 x = 0;
   };
 
   struct TimeSignature {
@@ -47,7 +47,7 @@ struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
   juce::ValueTree editValueTree { manager.editTree };
   Grid& grid;
   juce::CachedValue<f64> zoom { editValueTree, ID::zoom, nullptr };
-  static constexpr int trimThreshold = 20;
+  static constexpr i32 trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
   f64 mouseDownOffset = 0;
@@ -63,8 +63,8 @@ struct PathView : juce::Component, Path {
   StateManager& manager;
   Grid& grid;
   juce::CachedValue<f64> zoom { manager.editTree, ID::zoom, nullptr };
-  static constexpr int size = 10;
-  static constexpr int posOffset = size / 2;
+  static constexpr i32 size = 10;
+  static constexpr i32 posOffset = size / 2;
 };
 
 struct AutomationLane : juce::Component {
@@ -84,7 +84,7 @@ struct AutomationLane : juce::Component {
   Automation automation { editTree, undoManager };
   juce::Rectangle<f32> hoverBounds;
   juce::OwnedArray<PathView> paths;
-  static constexpr int mouseOverDistance = 10;
+  static constexpr i32 mouseOverDistance = 10;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationLane)
 };
@@ -94,12 +94,12 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void paint(juce::Graphics&) override;
   void resized() override;
   void timerCallback() override;
-  int getTrackWidth();
+  i32 getTrackWidth();
   void rebuildClips();
   bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override;
   void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override;
   void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override;
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) override;
+  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) override;
   void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void zoomTrack(f64, f64);
@@ -120,13 +120,13 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   juce::Viewport viewport;
 
-  static constexpr int timelineHeight = 20;
-  static constexpr int presetLaneHeight = 25;
-  static constexpr int height = 200;
+  static constexpr i32 timelineHeight = 20;
+  static constexpr i32 presetLaneHeight = 25;
+  static constexpr i32 height = 200;
 
-  juce::Rectangle<int> timelineBounds;
-  juce::Rectangle<int> presetLaneTopBounds;
-  juce::Rectangle<int> presetLaneBottomBounds;
+  juce::Rectangle<i32> timelineBounds;
+  juce::Rectangle<i32> presetLaneTopBounds;
+  juce::Rectangle<i32> presetLaneBottomBounds;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };

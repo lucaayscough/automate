@@ -27,7 +27,7 @@ void Grid::reset(f64 zoom) {
 }
 
 Grid::BeatIndicator Grid::getNext() {
-  BeatIndicator b { int(barCount + 1), int(beatCount + 1), int(x) };
+  BeatIndicator b { i32(barCount + 1), i32(beatCount + 1), i32(x) };
 
   x += interval;
 
@@ -43,7 +43,7 @@ Grid::BeatIndicator Grid::getNext() {
 }
 
 f64 Grid::getQuantized(f64 time) {
-  int div = int(time / interval);
+  i32 div = i32(time / interval);
   f64 left  = div * interval;
   return time - left < interval / 2 ? left : left + interval;
 }
@@ -140,8 +140,8 @@ void AutomationLane::resized() {
   zoom.forceUpdateOfCachedValue();
 
   for (auto& path : paths) {
-    path->setBounds(int(path->start * zoom) - PathView::posOffset,
-                    int(path->y * getHeight()) - PathView::posOffset,
+    path->setBounds(i32(path->start * zoom) - PathView::posOffset,
+                    i32(path->y * getHeight()) - PathView::posOffset,
                     PathView::size, PathView::size);
   }
 }
@@ -227,7 +227,7 @@ void Track::paint(juce::Graphics& g) {
 
   g.setColour(juce::Colours::black);
   auto time = uiBridge.playheadPosition.load();
-  g.fillRect(int(time * zoom), r.getY(), 2, getHeight());
+  g.fillRect(i32(time * zoom), r.getY(), 2, getHeight());
 }
 
 void Track::resized() {
@@ -242,7 +242,7 @@ void Track::resized() {
   automationLane.setBounds(r);
 
   for (auto* clip : clips) {
-    clip->setBounds(int(clip->start * zoom) - presetLaneHeight / 2,
+    clip->setBounds(i32(clip->start * zoom) - presetLaneHeight / 2,
                     clip->top ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
                     presetLaneHeight, presetLaneHeight);
   }
@@ -252,7 +252,7 @@ void Track::timerCallback() {
   repaint();
 }
 
-int Track::getTrackWidth() {
+i32 Track::getTrackWidth() {
   f64 width = 0;
 
   for (auto* c : clips) {
@@ -307,7 +307,7 @@ void Track::valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
   rebuildClips();
 }
 
-void Track::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, int) { 
+void Track::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) { 
   rebuildClips();
 }
 
@@ -337,7 +337,7 @@ void Track::zoomTrack(f64 amount, f64 mouseX) {
   f64 x0 = mouseX * zoom;
   f64 x1 = mouseX * zoom;
   f64 dx = (x1 - x0) / zoom;
-  viewport.setViewPosition(int(viewport.getViewPositionX() + dx), 0);
+  viewport.setViewPosition(i32(viewport.getViewPositionX() + dx), 0);
   zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
 }
 
