@@ -5,18 +5,17 @@ namespace atmt {
 void Grid::reset(f64 zoom, f64 maxWidth) {
   jassert(zoom > 0);
 
-  xs.clear();
-  beatIndicators.clear();
+  lines.clear();
+  beats.clear();
   
-  x = 0;
-  barCount = 0;
-  beatCount = 0;
+  u32 barCount = 0;
+  u32 beatCount = 0;
 
-  interval = zoom / (ts.denominator / 4.0);
-  beatInterval = 1;
-  barInterval = ts.numerator;
+  pxInterval = zoom / (ts.denominator / 4.0);
+  u32 beatInterval = 1;
+  u32 barInterval = ts.numerator;
 
-  while (interval * beatInterval < intervalMin) {
+  while (pxInterval * beatInterval < intervalMin) {
     beatInterval *= 2;
 
     if (beatInterval > barInterval) {
@@ -26,43 +25,34 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
     }
   }
 
-  interval *= beatInterval;
+  pxInterval *= beatInterval;
 
+  f64 pxTripletInterval = pxInterval * 2 / 3;
+  f64 x = 0;
+  f64 tx = 0;
+  u32 numSubIntervals = u32(std::abs(gridWidth)) * 2;
+  f64 subInterval = (tripletMode ? pxTripletInterval : pxInterval) / f64(numSubIntervals);
   u32 count = 0;
 
-  while (x < maxWidth) {
-    BeatIndicator b { barCount + 1, beatCount + 1, x };
-    beatIndicators.push_back(b);
+  while (x < maxWidth || tx < maxWidth) {
+    Beat b { barCount + 1, beatCount + 1, x };
+    beats.push_back(b);
 
-    switch (gridWidth) {
-      case 0: {
-        xs.push_back(x);
-      } break;
-      
-      case 1: {
-        if (count % 2 == 0) xs.push_back(x);
-      } break;
-
-      case 2: {
-        if (count % 4 == 0) xs.push_back(x);
-      } break;
-
-      case -1: {
-        xs.push_back(x);
-        xs.push_back(x + interval / 2);
-      } break;
-
-      case -2: {
-        xs.push_back(x);
-        xs.push_back(xs.back() + interval / 4);
-        xs.push_back(xs.back() + interval / 4);
-        xs.push_back(xs.back() + interval / 4);
-      } break;
+    if (gridWidth < 0) {
+      for (u32 i = 0; i < numSubIntervals; ++i) {
+        lines.push_back((tripletMode ? tx : x) + f64(i) * subInterval);
+      }
+      lines.push_back(tripletMode ? tx : x);
+    } else if (gridWidth > 0) {
+      if (count % numSubIntervals == 0) {
+        lines.push_back(tripletMode ? tx : x);
+      }
+    } else {
+      lines.push_back(tripletMode ? tx : x);
     }
 
-    ++count;
-
-    x += interval;
+    x += pxInterval;
+    tx += pxTripletInterval;
 
     for (u32 i = 0; i < beatInterval; ++i) {
       beatCount = (beatCount + 1) % barInterval;
@@ -71,13 +61,14 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
         ++barCount;
       }
     }
+    ++count;
   }
 }
 
 f64 Grid::getQuantized(f64 time) {
-  i32 div = i32(time / interval);
-  f64 left  = div * interval;
-  return time - left < interval / 2 ? left : left + interval;
+  i32 div = i32(time / pxInterval);
+  f64 left  = div * pxInterval;
+  return time - left < pxInterval / 2 ? left : left + pxInterval;
 }
 
 void Grid::narrow() {
@@ -257,7 +248,7 @@ void Track::paint(juce::Graphics& g) {
 
     g.setColour(juce::Colours::black);
 
-    for (auto& b : grid.beatIndicators) {
+    for (auto& b : grid.beats) {
       auto beatText = juce::String(b.bar);
       if (b.beat > 1) {
         beatText << "." + juce::String(b.beat);
@@ -269,8 +260,8 @@ void Track::paint(juce::Graphics& g) {
 
     g.setColour(juce::Colours::darkgrey);
 
-    for (u32 i = 0; i < grid.xs.size(); ++i) {
-      g.fillRect(f32(grid.xs[i]), f32(r.getY()), 0.75f, f32(getHeight()));
+    for (u32 i = 0; i < grid.lines.size(); ++i) {
+      g.fillRect(f32(grid.lines[i]), f32(r.getY()), 0.75f, f32(getHeight()));
     }
   }
 

@@ -6,7 +6,7 @@
 namespace atmt {
 
 struct Grid {
-  struct BeatIndicator {
+  struct Beat {
     u32 bar = 1;
     u32 beat = 1;
     f64 x = 0;
@@ -26,20 +26,12 @@ struct Grid {
 
   TimeSignature ts;
   static constexpr f64 intervalMin = 40;
-
-  f64 x = 0;
-  f64 interval = 0;
-
-  u32 beatInterval = 0;
-  u32 barInterval = 0;
-  u32 barCount  = 0;
-  u32 beatCount = 0;
-
+  f64 pxInterval = 0;
   bool tripletMode = false;
   i32 gridWidth = 0;
 
-  std::vector<BeatIndicator> beatIndicators;
-  std::vector<f64> xs;
+  std::vector<Beat> beats;
+  std::vector<f64> lines;
 };
 
 struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
