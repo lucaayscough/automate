@@ -270,7 +270,7 @@ void Track::paint(juce::Graphics& g) {
     g.setColour(juce::Colours::darkgrey);
 
     for (u32 i = 0; i < grid.xs.size(); ++i) {
-      g.fillRect(f32(grid.xs[i]), f32(r.getY()), 1.f, f32(getHeight()));
+      g.fillRect(f32(grid.xs[i]), f32(r.getY()), 0.75f, f32(getHeight()));
     }
   }
 
