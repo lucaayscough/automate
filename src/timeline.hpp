@@ -17,7 +17,8 @@ struct Grid {
     u32 denominator = 4;
   };
 
-  void reset(f64, f64);
+  void reset(f64, f64, TimeSignature);
+  void reset();
   f64 snap(f64);
 
   void narrow();
@@ -25,6 +26,9 @@ struct Grid {
   void triplet();
 
   TimeSignature ts;
+  f64 zoom = 0;
+  f64 maxWidth = 0;
+
   static constexpr f64 intervalMin = 40;
   f64 snapInterval = 0;
   bool tripletMode = false;

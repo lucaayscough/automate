@@ -2,9 +2,23 @@
 
 namespace atmt {
 
-void Grid::reset(f64 zoom, f64 maxWidth) {
-  jassert(zoom > 0);
+void Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
+  jassert(z > 0);
 
+  if (zoom != z || maxWidth != mw || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
+    zoom = z;
+    maxWidth = mw;
+    ts = _ts;
+    reset();
+  }
+}
+
+void Grid::reset() {
+  DBG("Grid::reset())");
+
+  jassert(zoom > 0 && maxWidth > 0 && ts.numerator > 0 && ts.denominator > 0);
+
+  // TODO(luca): there is still some stuff to work out with the triplet grid
   lines.clear();
   beats.clear();
   
@@ -85,17 +99,20 @@ f64 Grid::snap(f64 time) {
 void Grid::narrow() {
   if (gridWidth > -2) {
     --gridWidth;
+    reset();
   }
 }
 
 void Grid::widen() {
   if (gridWidth < 2) {
     ++gridWidth;
+    reset();
   }
 }
 
 void Grid::triplet() {
   tripletMode = !tripletMode;
+  reset();
 }
 
 ClipView::ClipView(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g) : Clip(vt, um), manager(m), grid(g) {
@@ -300,11 +317,9 @@ void Track::resized() {
 }
 
 void Track::timerCallback() {
-  grid.ts.numerator = uiBridge.numerator;
-  grid.ts.denominator = uiBridge.denominator;
+  Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
   zoom.forceUpdateOfCachedValue();
-  grid.reset(zoom, getWidth());
-
+  grid.reset(zoom, getWidth(), ts);
   repaint();
 }
 
