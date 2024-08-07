@@ -31,19 +31,33 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
   u32 count = 0;
 
   while (x < maxWidth) {
-    BeatIndicator b { i32(barCount + 1), i32(beatCount + 1), i32(x) };
+    BeatIndicator b { barCount + 1, beatCount + 1, x };
     beatIndicators.push_back(b);
 
-    if (gridWidth == 0) {
-      xs.push_back(x);
-    } else if (gridWidth == 1) {
-      if (count % 2 == 0) {
+    switch (gridWidth) {
+      case 0: {
         xs.push_back(x);
-      }
-    } else if (gridWidth == 2) {
-      if (count % 4 == 0) {
+      } break;
+      
+      case 1: {
+        if (count % 2 == 0) xs.push_back(x);
+      } break;
+
+      case 2: {
+        if (count % 4 == 0) xs.push_back(x);
+      } break;
+
+      case -1: {
         xs.push_back(x);
-      }
+        xs.push_back(x + interval / 2);
+      } break;
+
+      case -2: {
+        xs.push_back(x);
+        xs.push_back(xs.back() + interval / 4);
+        xs.push_back(xs.back() + interval / 4);
+        xs.push_back(xs.back() + interval / 4);
+      } break;
     }
 
     ++count;
@@ -249,7 +263,8 @@ void Track::paint(juce::Graphics& g) {
         beatText << "." + juce::String(b.beat);
       }
 
-      g.drawText(beatText, b.x, r.getY(), 40, 20, juce::Justification::left);
+      // TODO(luca): use a float rectangle here
+      g.drawText(beatText, i32(b.x), r.getY(), 40, 20, juce::Justification::left);
     }
 
     g.setColour(juce::Colours::darkgrey);

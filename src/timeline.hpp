@@ -7,9 +7,9 @@ namespace atmt {
 
 struct Grid {
   struct BeatIndicator {
-    i32 bar = 1;
-    i32 beat = 1;
-    i32 x = 0;
+    u32 bar = 1;
+    u32 beat = 1;
+    f64 x = 0;
   };
 
   struct TimeSignature {
@@ -39,7 +39,7 @@ struct Grid {
   i32 gridWidth = 0;
 
   std::vector<BeatIndicator> beatIndicators;
-  std::vector<i32> xs;
+  std::vector<f64> xs;
 };
 
 struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
