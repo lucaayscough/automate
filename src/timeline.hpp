@@ -24,6 +24,7 @@ struct Grid {
   void narrow();
   void widen();
   void triplet();
+  void toggleSnap();
 
   TimeSignature ts;
   f64 zoom = 0;
@@ -33,6 +34,7 @@ struct Grid {
   f64 snapInterval = 0;
   bool tripletMode = false;
   i32 gridWidth = 0;
+  bool snapOn = true;
 
   std::vector<Beat> beats;
   std::vector<f64> lines;

@@ -88,6 +88,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyNum1 = 49;
   static constexpr i32 keyNum2 = 50;
   static constexpr i32 keyNum3 = 51;
+  static constexpr i32 keyNum4 = 52;
 
   if (modifier == juce::ModifierKeys::commandModifier) {
     switch (code) {
@@ -101,6 +102,10 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       } break;
       case keyNum3: {
         track.grid.triplet(); 
+        return true;
+      } break;
+      case keyNum4: {
+        track.grid.toggleSnap(); 
         return true;
       } break;
     };

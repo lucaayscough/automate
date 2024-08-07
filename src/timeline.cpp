@@ -91,9 +91,13 @@ void Grid::reset() {
 }
 
 f64 Grid::snap(f64 time) {
-  i32 div = i32(time / snapInterval);
-  f64 left  = div * snapInterval;
-  return time - left < snapInterval / 2 ? left : left + snapInterval;
+  if (snapOn) {
+    i32 div = i32(time / snapInterval);
+    f64 left  = div * snapInterval;
+    return time - left < snapInterval / 2 ? left : left + snapInterval;
+  } else {
+    return time;
+  }
 }
 
 void Grid::narrow() {
@@ -113,6 +117,10 @@ void Grid::widen() {
 void Grid::triplet() {
   tripletMode = !tripletMode;
   reset();
+}
+
+void Grid::toggleSnap() {
+  snapOn = !snapOn;
 }
 
 ClipView::ClipView(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g) : Clip(vt, um), manager(m), grid(g) {
