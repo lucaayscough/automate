@@ -18,7 +18,7 @@ struct Grid {
   };
 
   void reset(f64, f64);
-  f64 getQuantized(f64);
+  f64 snap(f64);
 
   void narrow();
   void widen();
@@ -26,7 +26,7 @@ struct Grid {
 
   TimeSignature ts;
   static constexpr f64 intervalMin = 40;
-  f64 pxInterval = 0;
+  f64 snapInterval = 0;
   bool tripletMode = false;
   i32 gridWidth = 0;
 

@@ -11,7 +11,7 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
   u32 barCount = 0;
   u32 beatCount = 0;
 
-  pxInterval = zoom / (ts.denominator / 4.0);
+  f64 pxInterval = zoom / (ts.denominator / 4.0);
   u32 beatInterval = 1;
   u32 barInterval = ts.numerator;
 
@@ -31,7 +31,16 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
   f64 x = 0;
   f64 tx = 0;
   u32 numSubIntervals = u32(std::abs(gridWidth)) * 2;
-  f64 subInterval = (tripletMode ? pxTripletInterval : pxInterval) / f64(numSubIntervals);
+  
+  f64 subInterval = 0;
+  if (gridWidth < 0) {
+    subInterval = tripletMode ? pxTripletInterval : pxInterval / f64(numSubIntervals);
+  } else if (gridWidth > 0) {
+    subInterval = tripletMode ? pxTripletInterval : pxInterval / (1.0 / f64(numSubIntervals));
+  } else {
+    subInterval = tripletMode ? pxTripletInterval : pxInterval; 
+  }
+
   u32 count = 0;
 
   while (x < maxWidth || tx < maxWidth) {
@@ -63,12 +72,14 @@ void Grid::reset(f64 zoom, f64 maxWidth) {
     }
     ++count;
   }
+
+  snapInterval = subInterval;
 }
 
-f64 Grid::getQuantized(f64 time) {
-  i32 div = i32(time / pxInterval);
-  f64 left  = div * pxInterval;
-  return time - left < pxInterval / 2 ? left : left + pxInterval;
+f64 Grid::snap(f64 time) {
+  i32 div = i32(time / snapInterval);
+  f64 left  = div * snapInterval;
+  return time - left < snapInterval / 2 ? left : left + snapInterval;
 }
 
 void Grid::narrow() {
@@ -110,7 +121,7 @@ void ClipView::mouseUp(const juce::MouseEvent&) {
 
 void ClipView::mouseDrag(const juce::MouseEvent& e) {
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  start.setValue(grid.getQuantized(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+  start.setValue(grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
   if (parentLocalPoint.y > getHeight() / 2) {
     top.setValue(false, undoManager);
   } else {
@@ -145,7 +156,7 @@ void PathView::mouseDown(const juce::MouseEvent&) {
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  auto newX = f64(grid.getQuantized(parentLocalPoint.x) / zoom);
+  auto newX = f64(grid.snap(parentLocalPoint.x) / zoom);
   auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
   newY = std::clamp(newY, 0.0, 1.0);
   start.setValue(newX, undoManager);
@@ -343,7 +354,7 @@ void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
   auto name = details.description.toString();
   auto preset = presets.getPresetFromName(name);
   auto id = preset->_id.load();
-  auto start = grid.getQuantized(details.localPosition.x) / zoom;
+  auto start = grid.snap(details.localPosition.x) / zoom;
   auto top = details.localPosition.y < getHeight() / 2;
   manager.addClip(id, name, start, top);
 }
