@@ -4,6 +4,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <span>
+#include "types.h"
 
 template<>
 struct juce::VariantConverter<juce::Path> {
@@ -19,19 +20,19 @@ struct juce::VariantConverter<juce::Path> {
 };
 
 template<>
-struct juce::VariantConverter<std::vector<float>> {
-  static std::vector<float> fromVar(const var& v) {
+struct juce::VariantConverter<std::vector<f32>> {
+  static std::vector<f32> fromVar(const var& v) {
     auto mb = v.getBinaryData();
     auto len = std::size_t(mb->getSize());
-    auto data = (float*)mb->getData();
-    std::vector<float> vec; 
-    vec.resize(len / sizeof(float));
+    auto data = (f32*)mb->getData();
+    std::vector<f32> vec; 
+    vec.resize(len / sizeof(f32));
     std::memcpy(vec.data(), data, len);
     return vec;
   }
   
-  static juce::var toVar(const std::vector<float>& vec) {
-    return { vec.data(), vec.size() * sizeof(float) };
+  static juce::var toVar(const std::vector<f32>& vec) {
+    return { vec.data(), vec.size() * sizeof(f32) };
   }
 };
 
@@ -64,7 +65,7 @@ struct Preset : TreeWrapper {
 
     {
       auto mb = state[ID::parameters].getBinaryData();
-      std::span<float> p { (float*)mb->getData(), mb->getSize() / sizeof(float) };
+      std::span<f32> p { (f32*)mb->getData(), mb->getSize() / sizeof(f32) };
       for (std::size_t i = 0; i < p.size(); ++i) {
         if (i < _numParameters) {
           _parameters[i] = p[i]; 
@@ -76,11 +77,11 @@ struct Preset : TreeWrapper {
     }
   }
 
-  juce::CachedValue<std::vector<float>> parameters { state, ID::parameters, undoManager };
+  juce::CachedValue<std::vector<f32>> parameters { state, ID::parameters, undoManager };
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
 
   std::atomic<std::int64_t> _id = 0; 
-  std::deque<std::atomic<float>> _parameters;
+  std::deque<std::atomic<f32>> _parameters;
   std::atomic<std::size_t> _numParameters = 0;
 };
 
@@ -92,20 +93,21 @@ struct Clip : TreeWrapper {
 
   void rebuild() override {
     name.forceUpdateOfCachedValue();
-    start.forceUpdateOfCachedValue();
-    top.forceUpdateOfCachedValue();
+    x.forceUpdateOfCachedValue();
+    y.forceUpdateOfCachedValue();
+
     _id = std::int64_t(state[ID::id]);
-    _start = start;
-    _top = top;
+    _x = x;
+    _y = y;
   }
 
   juce::CachedValue<juce::String> name { state, ID::name, undoManager };
-  juce::CachedValue<double> start { state, ID::start, undoManager };
-  juce::CachedValue<bool> top { state, ID::top, undoManager };
+  juce::CachedValue<f64> x { state, ID::x, undoManager };
+  juce::CachedValue<bool> y { state, ID::y, undoManager };
 
   std::atomic<std::int64_t> _id = 0;
-  std::atomic<double> _start = 0;
-  std::atomic<bool> _top = false;
+  std::atomic<f64> _x = 0;
+  std::atomic<f64> _y = 0;
 };
 
 struct Path : TreeWrapper {
@@ -115,17 +117,44 @@ struct Path : TreeWrapper {
   }
 
   void rebuild() override {
-    start.forceUpdateOfCachedValue();
+    x.forceUpdateOfCachedValue();
     y.forceUpdateOfCachedValue();
-    _start = start;
+    _x = x;
     _y = y;
   }
 
-  juce::CachedValue<double> start { state, ID::start, undoManager };
-  juce::CachedValue<double> y { state, ID::y, undoManager };
+  juce::CachedValue<f64> x { state, ID::x, undoManager };
+  juce::CachedValue<f64> y { state, ID::y, undoManager };
 
-  std::atomic<double> _start = 0;
-  std::atomic<double> _y = 0;
+  std::atomic<f64> _x = 0;
+  std::atomic<f64> _y = 0;
+};
+
+struct ClipPath : TreeWrapper {
+  ClipPath(juce::ValueTree& v, juce::UndoManager* um) : TreeWrapper(v, um) {
+    jassert(v.hasType(ID::PATH) || v.hasType(ID::CLIP));
+    rebuild();
+  }
+
+  void rebuild() override {
+    x.forceUpdateOfCachedValue();
+    y.forceUpdateOfCachedValue();
+    curve.forceUpdateOfCachedValue();
+
+    _x = x;
+    _y = y;
+
+    jassert(x >= 0);
+    jassert(y >= 0 && y <= 1);
+    jassert(curve >= 0 && curve <= 1);
+  }
+
+  juce::CachedValue<f64> x { state, ID::x, undoManager };
+  juce::CachedValue<f64> y { state, ID::y, undoManager };
+  juce::CachedValue<f64> curve { state, ID::curve, undoManager };
+
+  std::atomic<f64> _x = 0;
+  std::atomic<f64> _y = 0;
 };
 
 template<typename T>
@@ -176,7 +205,7 @@ struct Clips : ObjectList<Clip> {
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::CLIP); }
 
   void sort() override {
-    auto cmp = [] (std::unique_ptr<Clip>& a, std::unique_ptr<Clip>& b) { return a->start < b->start; };
+    auto cmp = [] (std::unique_ptr<Clip>& a, std::unique_ptr<Clip>& b) { return a->x < b->x; };
     std::sort(objects.begin(), objects.end(), cmp);
   }
 };
@@ -190,7 +219,21 @@ struct Paths : ObjectList<Path> {
   bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PATH); }
 
   void sort() override {
-    auto cmp = [] (std::unique_ptr<Path>& a, std::unique_ptr<Path>& b) { return a->start < b->start; };
+    auto cmp = [] (std::unique_ptr<Path>& a, std::unique_ptr<Path>& b) { return a->x < b->x; };
+    std::sort(begin(), end(), cmp);
+  }
+};
+
+struct ClipPaths : ObjectList<ClipPath> {
+  ClipPaths OBJECT_LIST_INIT { 
+    jassert(v.hasType(ID::EDIT));
+    rebuild();
+  }
+
+  bool isType(const juce::ValueTree& v) override { return v.hasType(ID::PATH) || v.hasType(ID::CLIP); }
+
+  void sort() override {
+    auto cmp = [] (std::unique_ptr<ClipPath>& a, std::unique_ptr<ClipPath>& b) { return a->x < b->x; };
     std::sort(begin(), end(), cmp);
   }
 };
@@ -219,15 +262,18 @@ struct Presets : ObjectList<Preset> {
 struct Automation : TreeWrapper {
   Automation(juce::ValueTree&, juce::UndoManager*, juce::AudioProcessor*);
   
-  double getLerpPos(double);
-  juce::Point<float> getPointFromXIntersection(double);
+  auto getPointFromXIntersection(f64);
+  f64 getYFromX(f64);
+  ClipPath* getClipPathForX(f64);
+
   void rebuild() override;
   juce::Path& get();
 
   juce::AudioProcessor* proc = nullptr;
   juce::Path automation;
-  static constexpr float kFlat = 0.000001f;
-  static constexpr float kExpand = 1000000.f;
+  static constexpr f32 kFlat = 0.000001f;
+  static constexpr f32 kExpand = 1000000.f;
+  ClipPaths clipPaths { state, undoManager, proc };
 };
 
 struct StateManager
@@ -239,8 +285,7 @@ struct StateManager
   juce::ValueTree getState();
   void validate();
 
-  // TODO(luca): these will need to be refactored
-  void addClip(std::int64_t, const juce::String&, double, bool);
+  void addClip(std::int64_t, const juce::String&, f64, f64);
   void removeClip(const juce::ValueTree& vt);
   void removeClipsIfInvalid(const juce::var&);
   void clearEdit();
@@ -249,7 +294,7 @@ struct StateManager
   void removePreset(const juce::String& name);
   bool doesPresetNameExist(const juce::String&);
   void clearPresets();
-  void addPath(double, double);
+  void addPath(f64, f64);
   void removePath(const juce::ValueTree&);
 
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
@@ -267,7 +312,7 @@ struct StateManager
   Clips clips     { editTree,    undoManager };
 
   juce::Random rand;
-  static constexpr double defaultZoomValue = 100;
+  static constexpr f64 defaultZoomValue = 100;
 };
 
 } // namespace atmt 

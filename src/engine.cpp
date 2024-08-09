@@ -28,7 +28,7 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
   if (instance) {
     if (!editMode) {
       auto time = double(uiBridge.playheadPosition);
-      auto lerpPos = automation.getLerpPos(time);
+      auto lerpPos = automation.getYFromX(time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
       auto clipPair = getClipPair(time);
 
@@ -40,7 +40,7 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
         auto p2 = presets.getPresetForClip(clipPair.b);
 
         if (p1 && p2) {
-          interpolateParameters(p1, p2, clipPair.a->_top ? lerpPos : 1.0 - lerpPos); 
+          interpolateParameters(p1, p2, bool(i32(clipPair.a->_y)) ? 1.0 - lerpPos : lerpPos); 
         } 
       }
     }
@@ -68,7 +68,7 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
 ClipPair Engine::getClipPair(double time) {
   ClipPair clipPair;
   
-  auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->_start; }; 
+  auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->_x; }; 
   auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
   if (it != clips.rend()) {

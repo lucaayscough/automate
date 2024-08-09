@@ -8,37 +8,42 @@ Automation::Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioPro
   rebuild();
 }
 
-double Automation::getLerpPos(double time) {
-  return getPointFromXIntersection(time).y * kExpand;
+auto Automation::getPointFromXIntersection(f64 x) {
+  return automation.getPointAlongPath(f32(x), juce::AffineTransform::scale(1, kFlat));
 }
 
-juce::Point<float> Automation::getPointFromXIntersection(double x) {
-  return automation.getPointAlongPath(float(x), juce::AffineTransform::scale(1, kFlat));
+f64 Automation::getYFromX(f64 x) {
+  return getPointFromXIntersection(x).y * kExpand;
+}
+
+ClipPath* Automation::getClipPathForX(f64 x) {
+  for (auto it = clipPaths.begin(); it != clipPaths.end(); ++it) {
+    if (it != clipPaths.begin()) {
+      auto& a = *std::prev(it);
+      auto& b = *it;
+
+      if (x >= a->x && x <= b->x) {
+        return b.get();
+      }
+    }
+  }
+  return nullptr;
 }
 
 void Automation::rebuild() {
   if (proc) proc->suspendProcessing(true);
 
   automation.clear();
-
-  Clips clips { state, undoManager }; 
-  Paths paths { state, undoManager };
-   
-  std::vector<juce::Point<float>> points;
-
-  for (const auto& clip : clips) {
-    points.emplace_back(float(clip->start), float(clip->top ? 0 : 1));
-  }
-
-  for (const auto& path : paths) {
-    points.emplace_back(float(path->start), float(path->y));
-  }
-
-  auto cmp = [] (juce::Point<float> a, juce::Point<float> b) { return a.x < b.x; };
-  std::sort(points.begin(), points.end(), cmp);
-
-  for (auto p : points) {
-    automation.lineTo(p.x, p.y);
+  clipPaths.rebuild();
+ 
+  for (auto& p : clipPaths) {
+    auto c = automation.getCurrentPosition();
+    
+    auto curve = *p->curve;
+    auto cx = c.x + (p->x - c.x) * (c.y < p->y ? curve : 1.0 - curve); 
+    auto cy = (c.y < p->y ? c.y : p->y) + std::abs(p->y - c.y) * (1.0 - curve);
+    
+    automation.quadraticTo(f32(cx), f32(cy), f32(p->x), f32(p->y));
   }
 
   if (proc) proc->suspendProcessing(false);
@@ -104,15 +109,16 @@ void StateManager::validate() {
   jassert(presetsTree.isValid());
 }
 
-void StateManager::addClip(std::int64_t id, const juce::String& name, double start, bool top) {
+void StateManager::addClip(std::int64_t id, const juce::String& name, double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
   undoManager->beginNewTransaction();
 
   juce::ValueTree clip { ID::CLIP };
   clip.setProperty(ID::id, id, undoManager)
       .setProperty(ID::name, name, undoManager)
-      .setProperty(ID::start, start, undoManager)
-      .setProperty(ID::top, top, undoManager);
+      .setProperty(ID::x, x, undoManager)
+      .setProperty(ID::y, y, undoManager)
+      .setProperty(ID::curve, 0.5, undoManager);
   editTree.addChild(clip, -1, undoManager);
 }
 
@@ -141,7 +147,7 @@ void StateManager::overwritePreset(const juce::String& name) {
   undoManager->beginNewTransaction();
 
   auto& _proc = *static_cast<Plugin*>(&proc);
-  std::vector<float> values;
+  std::vector<f32> values;
   _proc.engine.getCurrentParameterValues(values);
 
   auto preset = presets.getPresetFromName(name); 
@@ -153,7 +159,7 @@ void StateManager::savePreset(const juce::String& name) {
   undoManager->beginNewTransaction();
 
   auto& _proc = *static_cast<Plugin*>(&proc);
-  std::vector<float> values;
+  std::vector<f32> values;
   _proc.engine.getCurrentParameterValues(values);
 
   std::int64_t id = 0;
@@ -172,7 +178,7 @@ void StateManager::savePreset(const juce::String& name) {
   juce::ValueTree preset { ID::PRESET };
   preset.setProperty(ID::id, id, undoManager);
   preset.setProperty(ID::name, name, undoManager);
-  preset.setProperty(ID::parameters, { values.data(), values.size() * sizeof(float) }, undoManager);
+  preset.setProperty(ID::parameters, { values.data(), values.size() * sizeof(f32) }, undoManager);
   presetsTree.addChild(preset, -1, undoManager);
 }
 
@@ -201,15 +207,16 @@ void StateManager::clearPresets() {
   undoManager->clearUndoHistory();
 }
 
-void StateManager::addPath(double start, double y) {
+void StateManager::addPath(double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
-  jassert(start >= 0 && y >= 0 && y <= 1);
+  jassert(x >= 0 && y >= 0 && y <= 1);
 
   undoManager->beginNewTransaction();
 
   juce::ValueTree path(ID::PATH);
-  path.setProperty(ID::start, start, undoManager)
-      .setProperty(ID::y, y, undoManager);
+  path.setProperty(ID::x, x, undoManager)
+      .setProperty(ID::y, y, undoManager)
+      .setProperty(ID::curve, 0.5, undoManager);
 
   editTree.appendChild(path, undoManager);
 }

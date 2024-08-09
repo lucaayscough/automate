@@ -5,7 +5,7 @@ namespace atmt {
 void Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
   jassert(z > 0);
 
-  if (zoom != z || maxWidth != mw || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
+  if (std::abs(zoom - z) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
     zoom = z;
     maxWidth = mw;
     ts = _ts;
@@ -14,8 +14,6 @@ void Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
 }
 
 void Grid::reset() {
-  DBG("Grid::reset())");
-
   jassert(zoom > 0 && maxWidth > 0 && ts.numerator > 0 && ts.denominator > 0);
 
   // TODO(luca): there is still some stuff to work out with the triplet grid
@@ -146,11 +144,11 @@ void ClipView::mouseUp(const juce::MouseEvent&) {
 
 void ClipView::mouseDrag(const juce::MouseEvent& e) {
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  start.setValue(grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
+  x.setValue(grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
   if (parentLocalPoint.y > getHeight() / 2) {
-    top.setValue(false, undoManager);
+    y.setValue(1, undoManager);
   } else {
-    top.setValue(true, undoManager);
+    y.setValue(0, undoManager);
   }
 }
 
@@ -184,7 +182,7 @@ void PathView::mouseDrag(const juce::MouseEvent& e) {
   auto newX = f64(grid.snap(parentLocalPoint.x) / zoom);
   auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
   newY = std::clamp(newY, 0.0, 1.0);
-  start.setValue(newX, undoManager);
+  x.setValue(newX, undoManager);
   y.setValue(newY, undoManager);
 }
 
@@ -195,19 +193,43 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
 AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {}
 
 void AutomationLane::paint(juce::Graphics& g) {
-  g.setColour(juce::Colours::orange);
-  
-  {
+  { // NOTE(luca): draw automation line
     auto p = automation.get();
-    auto pos = p.getCurrentPosition();
-    p.lineTo(f32(getWidth() / zoom), pos.y);
-    g.strokePath(p, juce::PathStrokeType { 2.f }, juce::AffineTransform::scale(f32(zoom), getHeight()));
+    p.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
+
+    juce::Path::Iterator it(p);
+
+    bool end = false;
+    juce::Path tmp;
+
+    do {
+      auto x1 = it.x2;
+      auto y1 = it.y2;
+
+      end = !it.next();
+
+      if (xHighlightedSegment > x1 && xHighlightedSegment < it.x2) {
+        g.setColour(juce::Colours::red);
+      } else {
+        g.setColour(juce::Colours::orange);
+      }
+
+      if (!end) {
+        tmp.clear();
+        tmp.startNewSubPath(x1, y1);
+        tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
+        g.strokePath(tmp, juce::PathStrokeType { 2.f });
+      }
+    } while (!end);
   }
 
-  auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };  
-  auto it = std::find_if(paths.begin(), paths.end(), cond);
-  if (it == paths.end()) {
-    g.fillEllipse(hoverBounds);
+  { // NOTE(luca): draw point
+    auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };  
+    auto it = std::find_if(paths.begin(), paths.end(), cond);
+    if (it == paths.end()) {
+      g.setColour(juce::Colours::orange);
+      g.fillEllipse(hoverBounds);
+    }
   }
 }
 
@@ -215,10 +237,20 @@ void AutomationLane::resized() {
   zoom.forceUpdateOfCachedValue();
 
   for (auto& path : paths) {
-    path->setBounds(i32(path->start * zoom) - PathView::posOffset,
+    path->setBounds(i32(path->x * zoom) - PathView::posOffset,
                     i32(path->y * getHeight()) - PathView::posOffset,
                     PathView::size, PathView::size);
   }
+}
+
+auto AutomationLane::getAutomationPoint(juce::Point<f32> p) {
+  juce::Point<f32> np;
+  automation.get().getNearestPoint(p, np, juce::AffineTransform::scale(f32(zoom), getHeight()));
+  return np;
+}
+
+f64 AutomationLane::getDistanceFromPoint(juce::Point<f32> p) {
+  return p.getDistanceFrom(getAutomationPoint(p));
 }
 
 void AutomationLane::addPath(juce::ValueTree& v) {
@@ -228,33 +260,96 @@ void AutomationLane::addPath(juce::ValueTree& v) {
   resized();
 }
 
-// TODO(luca): clean up
 void AutomationLane::mouseMove(const juce::MouseEvent& e) {
-  juce::Point<f32> hoverPoint;
-  automation.get().getNearestPoint(e.position, hoverPoint, juce::AffineTransform::scale(f32(zoom), getHeight()));
-  auto distance = hoverPoint.getDistanceFrom(e.position);
-  if (distance < mouseOverDistance) {
-    hoverBounds.setCentre(hoverPoint);
+  auto p = getAutomationPoint(e.position);
+  auto d = p.getDistanceFrom(e.position);
+
+  if (d < mouseIntersectDistance && !optKeyPressed) {
+    hoverBounds.setCentre(p);
     hoverBounds.setSize(10, 10);
   } else {
-    hoverBounds = juce::Rectangle<f32>();
+    hoverBounds = {};
+  }
+
+  if ((d < mouseOverDistance && mouseIntersectDistance < d) || (d < mouseOverDistance && optKeyPressed)) {
+    xHighlightedSegment = p.x;
+  } else {
+    xHighlightedSegment = -1; 
   }
 }
 
-// TODO(luca): clean up
-void AutomationLane::mouseDown(const juce::MouseEvent& e) {
-  auto x = e.position.x / zoom;
-  auto hoverPoint = automation.getPointFromXIntersection(x); 
-  hoverPoint.x = e.position.x;
-  hoverPoint.y *= getHeight() * Automation::kExpand;
-  auto distance = hoverPoint.getDistanceFrom(e.position);
-  if (distance < mouseOverDistance) {
-    manager.addPath(hoverPoint.x / zoom, hoverPoint.y / getHeight());
-  } 
+void AutomationLane::mouseExit(const juce::MouseEvent&) {
+  hoverBounds = {};
+  xHighlightedSegment = -1; 
+  lastMouseDragOffset = {};
 }
 
-void AutomationLane::mouseExit(const juce::MouseEvent&) {
-  hoverBounds = juce::Rectangle<f32>();
+void AutomationLane::mouseDown(const juce::MouseEvent& e) {
+  jassert(activeGesture == GestureType::none);
+
+  auto p = getAutomationPoint(e.position);
+  auto d = p.getDistanceFrom(e.position);
+
+  if (d < mouseOverDistance && optKeyPressed) {
+    undoManager->beginNewTransaction();
+    activeGesture = GestureType::bend;
+  } else if (d < mouseIntersectDistance) {
+    manager.addPath(p.x / zoom, p.y / getHeight());
+  } else if (d < mouseOverDistance) {
+    undoManager->beginNewTransaction();
+    activeGesture = GestureType::drag;
+  }
+
+  // TODO(luca): offset
+  
+  setMouseCursor(juce::MouseCursor::NoCursor);
+}
+
+void AutomationLane::mouseUp(const juce::MouseEvent&) {
+  // TODO(luca): implement automatic mouse placing meachanism
+  //if (activeGesture == GestureType::bend) {
+  //  auto globalPoint = localPointToGlobal(juce::Point<i32> { 0, 0 });
+  //  juce::Desktop::setMousePosition(globalPoint);
+  //}
+
+  xHighlightedSegment = -1; 
+  hoverBounds = {};
+  lastMouseDragOffset = {};
+
+  activeGesture = GestureType::none;
+  setMouseCursor(juce::MouseCursor::NormalCursor);
+}
+
+void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
+  if (activeGesture == GestureType::bend) {
+    auto p = automation.getClipPathForX(xHighlightedSegment / zoom);
+    jassert(p);
+
+    if (p) {
+      auto offset = e.getOffsetFromDragStart();
+      auto y = f64(lastMouseDragOffset.y - offset.y);
+
+      auto increment = y / kMoveIncrement;
+      auto newValue = std::clamp(p->curve + increment, 0.0, 1.0);
+
+      jassert(newValue >= 0 && newValue <= 1);
+
+      p->curve.setValue(newValue, undoManager);
+      lastMouseDragOffset = offset;
+    }
+  }
+}
+
+void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
+  if (getDistanceFromPoint(e.position) < mouseOverDistance && optKeyPressed) {
+    auto p = automation.getClipPathForX(e.position.x / zoom);
+    jassert(p);
+
+    if (p) {
+      undoManager->beginNewTransaction();
+      p->curve.setValue(0.5, undoManager);
+    }
+  }
 }
 
 Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
@@ -290,7 +385,6 @@ void Track::paint(juce::Graphics& g) {
         beatText << "." + juce::String(b.beat);
       }
 
-      // TODO(luca): use a float rectangle here
       g.drawText(beatText, i32(b.x), r.getY(), 40, 20, juce::Justification::left);
     }
 
@@ -318,8 +412,8 @@ void Track::resized() {
   automationLane.setBounds(r);
 
   for (auto* clip : clips) {
-    clip->setBounds(i32(clip->start * zoom) - presetLaneHeight / 2,
-                    clip->top ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
+    clip->setBounds(i32(clip->x * zoom) - presetLaneHeight / 2,
+                    !bool(i32(clip->y)) ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
                     presetLaneHeight, presetLaneHeight);
   }
 }
@@ -335,14 +429,14 @@ i32 Track::getTrackWidth() {
   f64 width = 0;
 
   for (auto* c : clips) {
-    if (c->start > width) {
-      width = c->start;
+    if (c->x > width) {
+      width = c->x;
     }
   }
 
   for (auto* p : automationLane.paths) {
-    if (p->start > width) {
-      width = p->start;
+    if (p->x > width) {
+      width = p->x;
     }
   }
 
@@ -350,7 +444,6 @@ i32 Track::getTrackWidth() {
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
 
-// TODO(luca): tidy up 
 void Track::rebuildClips() {
   clips.clear();
   automationLane.paths.clear();
@@ -377,9 +470,9 @@ void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
   auto name = details.description.toString();
   auto preset = presets.getPresetFromName(name);
   auto id = preset->_id.load();
-  auto start = grid.snap(details.localPosition.x) / zoom;
-  auto top = details.localPosition.y < getHeight() / 2;
-  manager.addClip(id, name, start, top);
+  auto x = grid.snap(details.localPosition.x) / zoom;
+  auto y = details.localPosition.y > (getHeight() / 2);
+  manager.addClip(id, name, x, y);
 }
 
 void Track::valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
@@ -397,11 +490,12 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
       automationLane.resized();
     }
   } else if (v.hasType(ID::CLIP)) {
-    if (id == ID::start || id == ID::top) {
+    if (id == ID::x || id == ID::y) {
       resized();
+      automationLane.resized();
     } 
   } else if (v.hasType(ID::PATH)) {
-    if (id == ID::start || id == ID::y) {
+    if (id == ID::x || id == ID::y) {
       resized();
       automationLane.resized();
     }

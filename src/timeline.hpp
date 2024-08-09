@@ -75,13 +75,23 @@ struct PathView : juce::Component, Path {
 };
 
 struct AutomationLane : juce::Component {
+  enum class GestureType { none, bend, drag };
+
   AutomationLane(StateManager&, Grid&);
   void paint(juce::Graphics&) override;
   void resized() override;
+  
+  auto getAutomationPoint(juce::Point<f32>);
+  f64 getDistanceFromPoint(juce::Point<f32>);
+
   void addPath(juce::ValueTree&);
+
   void mouseMove(const juce::MouseEvent&) override;
   void mouseDown(const juce::MouseEvent&) override;
+  void mouseUp(const juce::MouseEvent&) override;
   void mouseExit(const juce::MouseEvent&) override;
+  void mouseDrag(const juce::MouseEvent&) override;
+  void mouseDoubleClick(const juce::MouseEvent&) override;
 
   StateManager& manager;
   Grid& grid;
@@ -89,9 +99,19 @@ struct AutomationLane : juce::Component {
   juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
   Automation automation { editTree, undoManager };
-  juce::Rectangle<f32> hoverBounds;
   juce::OwnedArray<PathView> paths;
-  static constexpr i32 mouseOverDistance = 10;
+
+  juce::Rectangle<f32> hoverBounds;
+  f64 xHighlightedSegment = -1;
+  static constexpr i32 mouseIntersectDistance = 10;
+  static constexpr i32 mouseOverDistance = 40;
+  bool optKeyPressed = false;
+  juce::Point<i32> lastMouseDragOffset;
+
+  f64 kMoveIncrement = 50;
+  f64 bendMouseDistanceProportion = 0;
+
+  GestureType activeGesture = GestureType::none;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationLane)
 };

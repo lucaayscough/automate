@@ -16,12 +16,12 @@ struct ID {
   static const juce::Identifier editMode;
   static const juce::Identifier pluginID;
   static const juce::Identifier name;
-  static const juce::Identifier start; 
-  static const juce::Identifier top; 
   static const juce::Identifier parameters;
   static const juce::Identifier zoom;
   static const juce::Identifier id;
+  static const juce::Identifier x; 
   static const juce::Identifier y;
+  static const juce::Identifier curve;
 };
 
 } // namespace atmt

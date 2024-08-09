@@ -114,4 +114,8 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   return false;
 }
 
+void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
+  track.automationLane.optKeyPressed = k.isAltDown();
+}
+
 } // namespace atmt
