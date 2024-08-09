@@ -116,6 +116,8 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
   track.automationLane.optKeyPressed = k.isAltDown();
+  track.shiftKeyPressed = k.isShiftDown();
+  track.cmdKeyPressed = k.isCommandDown();
 }
 
 } // namespace atmt

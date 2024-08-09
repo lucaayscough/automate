@@ -503,7 +503,11 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
 }
 
 void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) {
-  zoomTrack(w.deltaY, e.position.x);
+  if (cmdKeyPressed) {
+    zoomTrack(w.deltaY * kZoomSpeed, e.position.x);
+  } else if (shiftKeyPressed) {
+    viewport.setViewPosition(i32(viewport.getViewPositionX() - w.deltaX * kScrollSpeed), 0);
+  }
 }
 
 void Track::zoomTrack(f64 amount, f64 mouseX) {

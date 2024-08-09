@@ -155,6 +155,11 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::Rectangle<i32> presetLaneTopBounds;
   juce::Rectangle<i32> presetLaneBottomBounds;
 
+  bool shiftKeyPressed = false;
+  bool cmdKeyPressed = false;
+  static constexpr i32 kScrollSpeed = 500;
+  static constexpr i32 kZoomSpeed = 2;
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
 
