@@ -512,10 +512,11 @@ void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDeta
 
 void Track::zoomTrack(f64 amount, f64 mouseX) {
   f64 x0 = mouseX * zoom;
+  zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
+  zoom.forceUpdateOfCachedValue();
   f64 x1 = mouseX * zoom;
   f64 dx = (x1 - x0) / zoom;
   viewport.setViewPosition(i32(viewport.getViewPositionX() + dx), 0);
-  zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
 }
 
 } // namespace atmt
