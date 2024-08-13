@@ -84,7 +84,7 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
     }
 
     // TODO(luca): we still need to address sidechain inputs
-    buffer.setSize(proc.getTotalNumInputChannels(), buffer.getNumChannels());
+    //buffer.setSize(proc.getTotalNumInputChannels(), buffer.getNumChannels());
     instance->processBlock(buffer, midiBuffer);
   }
 }

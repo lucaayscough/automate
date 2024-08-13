@@ -144,7 +144,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   juce::OwnedArray<ClipView> clips;
   juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
   static constexpr f64 zoomDeltaScale = 5.0;
-  i32 playheadPosition = 0;
+  f64 playheadPosition = 0;
 
   juce::Viewport viewport;
 

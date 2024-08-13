@@ -195,7 +195,7 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
 AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {}
 
 void AutomationLane::paint(juce::Graphics& g) {
-  DBG("AutomationLane::paint()");
+  //DBG("AutomationLane::paint()");
 
   { // NOTE(luca): draw automation line
     auto p = automation.get();
@@ -370,7 +370,7 @@ Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
 }
 
 void Track::paint(juce::Graphics& g) {
-  DBG("Track::paint()");
+  //DBG("Track::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(juce::Colours::grey);
@@ -404,7 +404,7 @@ void Track::paint(juce::Graphics& g) {
   }
 
   g.setColour(juce::Colours::black);
-  g.fillRect(playheadPosition, r.getY(), 2, getHeight());
+  g.fillRect(i32(playheadPosition), r.getY(), 2, getHeight());
 }
 
 void Track::resized() {
@@ -429,11 +429,12 @@ void Track::timerCallback() {
   Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
   zoom.forceUpdateOfCachedValue();
 
-  auto ph = i32(uiBridge.playheadPosition.load() * zoom);
+  auto ph = uiBridge.playheadPosition.load() * zoom;
 
-  if (playheadPosition != ph) {
-    auto inBoundsOld = playheadPosition > getX() && playheadPosition < getRight(); 
-    auto inBoundsNew = ph > getX() && ph < getRight(); 
+  if (std::abs(playheadPosition - ph) > EPSILON) {
+    auto x = viewport.getViewPositionX();
+    auto inBoundsOld = playheadPosition > x && playheadPosition < x; 
+    auto inBoundsNew = ph > x && ph < (x + getWidth()); 
 
     playheadPosition = ph;
 
