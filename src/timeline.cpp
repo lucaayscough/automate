@@ -195,6 +195,8 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
 AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {}
 
 void AutomationLane::paint(juce::Graphics& g) {
+  DBG("AutomationLane::paint()");
+
   { // NOTE(luca): draw automation line
     auto p = automation.get();
     p.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
@@ -278,6 +280,8 @@ void AutomationLane::mouseMove(const juce::MouseEvent& e) {
   } else {
     xHighlightedSegment = -1; 
   }
+
+  repaint();
 }
 
 void AutomationLane::mouseExit(const juce::MouseEvent&) {
@@ -506,17 +510,14 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
     if (id == ID::zoom) {
       resized();
       automationLane.resized();
+      repaint();
     }
-  } else if (v.hasType(ID::CLIP)) {
-    if (id == ID::x || id == ID::y) {
+  } else if (v.hasType(ID::CLIP) || v.hasType(ID::PATH)) {
+    if (id == ID::x || id == ID::y || id == ID::curve) {
       resized();
       automationLane.resized();
+      repaint();
     } 
-  } else if (v.hasType(ID::PATH)) {
-    if (id == ID::x || id == ID::y) {
-      resized();
-      automationLane.resized();
-    }
   }
 }
 

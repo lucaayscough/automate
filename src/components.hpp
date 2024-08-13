@@ -236,7 +236,7 @@ struct PluginListComponent : juce::Component, juce::FileDragAndDropTarget {
   }
 
   void addPlugin(juce::PluginDescription& pd) {
-    auto button = new juce::TextButton(pd.name);
+    auto button = new juce::TextButton(pd.pluginFormatName + " - " + pd.name);
     auto id = pd.createIdentifierString();
     addAndMakeVisible(button);
     button->onClick = [id, this] { pluginID.setValue(id, undoManager); };

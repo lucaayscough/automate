@@ -103,7 +103,7 @@ struct AutomationLane : juce::Component {
 
   juce::Rectangle<f32> hoverBounds;
   f64 xHighlightedSegment = -1;
-  static constexpr i32 mouseIntersectDistance = 10;
+  static constexpr i32 mouseIntersectDistance = 5;
   static constexpr i32 mouseOverDistance = 40;
   bool optKeyPressed = false;
   juce::Point<i32> lastMouseDragOffset;
