@@ -57,6 +57,7 @@ struct Plugin : juce::AudioProcessor {
   std::atomic<bool> stop = false;
   std::atomic<bool> rewind = false;
 
+  // TODO(luca): some of these may not be needed and need appropriate dirs for these files
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
   juce::PropertiesFile::Options optionsFile;
