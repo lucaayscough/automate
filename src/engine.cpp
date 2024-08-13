@@ -21,11 +21,49 @@ void Engine::prepare(double sampleRate, int blockSize) {
   if (instance) {
     instance->prepareToPlay(sampleRate, blockSize);
     instance->addListener(this);
+    proc.setLatencySamples(instance->getLatencySamples());
+
+    while (proc.getBusCount(true) != instance->getBusCount(true)) {
+      if (proc.getBusCount(true) < instance->getBusCount(true)) {
+        jassert(proc.addBus(true));
+      } else {
+        jassert(proc.canRemoveBus(true));
+      }
+    }
+
+    while (proc.getBusCount(false) != instance->getBusCount(false)) {
+      if (proc.getBusCount(false) < instance->getBusCount(false)) {
+        jassert(proc.addBus(false));
+      } else {
+        jassert(proc.canRemoveBus(false));
+      }
+    }
+
+    jassert(proc.getBusCount(true) == instance->getBusCount(true));
+    jassert(proc.getBusCount(false) == instance->getBusCount(false));
+
+    jassert(proc.setBusesLayout(instance->getBusesLayout()));
+
+    for (i32 i = 0; i < proc.getBusCount(true); ++i) {
+      jassert(proc.setChannelLayoutOfBus(true, i, instance->getChannelLayoutOfBus(true, i)));
+    }
+
+    for (i32 i = 0; i < proc.getBusCount(false); ++i) {
+      jassert(proc.setChannelLayoutOfBus(false, i, instance->getChannelLayoutOfBus(false, i)));
+    }
+
+    proc.enableAllBuses();
+    
+    // TODO(luca): this stuff will probably not work the way we want it to
+    // https://forum.juce.com/t/what-are-the-chances-of-dynamic-plugin-buses-ever-working/53020
   }
 }
 
 void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
+    jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels()); 
+    jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels()); 
+
     if (!editMode) {
       auto time = double(uiBridge.playheadPosition);
       auto lerpPos = automation.getYFromX(time);
@@ -40,11 +78,13 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
         auto p2 = presets.getPresetForClip(clipPair.b);
 
         if (p1 && p2) {
-          interpolateParameters(p1, p2, bool(i32(clipPair.a->_y)) ? 1.0 - lerpPos : lerpPos); 
+          interpolateParameters(p1, p2, bool(clipPair.a->_y) ? 1.0 - lerpPos : lerpPos); 
         } 
       }
     }
 
+    // TODO(luca): we still need to address sidechain inputs
+    buffer.setSize(proc.getTotalNumInputChannels(), buffer.getNumChannels());
     instance->processBlock(buffer, midiBuffer);
   }
 }

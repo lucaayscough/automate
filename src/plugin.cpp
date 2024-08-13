@@ -159,6 +159,9 @@ void Plugin::setCurrentProgram(int)              {}
 const juce::String Plugin::getProgramName(int)   { return {};  }
 void Plugin::changeProgramName(int, const juce::String&) {}
 
+bool Plugin::canAddBus(bool)    const { return true; }
+bool Plugin::canRemoveBus(bool) const { return true; }
+
 } // namespace atmt
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {

@@ -43,6 +43,9 @@ struct Plugin : juce::AudioProcessor {
   const juce::String getProgramName(int index) override;
   void changeProgramName(int index, const juce::String& newName) override;
 
+  bool canAddBus(bool) const override;
+  bool canRemoveBus(bool) const override;
+
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
