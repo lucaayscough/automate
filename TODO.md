@@ -1,21 +1,29 @@
 # TODO
 
+## Startup
+
+- customised plug-in loader/scanner
+
 ## Automation
 
-- Curved paths
+- curved paths
 
 ## Grid
 
+- narrowing/zooming snapping still needs a bit more work
 - +/- to zoom
-- Click and drag to select
+- click and drag to select paths
 - z/x to zoom in and out of selection
-
-## Transport
-
-## Timeline
-
-- Seconds?
 
 ## Track
 
-- Colour space in-between clips
+- colour space in-between clips
+- improve zoom
+
+## UI
+
+- design ui
+
+## Performance
+
+- analyse performance

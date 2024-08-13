@@ -2,7 +2,7 @@
 
 namespace atmt {
 
-void Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
+bool Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
   jassert(z > 0);
 
   if (std::abs(zoom - z) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
@@ -10,7 +10,9 @@ void Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
     maxWidth = mw;
     ts = _ts;
     reset();
+    return true;
   }
+  return false;
 }
 
 void Grid::reset() {
@@ -364,6 +366,8 @@ Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
 }
 
 void Track::paint(juce::Graphics& g) {
+  DBG("Track::paint()");
+
   auto r = getLocalBounds();
   g.fillAll(juce::Colours::grey);
 
@@ -396,8 +400,7 @@ void Track::paint(juce::Graphics& g) {
   }
 
   g.setColour(juce::Colours::black);
-  auto time = uiBridge.playheadPosition.load();
-  g.fillRect(i32(time * zoom), r.getY(), 2, getHeight());
+  g.fillRect(playheadPosition, r.getY(), 2, getHeight());
 }
 
 void Track::resized() {
@@ -421,8 +424,23 @@ void Track::resized() {
 void Track::timerCallback() {
   Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
   zoom.forceUpdateOfCachedValue();
-  grid.reset(zoom, getWidth(), ts);
-  repaint();
+
+  auto ph = i32(uiBridge.playheadPosition.load() * zoom);
+
+  if (playheadPosition != ph) {
+    auto inBoundsOld = playheadPosition > getX() && playheadPosition < getRight(); 
+    auto inBoundsNew = ph > getX() && ph < getRight(); 
+
+    playheadPosition = ph;
+
+    if (inBoundsOld || inBoundsNew) {
+      repaint();
+    }
+  }
+
+  if (getWidth() > 0 && grid.reset(zoom, getWidth(), ts)) {
+    repaint();
+  }
 }
 
 i32 Track::getTrackWidth() {

@@ -17,14 +17,14 @@ struct DebugTools : juce::Component {
     addAndMakeVisible(undoButton);
     addAndMakeVisible(redoButton);
 
-    printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
-    editModeButton  .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
-    killButton      .onClick = [this] { static_cast<Plugin*>(&proc)->knownPluginList.clear(); };
-    playButton      .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
-    stopButton      .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
-    rewindButton    .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
-    undoButton      .onClick = [this] { undoManager->undo(); };
-    redoButton      .onClick = [this] { undoManager->redo(); };
+    printStateButton .onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
+    editModeButton   .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
+    killButton       .onClick = [this] { pluginID.setValue("", undoManager); };
+    playButton       .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
+    stopButton       .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
+    rewindButton     .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
+    undoButton       .onClick = [this] { undoManager->undo(); };
+    redoButton       .onClick = [this] { undoManager->redo(); };
   }
   
   void resized() override {
@@ -48,7 +48,8 @@ struct DebugTools : juce::Component {
   juce::AudioProcessor& proc { manager.apvts.processor };
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.editTree };
-  juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr};
+  juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr };
+  juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
   juce::TextButton printStateButton { "Print State" };
   juce::TextButton killButton { "Kill" };
   juce::TextButton playButton { "Play" };
@@ -212,23 +213,67 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetsListPanel)
 };
 
-class PluginListComponent : public juce::Component {
-public:
-  PluginListComponent(juce::AudioPluginFormatManager &formatManager,
-                      juce::KnownPluginList &listToRepresent,
-                      const juce::File &deadMansPedalFile,
-                      juce::PropertiesFile* propertiesToUse)
-    : pluginList { formatManager, listToRepresent, deadMansPedalFile, propertiesToUse } {
-    addAndMakeVisible(pluginList);
+struct PluginListComponent : juce::Component, juce::FileDragAndDropTarget {
+  PluginListComponent(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
+    : manager(m), knownPluginList(kpl), formatManager(fm) {
+    for (auto& t : knownPluginList.getTypes()) {
+      addPlugin(t);
+    }
+    updateSize();
+    viewport.setScrollBarsShown(true, false);
+    viewport.setViewedComponent(this, false);
+  }
+
+  void paint(juce::Graphics& g) override {
+    g.fillAll(juce::Colours::green);
   }
 
   void resized() override {
     auto r = getLocalBounds();
-    pluginList.setBounds(r.removeFromTop(400));
+    for (auto button : plugins) {
+      button->setBounds(r.removeFromTop(buttonHeight));
+    }
   }
 
-private:
-  juce::PluginListComponent pluginList;
+  void addPlugin(juce::PluginDescription& pd) {
+    auto button = new juce::TextButton(pd.name);
+    auto id = pd.createIdentifierString();
+    addAndMakeVisible(button);
+    button->onClick = [id, this] { pluginID.setValue(id, undoManager); };
+    plugins.add(button);
+  }
+
+  void updateSize() {
+    setSize(width, buttonHeight * plugins.size());
+  }
+
+  bool isInterestedInFileDrag(const juce::StringArray&)	override {
+    return true; 
+  }
+
+  void filesDropped(const juce::StringArray& files, int, int) override {
+    juce::OwnedArray<juce::PluginDescription> types;
+    knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
+    for (auto t : types) {
+      addPlugin(*t);
+    }
+    updateSize();
+  }
+
+  StateManager& manager;
+  juce::UndoManager* undoManager { manager.undoManager };
+  juce::ValueTree editTree { manager.editTree };
+  juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
+
+  juce::KnownPluginList& knownPluginList;
+  juce::AudioPluginFormatManager& formatManager;
+
+  juce::OwnedArray<juce::TextButton> plugins;
+  juce::Viewport viewport;
+  
+  static constexpr int buttonHeight = 25;
+  static constexpr int width = 350;
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginListComponent)
 };
 

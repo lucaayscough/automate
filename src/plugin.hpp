@@ -11,12 +11,10 @@
 
 namespace atmt {
 
-class Plugin : public juce::AudioProcessor {
-public:
+struct Plugin : juce::AudioProcessor {
   Plugin();
   ~Plugin() override;
 
-  void knownPluginListChangeCallback();
   void pluginIDChangeCallback(const juce::var& v);
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
@@ -62,12 +60,9 @@ public:
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
   juce::PropertiesFile::Options optionsFile;
-  juce::String searchPath                         { "~/Desktop/plugs/" };
   juce::File deadMansPedalFile                    { "~/Desktop/dmpf.txt" };
   juce::PropertiesFile propertiesFile             { { "~/Desktop/properties.txt" }, optionsFile};
 
-private:
-  ChangeAttachment knownPluginListAttachment { knownPluginList, CHANGE_CB(knownPluginListChangeCallback) };
   StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Plugin)

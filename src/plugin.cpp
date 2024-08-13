@@ -18,18 +18,6 @@ Plugin::~Plugin() {
   saveKnownPluginList(knownPluginList);
 }
 
-void Plugin::knownPluginListChangeCallback() {
-  auto plugins = knownPluginList.getTypes();
-  undoManager.beginNewTransaction(); 
-
-  if (plugins.size() > 0) {
-    auto id = plugins[0].createIdentifierString();
-    pluginIDAttachment.setValue(id);
-  } else {
-    pluginIDAttachment.setValue("");
-  }
-}
-
 void Plugin::pluginIDChangeCallback(const juce::var& v) {
   suspendProcessing(true);
   juce::String errorMessage;

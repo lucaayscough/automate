@@ -3,8 +3,7 @@
 
 namespace atmt {
 
-Editor::Editor(Plugin& _proc)
-  : AudioProcessorEditor(&_proc), proc(_proc) {
+Editor::Editor(Plugin& _proc) : AudioProcessorEditor(&_proc), proc(_proc) {
   setSize(width, height);
   setResizable(false, false);
 
@@ -27,19 +26,21 @@ void Editor::resized() {
 
   if (instance) {
     track.viewport.setBounds(r.removeFromBottom(Track::height));
-    track.resized(); // NOTE(luca): need viewport to conform
+    track.resized();
     descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
     statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
     instance->setBounds(r.removeFromTop(instance->getHeight()));
   } else {
-    pluginList.setBounds(r);
+    pluginList.viewport.setBounds(r);
+    pluginList.resized();
   }
 }
 
 void Editor::showDefaultScreen() {
   removeAllChildren();
   instance.reset();
-  addAndMakeVisible(pluginList);
+  addAndMakeVisible(debugTools);
+  addAndMakeVisible(pluginList.viewport);
   setSize(width, height);
 }
 

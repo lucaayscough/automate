@@ -8,14 +8,12 @@
 
 namespace atmt {
 
-class Editor : public juce::AudioProcessorEditor, public juce::DragAndDropContainer {
-public:
+struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   explicit Editor(Plugin&);
 
   void paint(juce::Graphics&) override;
   void resized() override;
 
-private:
   void showDefaultScreen();
   void showInstanceScreen();
 
@@ -43,13 +41,13 @@ private:
   DebugTools debugTools { manager };
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
-  PluginListComponent pluginList { proc.apfm, proc.knownPluginList, proc.deadMansPedalFile, &proc.propertiesFile };
+  PluginListComponent pluginList { manager, proc.apfm, proc.knownPluginList };
 
   Track track { manager, uiBridge };
 
   ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
   ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };
-  StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
+  StateAttachment pluginIDAttachment        { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
 
   std::unique_ptr<juce::AudioProcessorEditor> instance;
 
