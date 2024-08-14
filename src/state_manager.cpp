@@ -64,8 +64,9 @@ void StateManager::init() {
   state.appendChild(presetsTree, undoManager);
 
   editTree.setProperty(ID::editMode, false, nullptr);
+  editTree.setProperty(ID::modulateDiscrete, true, nullptr);
   editTree.setProperty(ID::pluginID, {}, undoManager);
-  editTree.setProperty(ID::zoom, defaultZoomValue, nullptr);
+  editTree.setProperty(ID::zoom, defaultZoomValue, undoManager);
 
   undoManager->clearUndoHistory();
   validate();

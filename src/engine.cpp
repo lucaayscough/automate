@@ -23,6 +23,8 @@ void Engine::prepare(double sampleRate, int blockSize) {
     instance->addListener(this);
     proc.setLatencySamples(instance->getLatencySamples());
 
+    return;
+
     while (proc.getBusCount(true) != instance->getBusCount(true)) {
       if (proc.getBusCount(true) < instance->getBusCount(true)) {
         jassert(proc.addBus(true));
@@ -61,8 +63,8 @@ void Engine::prepare(double sampleRate, int blockSize) {
 
 void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
-    jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels()); 
-    jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels()); 
+    //jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels()); 
+    //jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels()); 
 
     if (!editMode) {
       auto time = double(uiBridge.playheadPosition);
@@ -101,6 +103,11 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
     auto increment = distance * position; 
     auto newValue  = beginParameters[i] + increment;
     jassert(!(newValue > 1.f) && !(newValue < 0.f));
+
+    if (!modulateDiscrete && parameters[int(i)]->isDiscrete()) {
+      continue; 
+    }
+
     parameters[int(i)]->setValue(float(newValue));
   }
 }
@@ -130,6 +137,10 @@ void Engine::setParameters(Preset* preset) {
   auto& parameters = instance->getParameters();
 
   for (int i = 0; i < parameters.size(); ++i) {
+    if (!modulateDiscrete && parameters[i]->isDiscrete()) {
+      continue; 
+    }
+
     parameters[i]->setValue(presetParameters[std::size_t(i)]);
   }
 }
@@ -161,8 +172,21 @@ void Engine::restoreFromPreset(const juce::String& name) {
   auto& presetParameters = preset->_parameters;
   auto parameters = instance->getParameters();
   for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
+    if (!modulateDiscrete && parameters[int(i)]->isDiscrete()) {
+      continue; 
+    }
     parameters[int(i)]->setValue(presetParameters[i]); 
   }
+  proc.suspendProcessing(false);
+}
+
+void Engine::randomiseParameters() {
+  proc.suspendProcessing(true);  
+
+  for (auto p : instance->getParameters()) {
+    p->setValue(rand.nextFloat());  
+  }
+
   proc.suspendProcessing(false);
 }
 
@@ -181,6 +205,10 @@ void Engine::audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int)
 
 void Engine::editModeChangeCallback(const juce::var& v) {
   editMode = bool(v); 
+}
+
+void Engine::modulateDiscreteChangeCallback(const juce::var& v) {
+  modulateDiscrete = bool(v);
 }
 
 bool Engine::hasInstance() {

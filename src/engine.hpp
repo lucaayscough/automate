@@ -28,6 +28,7 @@ struct Engine : juce::AudioProcessorListener {
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>&);
   void getCurrentParameterValues(std::vector<float>&);
   void restoreFromPreset(const juce::String&);
+  void randomiseParameters();
 
   void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override;
   void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override;
@@ -35,6 +36,7 @@ struct Engine : juce::AudioProcessorListener {
   void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override;
 
   void editModeChangeCallback(const juce::var&);
+  void modulateDiscreteChangeCallback(const juce::var&);
 
   bool hasInstance();
   juce::AudioProcessorEditor* getEditor();
@@ -55,7 +57,11 @@ struct Engine : juce::AudioProcessorListener {
   Automation automation { editTree, undoManager, &proc };
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
+  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
   std::atomic<bool> editMode = false;
+  std::atomic<bool> modulateDiscrete = false;
+
+  juce::Random rand;
 };
 
 } // namespace atmt

@@ -11,6 +11,7 @@ const juce::Identifier ID::CLIP             { "CLIP" };
 const juce::Identifier ID::PATH             { "PATH" };
 
 const juce::Identifier ID::editMode         { "editMode" };
+const juce::Identifier ID::modulateDiscrete { "modulateDiscrete" };
 const juce::Identifier ID::pluginID         { "pluginID" };
 const juce::Identifier ID::name             { "name" };
 const juce::Identifier ID::parameters       { "parameters" };

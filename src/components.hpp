@@ -14,17 +14,21 @@ struct DebugTools : juce::Component {
     addAndMakeVisible(stopButton);
     addAndMakeVisible(rewindButton);
     addAndMakeVisible(editModeButton);
+    addAndMakeVisible(modulateDiscreteButton);
     addAndMakeVisible(undoButton);
     addAndMakeVisible(redoButton);
+    addAndMakeVisible(randomiseButton);
 
-    printStateButton .onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
-    editModeButton   .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
-    killButton       .onClick = [this] { pluginID.setValue("", undoManager); };
-    playButton       .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
-    stopButton       .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
-    rewindButton     .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
-    undoButton       .onClick = [this] { undoManager->undo(); };
-    redoButton       .onClick = [this] { undoManager->redo(); };
+    printStateButton        .onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
+    editModeButton          .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
+    killButton              .onClick = [this] { pluginID.setValue("", undoManager); };
+    playButton              .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
+    stopButton              .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
+    rewindButton            .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
+    undoButton              .onClick = [this] { undoManager->undo(); };
+    redoButton              .onClick = [this] { undoManager->redo(); };
+    randomiseButton         .onClick = [this] { static_cast<Plugin*>(&proc)->engine.randomiseParameters(); };
+    modulateDiscreteButton  .onClick = [this] { modulateDiscreteAttachment.setValue({ !modulateDiscrete }); };
   }
   
   void resized() override {
@@ -32,16 +36,22 @@ struct DebugTools : juce::Component {
     auto width = getWidth() / getNumChildComponents();
     printStateButton.setBounds(r.removeFromLeft(width));
     editModeButton.setBounds(r.removeFromLeft(width));
+    modulateDiscreteButton.setBounds(r.removeFromLeft(width));
     killButton.setBounds(r.removeFromLeft(width));
     playButton.setBounds(r.removeFromLeft(width));
     stopButton.setBounds(r.removeFromLeft(width));
     rewindButton.setBounds(r.removeFromLeft(width));
     undoButton.setBounds(r.removeFromLeft(width));
-    redoButton.setBounds(r);
+    redoButton.setBounds(r.removeFromLeft(width));
+    randomiseButton.setBounds(r);
   }
 
   void editModeChangeCallback(const juce::var& v) {
     editModeButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
+  }
+
+  void modulateDiscreteChangeCallback(const juce::var& v) {
+    modulateDiscreteButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
   }
 
   StateManager& manager;
@@ -49,6 +59,7 @@ struct DebugTools : juce::Component {
   juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree editTree { manager.editTree };
   juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr };
+  juce::CachedValue<bool> modulateDiscrete { editTree, ID::modulateDiscrete, undoManager };
   juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
   juce::TextButton printStateButton { "Print State" };
   juce::TextButton killButton { "Kill" };
@@ -57,9 +68,12 @@ struct DebugTools : juce::Component {
   juce::TextButton rewindButton { "Rewind" };
   juce::TextButton undoButton { "Undo" };
   juce::TextButton redoButton { "Redo" };
+  juce::TextButton randomiseButton { "Randomise" };
   juce::ToggleButton editModeButton { "Edit Mode" };
+  juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr };
+  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
 };
 
 struct DescriptionBar : juce::Component {

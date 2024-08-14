@@ -14,6 +14,7 @@ struct ID {
   static const juce::Identifier PATH;
 
   static const juce::Identifier editMode;
+  static const juce::Identifier modulateDiscrete;
   static const juce::Identifier pluginID;
   static const juce::Identifier name;
   static const juce::Identifier parameters;
