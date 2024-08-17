@@ -106,7 +106,7 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
     auto distance  = endParameters[i] - beginParameters[i];
     auto increment = distance * position; 
     auto newValue  = beginParameters[i] + increment;
-    jassert(!(newValue > 1.f) && !(newValue < 0.f));
+    jassert(newValue >= 0.f && newValue <= 1.f);
 
     if (!modulateDiscrete && parameters[int(i)]->isDiscrete()) {
       continue; 
@@ -176,10 +176,11 @@ void Engine::restoreFromPreset(const juce::String& name) {
   auto& presetParameters = preset->_parameters;
   auto parameters = instance->getParameters();
   for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
-    if (!modulateDiscrete && parameters[int(i)]->isDiscrete()) {
-      continue; 
+    auto parameter = parameters[int(i)]; 
+    if (shouldProcessParameter(parameter)) {
+      jassert(presetParameters[i] >= 0.f && presetParameters[i] <= 1.f);
+      parameter->setValue(presetParameters[i]);
     }
-    parameters[int(i)]->setValue(presetParameters[i]); 
   }
   proc.suspendProcessing(false);
 }
@@ -194,6 +195,10 @@ void Engine::randomiseParameters() {
   }
 
   proc.suspendProcessing(false);
+}
+
+bool Engine::shouldProcessParameter(juce::AudioProcessorParameter* p) {
+  return p->isDiscrete() ? modulateDiscrete.load() : true; 
 }
 
 void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, int, float) {}

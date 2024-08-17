@@ -28,6 +28,7 @@ struct Engine : juce::AudioProcessorListener {
   void getCurrentParameterValues(std::vector<float>&);
   void restoreFromPreset(const juce::String&);
   void randomiseParameters();
+  bool shouldProcessParameter(juce::AudioProcessorParameter*);
 
   void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override;
   void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override;
