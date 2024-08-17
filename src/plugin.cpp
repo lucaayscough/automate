@@ -128,8 +128,8 @@ bool Plugin::isBusesLayoutSupported(const BusesLayout& layouts) const {
 
 const juce::String Plugin::getName() const { return JucePlugin_Name; }
 
-bool Plugin::acceptsMidi()  const { return false; }
-bool Plugin::producesMidi() const { return false; }
+bool Plugin::acceptsMidi()  const { return true; }
+bool Plugin::producesMidi() const { return true; }
 bool Plugin::isMidiEffect() const { return false; }
 bool Plugin::hasEditor()    const { return true;  }
 
