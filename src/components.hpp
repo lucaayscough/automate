@@ -28,6 +28,8 @@ struct DebugTools : juce::Component {
     undoButton              .onClick = [this] { undoManager->undo(); };
     redoButton              .onClick = [this] { undoManager->redo(); };
     randomiseButton         .onClick = [this] { static_cast<Plugin*>(&proc)->engine.randomiseParameters(); };
+
+    // TODO(luca): this discrete button seems to be broken
     modulateDiscreteButton  .onClick = [this] { modulateDiscreteAttachment.setValue({ !modulateDiscrete }); };
   }
   
@@ -74,6 +76,22 @@ struct DebugTools : juce::Component {
 
   StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr };
   StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
+};
+
+struct DebugInfo : juce::Component {
+  DebugInfo(UIBridge& b) : uiBridge(b) {
+    addAndMakeVisible(info);
+    info.setText("some info");
+    info.setFont(juce::FontOptions { 12 }, false);
+    info.setColour(juce::Colours::white);
+  }
+
+  void resized() {
+    info.setBounds(getLocalBounds());
+  }
+
+  UIBridge& uiBridge;
+  juce::DrawableText info;
 };
 
 struct DescriptionBar : juce::Component {

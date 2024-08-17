@@ -37,11 +37,13 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   int descriptionBarHeight = 100;
   int statesPanelWidth = 150;
   int pluginListWidth = 150;
+  int debugInfoHeight = 60;
 
   DebugTools debugTools { manager };
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { manager, proc.apfm, proc.knownPluginList };
+  DebugInfo debugInfo { uiBridge };
 
   Track track { manager, uiBridge };
 

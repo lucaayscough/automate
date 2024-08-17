@@ -23,6 +23,7 @@ void Editor::paint(juce::Graphics& g) {
 void Editor::resized() {
   auto r = getLocalBounds();
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
+  debugInfo.setBounds(r.removeFromBottom(debugInfoHeight));
 
   if (instance) {
     track.viewport.setBounds(r.removeFromBottom(Track::height));
@@ -40,6 +41,7 @@ void Editor::showDefaultScreen() {
   removeAllChildren();
   instance.reset();
   addAndMakeVisible(debugTools);
+  addAndMakeVisible(debugInfo);
   addAndMakeVisible(pluginList.viewport);
   setSize(width, height);
 }
@@ -50,11 +52,12 @@ void Editor::showInstanceScreen() {
 
   if (instance) {
     addAndMakeVisible(debugTools);
+    addAndMakeVisible(debugInfo);
     addAndMakeVisible(descriptionBar);
     addAndMakeVisible(statesPanel);
     addAndMakeVisible(track.viewport);
     addAndMakeVisible(instance.get());
-    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight);
+    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight + debugInfoHeight);
   }
 }
 
@@ -77,7 +80,7 @@ void Editor::killInstanceChangeCallback() {
 void Editor::childBoundsChanged(juce::Component* c) {
   if (c == instance.get()) {
     if (instance) {
-      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight);
+      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight + debugInfoHeight);
     }
   }
 }
