@@ -38,11 +38,15 @@ void Engine::prepare(double sampleRate, int blockSize) {
       }
     }
 
-    jassert(proc.getMainBusNumInputChannels()  == instance->getMainBusNumInputChannels());
-    jassert(proc.getMainBusNumOutputChannels() == instance->getMainBusNumOutputChannels());
+    if (instance->getMainBusNumInputChannels() > 0) {
+      // TODO(luca): figure out appropriate protocol for plugins that don't have audio inputs
+ 
+      jassert(proc.getMainBusNumInputChannels()  == instance->getMainBusNumInputChannels());
+      jassert(proc.getMainBusNumOutputChannels() == instance->getMainBusNumOutputChannels());
 
-    jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels());
-    jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels());
+      jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels());
+      jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels());
+    }
 
     jassert(!instance->isUsingDoublePrecision());
 
