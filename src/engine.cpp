@@ -169,7 +169,7 @@ void Engine::getCurrentParameterValues(std::vector<float>& values) {
 void Engine::restoreFromPreset(const juce::String& name) {
   jassert(instance);
 
-  editModeAttachment.setValue({ true });
+  editModeAttachment.setValue(true);
 
   proc.suspendProcessing(true);
   auto preset = presets.getPresetFromName(name);
@@ -187,6 +187,8 @@ void Engine::restoreFromPreset(const juce::String& name) {
 void Engine::randomiseParameters() {
   proc.suspendProcessing(true);  
 
+  editModeAttachment.setValue(true);
+
   for (auto p : instance->getParameters()) {
     p->setValue(rand.nextFloat());  
   }
@@ -199,7 +201,7 @@ void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProce
 
 void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) {
   if (!editMode) {
-    editModeAttachment.setValue({ true });
+    editModeAttachment.setValue(true);
   }
 }
 
