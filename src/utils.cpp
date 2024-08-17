@@ -25,6 +25,7 @@ void saveKnownPluginList(juce::KnownPluginList& kpl) {
 }
 
 double secondsToPpq(double bpm, double seconds) {
+  // TODO(luca): this is incorrect
   return 60.0 * seconds / bpm;
 }
 
