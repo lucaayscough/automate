@@ -55,10 +55,11 @@ struct Engine : juce::AudioProcessorListener {
   Clips clips { editTree, undoManager, &proc };
   Automation automation { editTree, undoManager, &proc };
 
-  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
-  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
   std::atomic<bool> editMode = false;
   std::atomic<bool> modulateDiscrete = false;
+
+  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
+  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
 
   juce::Random rand;
 };
