@@ -3,7 +3,8 @@
 
 #define DEFAULT_BUSES juce::AudioProcessor::BusesProperties() \
   .withInput("Input", juce::AudioChannelSet::stereo()) \
-  .withOutput("Output", juce::AudioChannelSet::stereo())
+  .withOutput("Output", juce::AudioChannelSet::stereo()) \
+  .withInput("Sidechain", juce::AudioChannelSet::stereo())
 
 namespace atmt {
 
@@ -152,15 +153,12 @@ void Plugin::setStateInformation(const void* data, int sizeInBytes) {
   }
 }
 
-double Plugin::getTailLengthSeconds() const      { return 0.0; }
-int Plugin::getNumPrograms()                     { return 1;   }
-int Plugin::getCurrentProgram()                  { return 0;   }
-void Plugin::setCurrentProgram(int)              {}
-const juce::String Plugin::getProgramName(int)   { return {};  }
-void Plugin::changeProgramName(int, const juce::String&) {}
-
-bool Plugin::canAddBus(bool)    const { return true; }
-bool Plugin::canRemoveBus(bool) const { return true; }
+f64   Plugin::getTailLengthSeconds() const      { return 0.0; }
+int   Plugin::getNumPrograms()                  { return 1; }
+int   Plugin::getCurrentProgram()               { return 0; }
+void  Plugin::setCurrentProgram(int)            {}
+const juce::String Plugin::getProgramName(int)  { return {}; }
+void  Plugin::changeProgramName(int, const juce::String&) {}
 
 } // namespace atmt
 

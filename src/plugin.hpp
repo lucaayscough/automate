@@ -8,6 +8,7 @@
 #include "state_attachment.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "ui_bridge.hpp"
+#include "types.h"
 
 namespace atmt {
 
@@ -42,9 +43,6 @@ struct Plugin : juce::AudioProcessor {
   void setCurrentProgram(int index) override;
   const juce::String getProgramName(int index) override;
   void changeProgramName(int index, const juce::String& newName) override;
-
-  bool canAddBus(bool) const override;
-  bool canRemoveBus(bool) const override;
 
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
