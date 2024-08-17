@@ -1,6 +1,5 @@
 #pragma once
 
-#include "state_attachment.hpp"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "plugin.hpp"
 

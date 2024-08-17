@@ -1,6 +1,5 @@
 #pragma once
 
-#include "state_attachment.hpp"
 #include "identifiers.hpp"
 #include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>

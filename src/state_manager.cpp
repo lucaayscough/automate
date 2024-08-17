@@ -3,6 +3,39 @@
 
 namespace atmt {
 
+StateAttachment::StateAttachment(juce::ValueTree& s, const juce::Identifier& i, std::function<void(juce::var)> cb, juce::UndoManager* um)
+  : state(s), identifier(i), callback(std::move(cb)), undoManager(um) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  state.addListener(this);
+  performUpdate();
+}
+
+StateAttachment::~StateAttachment() {
+  state.removeListener(this);
+}
+
+void StateAttachment::setValue(const juce::var& v) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  state.setProperty(identifier, v, undoManager);
+}
+
+juce::var StateAttachment::getValue() {
+  JUCE_ASSERT_MESSAGE_THREAD
+  return state[identifier];
+}
+
+void StateAttachment::performUpdate() {
+  callback(getValue());
+}
+
+void StateAttachment::valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier& i) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  if (identifier == i) {
+    performUpdate();
+  }
+}
+
 Automation::Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
   jassert(v.hasType(ID::EDIT));
   rebuild();
