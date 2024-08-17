@@ -141,6 +141,11 @@ void StateManager::validate() {
   jassert(parametersTree.isValid());
   jassert(editTree.isValid());
   jassert(presetsTree.isValid());
+
+  jassert(editTree.hasProperty(ID::pluginID));
+  jassert(editTree.hasProperty(ID::editMode));
+  jassert(editTree.hasProperty(ID::modulateDiscrete));
+  jassert(editTree.hasProperty(ID::zoom));
 }
 
 void StateManager::addClip(std::int64_t id, const juce::String& name, double x, double y) {
