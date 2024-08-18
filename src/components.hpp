@@ -27,6 +27,7 @@ struct DebugTools : juce::Component {
   juce::TextButton undoButton { "Undo" };
   juce::TextButton redoButton { "Redo" };
   juce::TextButton randomiseButton { "Randomise" };
+  juce::ToggleButton parametersToggleButton { "Show Parameters" };
   juce::ToggleButton editModeButton { "Edit Mode" };
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
 
@@ -110,6 +111,80 @@ struct PluginListComponent : juce::Component, juce::FileDragAndDropTarget {
   static constexpr i32 width = 350;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginListComponent)
+};
+
+struct ParametersView : juce::Component {
+  struct Parameter : juce::Component, juce::AudioProcessorParameter::Listener {
+    Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
+      jassert(parameter);
+      parameter->addListener(this);
+      name.setText(parameter->getName(150), juce::NotificationType::dontSendNotification);
+      slider.setRange(0, 1);
+      slider.setValue(parameter->getValue());
+      addAndMakeVisible(name);
+      addAndMakeVisible(slider);
+    }
+
+    ~Parameter() override {
+      parameter->removeListener(this);
+    }
+
+    void paint(juce::Graphics& g) override {
+      g.fillAll(juce::Colours::green);
+    }
+
+    void resized() override {
+      auto r = getLocalBounds();
+      name.setBounds(r.removeFromLeft(160));
+      slider.setBounds(r);
+    }
+
+    void parameterValueChanged(i32, f32 v) override {
+      slider.setValue(v);
+      repaint();
+    }
+ 
+    void parameterGestureChanged(i32, bool) override {}
+
+    juce::AudioProcessorParameter* parameter;
+    juce::Slider slider;
+    juce::Label name;
+  };
+
+  ParametersView() {
+    viewport.setViewedComponent(this, false);
+  }
+
+  void setInstance(juce::AudioProcessor* i) {
+    jassert(i);
+
+    for (auto p : i->getParameters()) {
+      auto param = new Parameter(p);
+      addAndMakeVisible(param);
+      parameters.add(param);
+    }
+    
+    setSize(viewport.getWidth(), parameters.size() * 20);
+  }
+
+  void killInstance() {
+    parameters.clear();
+    setSize(viewport.getWidth(), 0);
+  }
+
+  void paint(juce::Graphics& g) override {
+    g.fillAll(juce::Colours::blue);
+  }
+
+  void resized() override {
+    auto r = getLocalBounds();
+    for (auto p : parameters) {
+      p->setBounds(r.removeFromTop(20)); 
+    }
+  }
+
+  juce::Viewport viewport;
+  juce::OwnedArray<Parameter> parameters;
 };
 
 } // namespace atmt

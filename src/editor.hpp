@@ -16,6 +16,8 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   void showDefaultScreen();
   void showInstanceScreen();
+  void showParametersView();
+  void showInstanceView();
 
   void pluginIDChangeCallback(const juce::var&);
   void createInstanceChangeCallback();
@@ -39,12 +41,15 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   int pluginListWidth = 150;
   int debugInfoHeight = 60;
 
+  bool showInstance = true;
+
   DebugTools debugTools { manager };
   DescriptionBar descriptionBar;
   PresetsListPanel statesPanel { manager };
   PluginListComponent pluginList { manager, proc.apfm, proc.knownPluginList };
   DebugInfo debugInfo { uiBridge };
 
+  ParametersView parametersView;
   Track track { manager, uiBridge };
 
   ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };

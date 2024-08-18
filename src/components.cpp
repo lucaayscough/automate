@@ -1,10 +1,12 @@
 #include "components.hpp"
+#include "editor.hpp"
 
 namespace atmt {
 
 DebugTools::DebugTools(StateManager& m) : manager(m) {
   addAndMakeVisible(printStateButton);
   addAndMakeVisible(killButton);
+  addAndMakeVisible(parametersToggleButton);
   addAndMakeVisible(playButton);
   addAndMakeVisible(stopButton);
   addAndMakeVisible(rewindButton);
@@ -23,9 +25,9 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   undoButton              .onClick = [this] { undoManager->undo(); };
   redoButton              .onClick = [this] { undoManager->redo(); };
   randomiseButton         .onClick = [this] { static_cast<Plugin*>(&proc)->engine.randomiseParameters(); };
-
-  // TODO(luca): this discrete button seems to be broken
   modulateDiscreteButton  .onClick = [this] { modulateDiscreteAttachment.setValue({ !modulateDiscrete }); };
+  parametersToggleButton  .onClick = [this] { parametersToggleButton.getToggleState() ? static_cast<Editor*>(getParentComponent())->showParametersView()
+                                                                                      : static_cast<Editor*>(getParentComponent())->showInstanceView(); };
 }
 
 void DebugTools::resized() {
@@ -34,6 +36,7 @@ void DebugTools::resized() {
   printStateButton.setBounds(r.removeFromLeft(width));
   editModeButton.setBounds(r.removeFromLeft(width));
   modulateDiscreteButton.setBounds(r.removeFromLeft(width));
+  parametersToggleButton.setBounds(r.removeFromLeft(width));
   killButton.setBounds(r.removeFromLeft(width));
   playButton.setBounds(r.removeFromLeft(width));
   stopButton.setBounds(r.removeFromLeft(width));

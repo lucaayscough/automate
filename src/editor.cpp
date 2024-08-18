@@ -31,6 +31,8 @@ void Editor::resized() {
     descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
     statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
     instance->setBounds(r.removeFromTop(instance->getHeight()));
+    parametersView.viewport.setBounds(instance->getBounds());
+    parametersView.resized();
   } else {
     pluginList.viewport.setBounds(r);
     pluginList.resized();
@@ -48,17 +50,31 @@ void Editor::showDefaultScreen() {
 
 void Editor::showInstanceScreen() {
   removeAllChildren();
+  parametersView.killInstance();
   instance.reset(proc.engine.getEditor());
 
   if (instance) {
+    parametersView.setInstance(proc.engine.instance.get());
     addAndMakeVisible(debugTools);
     addAndMakeVisible(debugInfo);
     addAndMakeVisible(descriptionBar);
     addAndMakeVisible(statesPanel);
     addAndMakeVisible(track.viewport);
-    addAndMakeVisible(instance.get());
+    showInstance ? addAndMakeVisible(instance.get()) : addAndMakeVisible(parametersView.viewport);
     setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight + debugInfoHeight);
   }
+
+  resized();
+}
+
+void Editor::showParametersView() {
+  showInstance = false;
+  showInstanceScreen(); 
+}
+
+void Editor::showInstanceView() {
+  showInstance = true;
+  showInstanceScreen(); 
 }
 
 void Editor::pluginIDChangeCallback(const juce::var& v) {
