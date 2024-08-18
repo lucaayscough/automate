@@ -140,8 +140,10 @@ struct ParametersView : juce::Component {
     }
 
     void parameterValueChanged(i32, f32 v) override {
-      slider.setValue(v);
-      repaint();
+      juce::MessageManager::callAsync([v, this] {
+        slider.setValue(v);
+        repaint();
+      });
     }
  
     void parameterGestureChanged(i32, bool) override {}

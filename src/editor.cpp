@@ -4,9 +4,6 @@
 namespace atmt {
 
 Editor::Editor(Plugin& _proc) : AudioProcessorEditor(&_proc), proc(_proc) {
-  setSize(width, height);
-  setResizable(false, false);
-
   if (proc.engine.hasInstance()) {
     showInstanceScreen(); 
   } else {
@@ -14,6 +11,8 @@ Editor::Editor(Plugin& _proc) : AudioProcessorEditor(&_proc), proc(_proc) {
   }
 
   setWantsKeyboardFocus(true);
+  setResizable(false, false);
+  setSize(width, height);
 }
 
 void Editor::paint(juce::Graphics& g) {
