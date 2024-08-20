@@ -181,28 +181,27 @@ void PresetsListPanel::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& 
   removePreset(child);
 }
 
-PluginListComponent::PluginListComponent(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
+PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
   : manager(m), knownPluginList(kpl), formatManager(fm) {
   for (auto& t : knownPluginList.getTypes()) {
     addPlugin(t);
   }
-  updateSize();
-  viewport.setScrollBarsShown(true, false);
-  viewport.setViewedComponent(this, false);
+  resized();
 }
 
-void PluginListComponent::paint(juce::Graphics& g) {
+void PluginListView::Contents::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::green);
 }
 
-void PluginListComponent::resized() {
+void PluginListView::Contents::resized() {
+  setSize(getWidth(), buttonHeight * plugins.size());
   auto r = getLocalBounds();
   for (auto button : plugins) {
     button->setBounds(r.removeFromTop(buttonHeight));
   }
 }
 
-void PluginListComponent::addPlugin(juce::PluginDescription& pd) {
+void PluginListView::Contents::addPlugin(juce::PluginDescription& pd) {
   auto button = new juce::TextButton(pd.pluginFormatName + " - " + pd.name);
   auto id = pd.createIdentifierString();
   addAndMakeVisible(button);
@@ -210,21 +209,26 @@ void PluginListComponent::addPlugin(juce::PluginDescription& pd) {
   plugins.add(button);
 }
 
-void PluginListComponent::updateSize() {
-  setSize(width, buttonHeight * plugins.size());
-}
-
-bool PluginListComponent::isInterestedInFileDrag(const juce::StringArray&){
+bool PluginListView::Contents::isInterestedInFileDrag(const juce::StringArray&){
   return true; 
 }
 
-void PluginListComponent::filesDropped(const juce::StringArray& files, i32, i32) {
+void PluginListView::Contents::filesDropped(const juce::StringArray& files, i32, i32) {
   juce::OwnedArray<juce::PluginDescription> types;
   knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
   for (auto t : types) {
     addPlugin(*t);
   }
-  updateSize();
+  resized();
+}
+
+PluginListView::PluginListView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) : c(m, fm, kpl) {
+  setScrollBarsShown(true, false);
+  setViewedComponent(&c, false);
+}
+
+void PluginListView::resized() {
+  c.setSize(getWidth(), c.getHeight()); 
 }
 
 } // namespace atmt

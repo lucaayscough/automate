@@ -81,47 +81,45 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetsListPanel)
 };
 
-struct PluginListComponent : juce::Component, juce::FileDragAndDropTarget {
-  PluginListComponent(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
-  void paint(juce::Graphics&) override;
-  void resized() override;
-  void addPlugin(juce::PluginDescription&);
-  void updateSize();
-  bool isInterestedInFileDrag(const juce::StringArray&)	override;
-  void filesDropped(const juce::StringArray&, i32, i32) override;
+struct PluginListView : juce::Viewport {
+  struct Contents : juce::Component, juce::FileDragAndDropTarget {
+    Contents(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void addPlugin(juce::PluginDescription&);
+    bool isInterestedInFileDrag(const juce::StringArray&)	override;
+    void filesDropped(const juce::StringArray&, i32, i32) override;
 
-  StateManager& manager;
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree editTree { manager.editTree };
-  juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
+    StateManager& manager;
+    juce::UndoManager* undoManager { manager.undoManager };
+    juce::ValueTree editTree { manager.editTree };
+    juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
 
-  juce::KnownPluginList& knownPluginList;
-  juce::AudioPluginFormatManager& formatManager;
+    juce::KnownPluginList& knownPluginList;
+    juce::AudioPluginFormatManager& formatManager;
 
-  juce::OwnedArray<juce::TextButton> plugins;
-  juce::Viewport viewport;
+    juce::OwnedArray<juce::TextButton> plugins;
+    
+    static constexpr i32 buttonHeight = 25;
+  };
   
-  static constexpr i32 buttonHeight = 25;
-  static constexpr i32 width = 350;
+  Contents c;
+  Contents& operator->() { return c; }
 
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginListComponent)
+  PluginListView(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
+  void resized();
 };
 
 struct DefaultView : juce::Component {
-  DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : manager(m), knownPluginList(kpl), formatManager(fm) {
-    addAndMakeVisible(pluginList.viewport);
+  DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : list(m, fm, kpl) {
+    addAndMakeVisible(list);
   }
 
-  void resized() {
-    auto r = getLocalBounds();
-    pluginList.viewport.setBounds(r);
-    pluginList.resized();
+  void resized() override {
+    list.setBounds(getLocalBounds());
   }
 
-  StateManager& manager;
-  juce::KnownPluginList& knownPluginList;
-  juce::AudioPluginFormatManager& formatManager;
-  PluginListComponent pluginList { manager, formatManager, knownPluginList };
+  PluginListView list;
 };
 
 struct ParametersView : juce::Viewport {
@@ -233,7 +231,7 @@ struct MainView : juce::Component {
   Track track { manager, uiBridge };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView;
-  int statesPanelWidth = 150;
+  i32 statesPanelWidth = 150;
 };
 
 } // namespace atmt
