@@ -482,6 +482,7 @@ void Track::rebuildClips() {
   }
 
   resized();
+  repaint();
 }
 
 bool Track::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) {

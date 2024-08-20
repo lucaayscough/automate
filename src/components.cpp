@@ -231,4 +231,98 @@ void PluginListView::resized() {
   c.setSize(getWidth(), c.getHeight()); 
 }
 
+DefaultView::DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : list(m, fm, kpl) {
+  addAndMakeVisible(list);
+}
+
+void DefaultView::resized() {
+  list.setBounds(getLocalBounds());
+}
+
+ParametersView::Parameter::Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
+  jassert(parameter);
+  parameter->addListener(this);
+  name.setText(parameter->getName(150), juce::NotificationType::dontSendNotification);
+  slider.setRange(0, 1);
+  slider.setValue(parameter->getValue());
+  addAndMakeVisible(name);
+  addAndMakeVisible(slider);
+}
+
+ParametersView::Parameter::~Parameter() {
+  parameter->removeListener(this);
+}
+
+void ParametersView::Parameter::paint(juce::Graphics& g) {
+  g.fillAll(juce::Colours::green);
+}
+
+void ParametersView::Parameter::resized() {
+  auto r = getLocalBounds();
+  name.setBounds(r.removeFromLeft(160));
+  slider.setBounds(r);
+}
+
+void ParametersView::Parameter::parameterValueChanged(i32, f32 v) {
+  juce::MessageManager::callAsync([v, this] {
+    slider.setValue(v);
+    repaint();
+  });
+}
+ 
+void ParametersView::Parameter::parameterGestureChanged(i32, bool) {}
+
+ParametersView::Contents::Contents(const juce::Array<juce::AudioProcessorParameter*>& i) {
+  for (auto p : i) {
+    jassert(p);
+    auto param = new Parameter(p);
+    addAndMakeVisible(param);
+    parameters.add(param);
+  }
+  setSize(getWidth(), parameters.size() * 20);
+}
+
+void ParametersView::Contents::resized() {
+  auto r = getLocalBounds();
+  for (auto p : parameters) {
+    p->setBounds(r.removeFromTop(20)); 
+  }
+}
+
+ParametersView::ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) : c(i) {
+  setViewedComponent(&c, false);
+}
+
+void ParametersView::resized() {
+  c.setSize(getWidth(), c.getHeight());
+}
+
+MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i, const juce::Array<juce::AudioProcessorParameter*>& p) : manager(m), uiBridge(b), instance(i), parametersView(p) {
+  jassert(i);
+  addAndMakeVisible(statesPanel);
+  addAndMakeVisible(track.viewport);
+  addAndMakeVisible(instance.get());
+  addChildComponent(parametersView);
+  setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+}
+
+void MainView::resized() {
+  // TODO(luca): clean up viewport stuff
+  auto r = getLocalBounds();
+  track.viewport.setBounds(r.removeFromBottom(Track::height));
+  track.resized();
+  statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
+  instance->setBounds(r.removeFromTop(instance->getHeight()));
+  parametersView.setBounds(instance->getBounds());
+}
+
+void MainView::toggleParametersView() {
+  instance->setVisible(!instance->isVisible()); 
+  parametersView.setVisible(!parametersView.isVisible()); 
+}
+
+void MainView::childBoundsChanged(juce::Component*) {
+  setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+}
+
 } // namespace atmt

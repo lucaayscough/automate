@@ -47,7 +47,6 @@ struct DebugInfo : juce::Component {
 struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   struct Title : juce::Component {
     void paint(juce::Graphics&) override;
-
     juce::String text { "Presets" };
   };
 
@@ -77,8 +76,6 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   juce::OwnedArray<Preset> presets;
   juce::TextEditor presetNameInput;
   juce::TextButton savePresetButton { "Save Preset" };
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetsListPanel)
 };
 
 struct PluginListView : juce::Viewport {
@@ -94,67 +91,31 @@ struct PluginListView : juce::Viewport {
     juce::UndoManager* undoManager { manager.undoManager };
     juce::ValueTree editTree { manager.editTree };
     juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
-
     juce::KnownPluginList& knownPluginList;
     juce::AudioPluginFormatManager& formatManager;
-
     juce::OwnedArray<juce::TextButton> plugins;
-    
     static constexpr i32 buttonHeight = 25;
   };
-  
-  Contents c;
 
   PluginListView(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
   void resized();
+  Contents c;
 };
 
 struct DefaultView : juce::Component {
-  DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : list(m, fm, kpl) {
-    addAndMakeVisible(list);
-  }
-
-  void resized() override {
-    list.setBounds(getLocalBounds());
-  }
-
+  DefaultView(StateManager&, juce::KnownPluginList&, juce::AudioPluginFormatManager&);
+  void resized() override;
   PluginListView list;
 };
 
 struct ParametersView : juce::Viewport {
   struct Parameter : juce::Component, juce::AudioProcessorParameter::Listener {
-    Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
-      jassert(parameter);
-      parameter->addListener(this);
-      name.setText(parameter->getName(150), juce::NotificationType::dontSendNotification);
-      slider.setRange(0, 1);
-      slider.setValue(parameter->getValue());
-      addAndMakeVisible(name);
-      addAndMakeVisible(slider);
-    }
-
-    ~Parameter() override {
-      parameter->removeListener(this);
-    }
-
-    void paint(juce::Graphics& g) override {
-      g.fillAll(juce::Colours::green);
-    }
-
-    void resized() override {
-      auto r = getLocalBounds();
-      name.setBounds(r.removeFromLeft(160));
-      slider.setBounds(r);
-    }
-
-    void parameterValueChanged(i32, f32 v) override {
-      juce::MessageManager::callAsync([v, this] {
-        slider.setValue(v);
-        repaint();
-      });
-    }
- 
-    void parameterGestureChanged(i32, bool) override {}
+    Parameter(juce::AudioProcessorParameter*);
+    ~Parameter() override;
+    void paint(juce::Graphics&) override;
+    void resized() override;
+    void parameterValueChanged(i32, f32) override;
+    void parameterGestureChanged(i32, bool) override;
 
     juce::AudioProcessorParameter* parameter;
     juce::Slider slider;
@@ -162,65 +123,21 @@ struct ParametersView : juce::Viewport {
   };
 
   struct Contents : juce::Component {
-    Contents(const juce::Array<juce::AudioProcessorParameter*>& i) {
-      for (auto p : i) {
-        jassert(p);
-        auto param = new Parameter(p);
-        addAndMakeVisible(param);
-        parameters.add(param);
-      }
-      setSize(getWidth(), parameters.size() * 20);
-    }
-
-    void resized() override {
-      auto r = getLocalBounds();
-      for (auto p : parameters) {
-        p->setBounds(r.removeFromTop(20)); 
-      }
-    }
-
+    Contents(const juce::Array<juce::AudioProcessorParameter*>&);
+    void resized() override;
     juce::OwnedArray<Parameter> parameters;
   };
 
+  ParametersView(const juce::Array<juce::AudioProcessorParameter*>&);
+  void resized() override;
   Contents c;
-
-  ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) : c(i) {
-    setViewedComponent(&c, false);
-  }
-
-  void resized() override {
-    c.setSize(getWidth(), c.getHeight());
-  }
 };
 
 struct MainView : juce::Component {
-  MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i, const juce::Array<juce::AudioProcessorParameter*>& p) : manager(m), uiBridge(b), instance(i), parametersView(p) {
-    jassert(i);
-    addAndMakeVisible(statesPanel);
-    addAndMakeVisible(track.viewport);
-    addAndMakeVisible(instance.get());
-    addChildComponent(parametersView);
-    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
-  }
-  
-  void resized() {
-    // TODO(luca): clean up viewport stuff
-    auto r = getLocalBounds();
-    track.viewport.setBounds(r.removeFromBottom(Track::height));
-    track.resized();
-    statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
-    instance->setBounds(r.removeFromTop(instance->getHeight()));
-    parametersView.setBounds(instance->getBounds());
-  }
-
-  void toggleParametersView() {
-    instance->setVisible(!instance->isVisible()); 
-    parametersView.setVisible(!parametersView.isVisible()); 
-  }
-
-  void childBoundsChanged(juce::Component*) {
-    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
-  }
+  MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*, const juce::Array<juce::AudioProcessorParameter*>&);
+  void resized() override;
+  void toggleParametersView();
+  void childBoundsChanged(juce::Component*) override;
 
   StateManager& manager;
   UIBridge& uiBridge;

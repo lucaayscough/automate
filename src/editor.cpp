@@ -25,13 +25,9 @@ void Editor::paint(juce::Graphics& g) {
 }
 
 void Editor::resized() {
-  if (getWidth() == 0 || getHeight() == 0) jassertfalse;
-
   auto r = getLocalBounds();
-
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
   debugInfo.setBounds(r.removeFromBottom(debugInfoHeight));
-
   if (useMainView) {
     mainView->setTopLeftPosition(r.getX(), r.getY());
   } else {
