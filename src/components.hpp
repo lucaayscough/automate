@@ -124,7 +124,7 @@ struct DefaultView : juce::Component {
   PluginListComponent pluginList { manager, formatManager, knownPluginList };
 };
 
-struct ParametersView : juce::Component {
+struct ParametersView : juce::Viewport {
   struct Parameter : juce::Component, juce::AudioProcessorParameter::Listener {
     Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
       jassert(parameter);
@@ -164,27 +164,38 @@ struct ParametersView : juce::Component {
     juce::Label name;
   };
 
-  ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) {
-    viewport.setViewedComponent(this, false);
-    for (auto p : i) {
-      jassert(p);
-      auto param = new Parameter(p);
-      addAndMakeVisible(param);
-      parameters.add(param);
+  struct Contents : juce::Component {
+    Contents(const juce::Array<juce::AudioProcessorParameter*>& i) {
+      for (auto p : i) {
+        jassert(p);
+        auto param = new Parameter(p);
+        addAndMakeVisible(param);
+        parameters.add(param);
+      }
+      setSize(getWidth(), parameters.size() * 20);
     }
-    setSize(viewport.getWidth(), parameters.size() * 20);
+
+    void resized() override {
+      auto r = getLocalBounds();
+      for (auto p : parameters) {
+        p->setBounds(r.removeFromTop(20)); 
+      }
+    }
+
+    juce::OwnedArray<Parameter> parameters;
+  };
+
+  Contents c;
+
+  Contents& operator->() { return c; }
+
+  ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) : c(i) {
+    setViewedComponent(&c, false);
   }
 
   void resized() override {
-    setSize(viewport.getWidth(), parameters.size() * 20);
-    auto r = getLocalBounds();
-    for (auto p : parameters) {
-      p->setBounds(r.removeFromTop(20)); 
-    }
+    c.setSize(getWidth(), c.getHeight());
   }
-
-  juce::Viewport viewport;
-  juce::OwnedArray<Parameter> parameters;
 };
 
 struct MainView : juce::Component {
@@ -193,7 +204,7 @@ struct MainView : juce::Component {
     addAndMakeVisible(statesPanel);
     addAndMakeVisible(track.viewport);
     addAndMakeVisible(instance.get());
-    addChildComponent(parametersView.viewport);
+    addChildComponent(parametersView);
     setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
   }
   
@@ -204,13 +215,12 @@ struct MainView : juce::Component {
     track.resized();
     statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
     instance->setBounds(r.removeFromTop(instance->getHeight()));
-    parametersView.viewport.setBounds(instance->getBounds());
-    parametersView.resized();
+    parametersView.setBounds(instance->getBounds());
   }
 
   void toggleParametersView() {
     instance->setVisible(!instance->isVisible()); 
-    parametersView.viewport.setVisible(!parametersView.viewport.isVisible()); 
+    parametersView.setVisible(!parametersView.isVisible()); 
   }
 
   void childBoundsChanged(juce::Component*) {
