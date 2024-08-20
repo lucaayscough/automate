@@ -1,5 +1,6 @@
 #pragma once
 
+#include "timeline.hpp"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "types.h"
 #include "plugin.hpp"
@@ -41,13 +42,6 @@ struct DebugInfo : juce::Component {
 
   UIBridge& uiBridge;
   juce::DrawableText info;
-};
-
-struct DescriptionBar : juce::Component {
-  void paint(juce::Graphics&) override;
-  void setDescription(std::unique_ptr<juce::PluginDescription>&);
-
-  std::unique_ptr<juce::PluginDescription> description;
 };
 
 struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
@@ -113,6 +107,23 @@ struct PluginListComponent : juce::Component, juce::FileDragAndDropTarget {
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginListComponent)
 };
 
+struct DefaultView : juce::Component {
+  DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : manager(m), knownPluginList(kpl), formatManager(fm) {
+    addAndMakeVisible(pluginList.viewport);
+  }
+
+  void resized() {
+    auto r = getLocalBounds();
+    pluginList.viewport.setBounds(r);
+    pluginList.resized();
+  }
+
+  StateManager& manager;
+  juce::KnownPluginList& knownPluginList;
+  juce::AudioPluginFormatManager& formatManager;
+  PluginListComponent pluginList { manager, formatManager, knownPluginList };
+};
+
 struct ParametersView : juce::Component {
   struct Parameter : juce::Component, juce::AudioProcessorParameter::Listener {
     Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
@@ -153,32 +164,19 @@ struct ParametersView : juce::Component {
     juce::Label name;
   };
 
-  ParametersView() {
+  ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) {
     viewport.setViewedComponent(this, false);
-  }
-
-  void setInstance(juce::AudioProcessor* i) {
-    jassert(i);
-
-    for (auto p : i->getParameters()) {
+    for (auto p : i) {
+      jassert(p);
       auto param = new Parameter(p);
       addAndMakeVisible(param);
       parameters.add(param);
     }
-    
     setSize(viewport.getWidth(), parameters.size() * 20);
   }
 
-  void killInstance() {
-    parameters.clear();
-    setSize(viewport.getWidth(), 0);
-  }
-
-  void paint(juce::Graphics& g) override {
-    g.fillAll(juce::Colours::blue);
-  }
-
   void resized() override {
+    setSize(viewport.getWidth(), parameters.size() * 20);
     auto r = getLocalBounds();
     for (auto p : parameters) {
       p->setBounds(r.removeFromTop(20)); 
@@ -187,6 +185,45 @@ struct ParametersView : juce::Component {
 
   juce::Viewport viewport;
   juce::OwnedArray<Parameter> parameters;
+};
+
+struct MainView : juce::Component {
+  MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i, const juce::Array<juce::AudioProcessorParameter*>& p) : manager(m), uiBridge(b), instance(i), parametersView(p) {
+    jassert(i);
+    addAndMakeVisible(statesPanel);
+    addAndMakeVisible(track.viewport);
+    addAndMakeVisible(instance.get());
+    addChildComponent(parametersView.viewport);
+    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+  }
+  
+  void resized() {
+    // TODO(luca): clean up viewport stuff
+    auto r = getLocalBounds();
+    track.viewport.setBounds(r.removeFromBottom(Track::height));
+    track.resized();
+    statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
+    instance->setBounds(r.removeFromTop(instance->getHeight()));
+    parametersView.viewport.setBounds(instance->getBounds());
+    parametersView.resized();
+  }
+
+  void toggleParametersView() {
+    instance->setVisible(!instance->isVisible()); 
+    parametersView.viewport.setVisible(!parametersView.viewport.isVisible()); 
+  }
+
+  void childBoundsChanged(juce::Component*) {
+    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+  }
+
+  StateManager& manager;
+  UIBridge& uiBridge;
+  PresetsListPanel statesPanel { manager };
+  Track track { manager, uiBridge };
+  std::unique_ptr<juce::AudioProcessorEditor> instance;
+  ParametersView parametersView;
+  int statesPanelWidth = 150;
 };
 
 } // namespace atmt

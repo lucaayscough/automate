@@ -16,18 +16,24 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   addAndMakeVisible(redoButton);
   addAndMakeVisible(randomiseButton);
 
+  auto plugin = static_cast<Plugin*>(&proc);
+  jassert(plugin);
+
   printStateButton        .onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
   editModeButton          .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
   killButton              .onClick = [this] { pluginID.setValue("", undoManager); };
-  playButton              .onClick = [this] { static_cast<Plugin*>(&proc)->signalPlay(); };
-  stopButton              .onClick = [this] { static_cast<Plugin*>(&proc)->signalStop(); };
-  rewindButton            .onClick = [this] { static_cast<Plugin*>(&proc)->signalRewind(); };
+  playButton              .onClick = [plugin] { plugin->signalPlay(); };
+  stopButton              .onClick = [plugin] { plugin->signalStop(); };
+  rewindButton            .onClick = [plugin] { plugin->signalRewind(); };
   undoButton              .onClick = [this] { undoManager->undo(); };
   redoButton              .onClick = [this] { undoManager->redo(); };
-  randomiseButton         .onClick = [this] { static_cast<Plugin*>(&proc)->engine.randomiseParameters(); };
+  randomiseButton         .onClick = [plugin] { plugin->engine.randomiseParameters(); };
   modulateDiscreteButton  .onClick = [this] { modulateDiscreteAttachment.setValue({ !modulateDiscrete }); };
-  parametersToggleButton  .onClick = [this] { parametersToggleButton.getToggleState() ? static_cast<Editor*>(getParentComponent())->showParametersView()
-                                                                                      : static_cast<Editor*>(getParentComponent())->showInstanceView(); };
+
+  parametersToggleButton.onClick = [this] { 
+    auto editor = static_cast<Editor*>(getParentComponent());
+    if (editor->useMainView) editor->mainView->toggleParametersView();
+  };
 }
 
 void DebugTools::resized() {
@@ -63,20 +69,6 @@ DebugInfo::DebugInfo(UIBridge& b) : uiBridge(b) {
 
 void DebugInfo::resized() {
   info.setBounds(getLocalBounds());
-}
-
-void DescriptionBar::paint(juce::Graphics& g) {
-  g.setColour(juce::Colours::white);
-  g.setFont(getHeight());
-  
-  if (description) {
-    g.drawText(description->name, getLocalBounds(), juce::Justification::left);
-  }
-}
-
-void DescriptionBar::setDescription(std::unique_ptr<juce::PluginDescription>& desc) {
-  description = std::move(desc);
-  repaint();
 }
 
 void PresetsListPanel::Title::paint(juce::Graphics& g) {

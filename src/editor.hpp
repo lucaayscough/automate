@@ -4,7 +4,6 @@
 #include "components.hpp"
 #include "plugin.hpp"
 #include "ui_bridge.hpp"
-#include "timeline.hpp"
 
 namespace atmt {
 
@@ -14,10 +13,8 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   void paint(juce::Graphics&) override;
   void resized() override;
 
-  void showDefaultScreen();
-  void showInstanceScreen();
-  void showParametersView();
-  void showInstanceView();
+  void showDefaultView();
+  void showMainView();
 
   void pluginIDChangeCallback(const juce::var&);
   void createInstanceChangeCallback();
@@ -29,6 +26,7 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   Plugin& proc;
   StateManager& manager { proc.manager };
   UIBridge& uiBridge { proc.uiBridge };
+  Engine& engine { proc.engine };
 
   juce::TooltipWindow tooltipWindow { this, 0 };
 
@@ -36,27 +34,19 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   int height = 350;
 
   int debugToolsHeight = 30;
-  int descriptionBarHeight = 100;
-  int statesPanelWidth = 150;
-  int pluginListWidth = 150;
   int debugInfoHeight = 60;
 
-  bool showInstance = true;
+  bool useMainView = false;
 
   DebugTools debugTools { manager };
-  DescriptionBar descriptionBar;
-  PresetsListPanel statesPanel { manager };
-  PluginListComponent pluginList { manager, proc.apfm, proc.knownPluginList };
   DebugInfo debugInfo { uiBridge };
 
-  ParametersView parametersView;
-  Track track { manager, uiBridge };
+  std::unique_ptr<MainView> mainView;
+  DefaultView defaultView { manager, proc.knownPluginList, proc.apfm };
 
   ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
   ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };
-  StateAttachment pluginIDAttachment        { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
-
-  std::unique_ptr<juce::AudioProcessorEditor> instance;
+  StateAttachment  pluginIDAttachment       { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
 };

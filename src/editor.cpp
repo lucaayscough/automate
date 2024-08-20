@@ -3,16 +3,21 @@
 
 namespace atmt {
 
-Editor::Editor(Plugin& _proc) : AudioProcessorEditor(&_proc), proc(_proc) {
-  if (proc.engine.hasInstance()) {
-    showInstanceScreen(); 
+Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
+  addAndMakeVisible(debugTools);
+  addAndMakeVisible(debugInfo);
+  addAndMakeVisible(defaultView);
+  
+  useMainView = engine.hasInstance();
+
+  if (useMainView) {
+    showMainView();
   } else {
-    showDefaultScreen();
+    showDefaultView();
   }
 
   setWantsKeyboardFocus(true);
   setResizable(false, false);
-  setSize(width, height);
 }
 
 void Editor::paint(juce::Graphics& g) {
@@ -20,83 +25,58 @@ void Editor::paint(juce::Graphics& g) {
 }
 
 void Editor::resized() {
+  if (getWidth() == 0 || getHeight() == 0) jassertfalse;
+
   auto r = getLocalBounds();
+
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
   debugInfo.setBounds(r.removeFromBottom(debugInfoHeight));
 
-  if (instance) {
-    track.viewport.setBounds(r.removeFromBottom(Track::height));
-    track.resized();
-    descriptionBar.setBounds(r.removeFromTop(descriptionBarHeight));
-    statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
-    instance->setBounds(r.removeFromTop(instance->getHeight()));
-    parametersView.viewport.setBounds(instance->getBounds());
-    parametersView.resized();
+  if (useMainView) {
+    mainView->setTopLeftPosition(r.getX(), r.getY());
   } else {
-    pluginList.viewport.setBounds(r);
-    pluginList.resized();
+    defaultView.setBounds(r);
   }
 }
 
-void Editor::showDefaultScreen() {
-  removeAllChildren();
-  instance.reset();
-  addAndMakeVisible(debugTools);
-  addAndMakeVisible(debugInfo);
-  addAndMakeVisible(pluginList.viewport);
+void Editor::showMainView() {
+  jassert(useMainView);
+  if (!mainView) {
+    mainView = std::make_unique<MainView>(manager, uiBridge, engine.getEditor(), engine.instance->getParameters());
+    addAndMakeVisible(mainView.get());
+  }
+  defaultView.setVisible(false);
+  setSize(mainView->getWidth(), mainView->getHeight() + debugToolsHeight + debugInfoHeight);
+}
+
+void Editor::showDefaultView() {
+  jassert(!useMainView && !mainView);
+  defaultView.setVisible(true);
   setSize(width, height);
 }
 
-void Editor::showInstanceScreen() {
-  removeAllChildren();
-  parametersView.killInstance();
-  instance.reset(proc.engine.getEditor());
-
-  if (instance) {
-    parametersView.setInstance(proc.engine.instance.get());
-    addAndMakeVisible(debugTools);
-    addAndMakeVisible(debugInfo);
-    addAndMakeVisible(descriptionBar);
-    addAndMakeVisible(statesPanel);
-    addAndMakeVisible(track.viewport);
-    showInstance ? addAndMakeVisible(instance.get()) : addAndMakeVisible(parametersView.viewport);
-    setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight + debugInfoHeight);
-  }
-
-  resized();
-}
-
-void Editor::showParametersView() {
-  showInstance = false;
-  showInstanceScreen(); 
-}
-
-void Editor::showInstanceView() {
-  showInstance = true;
-  showInstanceScreen(); 
-}
-
-void Editor::pluginIDChangeCallback(const juce::var& v) {
-  auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
-
-  if (description) {
-    descriptionBar.setDescription(description); 
-  }
+void Editor::pluginIDChangeCallback(const juce::var&) {
+  // TODO(luca):
+  //auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
 }
 
 void Editor::createInstanceChangeCallback() {
-  showInstanceScreen();
+  useMainView = true;
+  showMainView();
 }
 
 void Editor::killInstanceChangeCallback() {
-  showDefaultScreen();
+  useMainView = false;
+  removeChildComponent(mainView.get());
+  mainView.reset();
+  showDefaultView();
 }
 
-void Editor::childBoundsChanged(juce::Component* c) {
-  if (c == instance.get()) {
-    if (instance) {
-      setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + descriptionBarHeight + Track::height + debugToolsHeight + debugInfoHeight);
-    }
+void Editor::childBoundsChanged(juce::Component*) {
+  if (useMainView) {
+    showMainView();
+  } else {
+    showDefaultView();
   }
 }
 
@@ -108,6 +88,8 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyNum2 = 50;
   static constexpr i32 keyNum3 = 51;
   static constexpr i32 keyNum4 = 52;
+
+  auto& track = mainView->track;
 
   if (modifier == juce::ModifierKeys::commandModifier) {
     switch (code) {
@@ -134,6 +116,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 }
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
+  auto& track = mainView->track;
   track.automationLane.optKeyPressed = k.isAltDown();
   track.shiftKeyPressed = k.isShiftDown();
   track.cmdKeyPressed = k.isCommandDown();
