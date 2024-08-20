@@ -104,7 +104,6 @@ struct PluginListView : juce::Viewport {
   };
   
   Contents c;
-  Contents& operator->() { return c; }
 
   PluginListView(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
   void resized();
@@ -184,8 +183,6 @@ struct ParametersView : juce::Viewport {
   };
 
   Contents c;
-
-  Contents& operator->() { return c; }
 
   ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) : c(i) {
     setViewedComponent(&c, false);
