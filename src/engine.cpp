@@ -40,7 +40,6 @@ void Engine::prepare(double sampleRate, int blockSize) {
 
     if (instance->getMainBusNumInputChannels() > 0) {
       // TODO(luca): figure out appropriate protocol for plugins that don't have audio inputs
- 
       jassert(proc.getMainBusNumInputChannels()  == instance->getMainBusNumInputChannels());
       jassert(proc.getMainBusNumOutputChannels() == instance->getMainBusNumOutputChannels());
 

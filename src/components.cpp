@@ -247,6 +247,7 @@ ParametersView::Parameter::Parameter(juce::AudioProcessorParameter* p) : paramet
   slider.setValue(parameter->getValue());
   addAndMakeVisible(name);
   addAndMakeVisible(slider);
+  slider.onValueChange = [this] { parameter->setValue(f32(slider.getValue())); };
 }
 
 ParametersView::Parameter::~Parameter() {

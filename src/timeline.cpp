@@ -184,7 +184,7 @@ void PathView::mouseDrag(const juce::MouseEvent& e) {
   auto newX = f64(grid.snap(parentLocalPoint.x) / zoom);
   auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
   newY = std::clamp(newY, 0.0, 1.0);
-  x.setValue(newX, undoManager);
+  x.setValue(newX >= 0 ? newX : 0, undoManager);
   y.setValue(newY, undoManager);
 }
 
@@ -533,7 +533,8 @@ void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDeta
 
 void Track::zoomTrack(f64 amount, f64 mouseX) {
   f64 x0 = mouseX * zoom;
-  zoom.setValue(zoom + (amount * (zoom / zoomDeltaScale)), nullptr);
+  auto newValue = zoom + (amount * (zoom / zoomDeltaScale)); 
+  zoom.setValue(newValue <= 0 ? EPSILON : newValue, nullptr);
   zoom.forceUpdateOfCachedValue();
   f64 x1 = mouseX * zoom;
   f64 dx = (x1 - x0) / zoom;
