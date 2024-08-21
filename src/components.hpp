@@ -56,6 +56,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
     void mouseDown(const juce::MouseEvent&) override;
 
     StateManager& manager;
+    juce::UndoManager* undoManager { manager.undoManager };
     juce::AudioProcessor& proc { manager.proc };
     juce::TextButton selectorButton;
     juce::TextButton removeButton { "X" };
@@ -71,6 +72,7 @@ struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) override;
 
   StateManager& manager;
+  juce::UndoManager* undoManager { manager.undoManager };
   juce::ValueTree presetsTree { manager.presetsTree };
   Title title;
   juce::OwnedArray<Preset> presets;

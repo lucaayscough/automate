@@ -150,8 +150,6 @@ void StateManager::validate() {
 
 void StateManager::addClip(std::int64_t id, const juce::String& name, double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
-  undoManager->beginNewTransaction();
-
   juce::ValueTree clip { ID::CLIP };
   clip.setProperty(ID::id, id, undoManager)
       .setProperty(ID::name, name, undoManager)
@@ -162,7 +160,6 @@ void StateManager::addClip(std::int64_t id, const juce::String& name, double x, 
 }
 
 void StateManager::removeClip(const juce::ValueTree& vt) {
-  undoManager->beginNewTransaction();
   editTree.removeChild(vt, undoManager);
 }
 
@@ -183,20 +180,15 @@ void StateManager::clearEdit() {
 
 void StateManager::overwritePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-  undoManager->beginNewTransaction();
-
   auto& _proc = *static_cast<Plugin*>(&proc);
   std::vector<f32> values;
   _proc.engine.getCurrentParameterValues(values);
-
   auto preset = presets.getPresetFromName(name); 
   preset->parameters.setValue(values, undoManager);
 }
 
 void StateManager::savePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-  undoManager->beginNewTransaction();
-
   auto& _proc = *static_cast<Plugin*>(&proc);
   std::vector<f32> values;
   _proc.engine.getCurrentParameterValues(values);
@@ -223,8 +215,6 @@ void StateManager::savePreset(const juce::String& name) {
 
 void StateManager::removePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-  undoManager->beginNewTransaction();
-
   auto preset = presetsTree.getChildWithProperty(ID::name, name);
   presetsTree.removeChild(preset, undoManager);
   removeClipsIfInvalid(preset[ID::name]);
@@ -250,8 +240,6 @@ void StateManager::addPath(double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(x >= 0 && y >= 0 && y <= 1);
 
-  undoManager->beginNewTransaction();
-
   juce::ValueTree path(ID::PATH);
   path.setProperty(ID::x, x, undoManager)
       .setProperty(ID::y, y, undoManager)
@@ -262,7 +250,6 @@ void StateManager::addPath(double x, double y) {
 
 void StateManager::removePath(const juce::ValueTree& v) {
   JUCE_ASSERT_MESSAGE_THREAD
-  undoManager->beginNewTransaction();
   editTree.removeChild(v, undoManager);
 }
 

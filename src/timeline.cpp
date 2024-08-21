@@ -137,6 +137,7 @@ void ClipView::mouseDown(const juce::MouseEvent& e) {
 }
 
 void ClipView::mouseDoubleClick(const juce::MouseEvent&) {
+  undoManager->beginNewTransaction();
   manager.removeClip(state); 
 }
 
@@ -189,6 +190,7 @@ void PathView::mouseDrag(const juce::MouseEvent& e) {
 }
 
 void PathView::mouseDoubleClick(const juce::MouseEvent&) {
+  undoManager->beginNewTransaction();
   manager.removePath(state);
 }
 
@@ -309,7 +311,8 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
     activeGesture = GestureType::bend;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else if (d < mouseIntersectDistance) {
-    manager.addPath(p.x / zoom, p.y / getHeight());
+    undoManager->beginNewTransaction();
+    manager.addPath(grid.snap(p.x) / zoom, p.y / getHeight());
   } else if (d < mouseOverDistance) {
     undoManager->beginNewTransaction();
     activeGesture = GestureType::drag;
@@ -503,6 +506,7 @@ void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
   auto id = preset->_id.load();
   auto x = grid.snap(details.localPosition.x) / zoom;
   auto y = details.localPosition.y > (getHeight() / 2);
+  undoManager->beginNewTransaction();
   manager.addClip(id, name, x, y);
 }
 

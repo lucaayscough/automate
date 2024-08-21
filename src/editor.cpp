@@ -85,7 +85,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyNum2 = 50;
   static constexpr i32 keyNum3 = 51;
   static constexpr i32 keyNum4 = 52;
-  static constexpr i32 keyCharX = 88;
+  //static constexpr i32 keyCharX = 88;
   static constexpr i32 keyCharZ = 90;
 
   auto& track = mainView->track;

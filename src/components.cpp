@@ -87,12 +87,19 @@ PresetsListPanel::Preset::Preset(StateManager& m, const juce::String& n) : manag
   addAndMakeVisible(removeButton);
 
   // TODO(luca): find more appropriate way of doing this 
-  selectorButton.onClick = [this] () {
+  selectorButton.onClick = [this] {
     static_cast<Plugin*>(&proc)->engine.restoreFromPreset(getName());
   };
 
-  overwriteButton.onClick = [this] () { manager.overwritePreset(getName()); };
-  removeButton.onClick    = [this] () { manager.removePreset(getName()); };
+  overwriteButton.onClick = [this] {
+    undoManager->beginNewTransaction();
+    manager.overwritePreset(getName());
+  };
+
+  removeButton.onClick = [this] {
+    undoManager->beginNewTransaction();
+    manager.removePreset(getName());
+  };
 }
 
 void PresetsListPanel::Preset::resized() {
