@@ -201,7 +201,7 @@ void AutomationLane::paint(juce::Graphics& g) {
     auto r = getLocalBounds();
     g.setColour(juce::Colours::aliceblue);
     g.setOpacity(0.5);
-    g.fillRect(selection.start < selection.end ? selection.start : selection.end, r.getY(), std::abs(selection.end - selection.start), r.getHeight());
+    g.fillRect(i32(selection.start < selection.end ? selection.start : selection.end), r.getY(), i32(std::abs(selection.end - selection.start)), r.getHeight());
     g.setOpacity(1);
   }
 

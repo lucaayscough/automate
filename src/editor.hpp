@@ -25,6 +25,7 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   Plugin& proc;
   StateManager& manager { proc.manager };
+  juce::UndoManager* undoManager { manager.undoManager };
   UIBridge& uiBridge { proc.uiBridge };
   Engine& engine { proc.engine };
 

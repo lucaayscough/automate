@@ -80,14 +80,17 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   auto modifier = k.getModifiers(); 
   auto code = k.getKeyCode();
 
+  static constexpr i32 keyDelete = 127;
   static constexpr i32 keyNum1 = 49;
   static constexpr i32 keyNum2 = 50;
   static constexpr i32 keyNum3 = 51;
   static constexpr i32 keyNum4 = 52;
+  static constexpr i32 keyCharX = 88;
+  static constexpr i32 keyCharZ = 90;
 
   auto& track = mainView->track;
 
-  if (modifier == juce::ModifierKeys::commandModifier) {
+  if (modifier.isCommandDown()) {
     switch (code) {
       case keyNum1: {
         track.grid.narrow(); 
@@ -105,8 +108,29 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         track.grid.toggleSnap(); 
         return true;
       } break;
+      case keyCharZ: {
+        if (modifier.isShiftDown()) {
+          undoManager->redo();
+        } else {
+          undoManager->undo(); 
+        }
+        return true;
+      } break;
     };
-  }
+  } else if (code == keyDelete) {
+    std::vector<juce::ValueTree> toRemove;
+    for (auto p : track.automationLane.paths) {
+      auto zoom = f64(manager.editTree[ID::zoom]);
+      if (p->x * zoom >= track.automationLane.selection.start && p->x * zoom <= track.automationLane.selection.end) {
+        toRemove.push_back(p->state);
+      }
+    }
+    undoManager->beginNewTransaction();
+    for (auto& v : toRemove) {
+      manager.removePath(v);
+    }
+    return true;
+  } 
 
   return false;
 }
