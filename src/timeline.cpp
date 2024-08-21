@@ -197,6 +197,14 @@ AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {
 void AutomationLane::paint(juce::Graphics& g) {
   //DBG("AutomationLane::paint()");
 
+  { // NOTE(luca): draw selection
+    auto r = getLocalBounds();
+    g.setColour(juce::Colours::aliceblue);
+    g.setOpacity(0.5);
+    g.fillRect(selection.start < selection.end ? selection.start : selection.end, r.getY(), std::abs(selection.end - selection.start), r.getHeight());
+    g.setOpacity(1);
+  }
+
   { // NOTE(luca): draw automation line
     auto p = automation.get();
     p.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
@@ -299,16 +307,17 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
   if (d < mouseOverDistance && optKeyPressed) {
     undoManager->beginNewTransaction();
     activeGesture = GestureType::bend;
+    setMouseCursor(juce::MouseCursor::NoCursor);
   } else if (d < mouseIntersectDistance) {
     manager.addPath(p.x / zoom, p.y / getHeight());
   } else if (d < mouseOverDistance) {
     undoManager->beginNewTransaction();
     activeGesture = GestureType::drag;
+    setMouseCursor(juce::MouseCursor::NoCursor);
+  } else {
+    activeGesture = GestureType::select;
+    selection = { grid.snap(e.position.x), grid.snap(e.position.x) };
   }
-
-  // TODO(luca): offset
-  
-  setMouseCursor(juce::MouseCursor::NoCursor);
 }
 
 void AutomationLane::mouseUp(const juce::MouseEvent&) {
@@ -330,19 +339,22 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
   if (activeGesture == GestureType::bend) {
     auto p = automation.getClipPathForX(xHighlightedSegment / zoom);
     jassert(p);
-
     if (p) {
       auto offset = e.getOffsetFromDragStart();
       auto y = f64(lastMouseDragOffset.y - offset.y);
-
       auto increment = y / kMoveIncrement;
       auto newValue = std::clamp(p->curve + increment, 0.0, 1.0);
-
       jassert(newValue >= 0 && newValue <= 1);
-
       p->curve.setValue(newValue, undoManager);
       lastMouseDragOffset = offset;
     }
+  } else if (activeGesture == GestureType::drag) {
+    // TODO(luca): 
+  } else if (activeGesture == GestureType::select) {
+    selection.end = grid.snap(e.position.x);
+    repaint();
+  } else {
+    jassertfalse;
   }
 }
 
@@ -382,22 +394,17 @@ void Track::paint(juce::Graphics& g) {
   g.fillRect(presetLaneTopBounds);
   g.fillRect(presetLaneBottomBounds);
 
-  {
+  { // NOTE(luca): beats
     g.setFont(10);
-
     g.setColour(juce::Colours::black);
-
     for (auto& b : grid.beats) {
       auto beatText = juce::String(b.bar);
       if (b.beat > 1) {
         beatText << "." + juce::String(b.beat);
       }
-
       g.drawText(beatText, i32(b.x), r.getY(), 40, 20, juce::Justification::left);
     }
-
     g.setColour(juce::Colours::darkgrey);
-
     for (u32 i = 0; i < grid.lines.size(); ++i) {
       g.fillRect(f32(grid.lines[i]), f32(r.getY()), 0.75f, f32(getHeight()));
     }

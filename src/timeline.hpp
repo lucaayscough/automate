@@ -75,7 +75,12 @@ struct PathView : juce::Component, Path {
 };
 
 struct AutomationLane : juce::Component {
-  enum class GestureType { none, bend, drag };
+  enum class GestureType { none, bend, drag, select };
+
+  struct Selection {
+    f64 start = 0;
+    f64 end = 0;
+  };
 
   AutomationLane(StateManager&, Grid&);
   void paint(juce::Graphics&) override;
@@ -112,8 +117,7 @@ struct AutomationLane : juce::Component {
   f64 bendMouseDistanceProportion = 0;
 
   GestureType activeGesture = GestureType::none;
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationLane)
+  Selection selection;
 };
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
@@ -160,8 +164,6 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   bool cmdKeyPressed = false;
   static constexpr i32 kScrollSpeed = 500;
   static constexpr i32 kZoomSpeed = 2;
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
 };
 
 } // namespace atmt
