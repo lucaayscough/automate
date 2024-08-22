@@ -974,18 +974,22 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
     switch (code) {
       case keyNum1: {
         track.grid.narrow(); 
+        track.repaint();
         return true;
       } break;
       case keyNum2: {
         track.grid.widen(); 
+        track.repaint();
         return true;
       } break;
       case keyNum3: {
         track.grid.triplet(); 
+        track.repaint();
         return true;
       } break;
       case keyNum4: {
         track.grid.toggleSnap(); 
+        track.repaint();
         return true;
       } break;
       case keyCharZ: {
