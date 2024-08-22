@@ -141,7 +141,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) override;
   void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
-  void zoomTrack(f64, f64);
+  void zoomTrack(f64);
 
   StateManager& manager;
   UIBridge& uiBridge;

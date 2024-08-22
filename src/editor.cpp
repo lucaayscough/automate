@@ -536,11 +536,13 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
   }
 }
 
-void Track::zoomTrack(f64 amount, f64 mouseX) {
+void Track::zoomTrack(f64 amount) {
   //DBG("Track::zoomTrack()");
 
   // TODO(luca): the component jiggles because of floats being cast to ints in setBounds()
   // need to hack JUCE or find another way
+  
+  f64 mouseX = getMouseXYRelative().x;
 
   zoom.forceUpdateOfCachedValue();
 
@@ -560,9 +562,9 @@ void Track::zoomTrack(f64 amount, f64 mouseX) {
   viewport.x = X0;
 }
 
-void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) {
+void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   if (cmdKeyPressed) {
-    zoomTrack(w.deltaY * kZoomSpeed, e.position.x);
+    zoomTrack(w.deltaY * kZoomSpeed);
   } else if (shiftKeyPressed) {
     viewport.setViewPosition(i32(viewport.getViewPositionX() - w.deltaX * kScrollSpeed), 0);
   }
@@ -982,6 +984,8 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyNum4 = 52;
   //static constexpr i32 keyCharX = 88;
   static constexpr i32 keyCharZ = 90;
+  static constexpr i32 keyPlus = 43;
+  static constexpr i32 keyMin = 45;
 
   auto& track = mainView->track;
 
@@ -1014,6 +1018,12 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
           undoManager->undo(); 
         }
         return true;
+      } break;
+      case keyPlus: {
+        track.zoomTrack(0.1);
+      } break;
+      case keyMin: {
+        track.zoomTrack(-0.1);
       } break;
     };
   } else if (code == keyDelete) {
