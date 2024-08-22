@@ -9,5 +9,3 @@
 #include "plugin.cpp"
 #include "editor.cpp"
 #include "engine.cpp"
-#include "timeline.cpp"
-#include "components.cpp"
