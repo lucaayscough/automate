@@ -474,6 +474,7 @@ i32 Track::getTrackWidth() {
     }
   }
 
+  zoom.forceUpdateOfCachedValue();
   width *= zoom;
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
@@ -535,22 +536,36 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
   }
 }
 
+void Track::zoomTrack(f64 amount, f64 mouseX) {
+  //DBG("Track::zoomTrack()");
+
+  // TODO(luca): the component jiggles because of floats being cast to ints in setBounds()
+  // need to hack JUCE or find another way
+
+  zoom.forceUpdateOfCachedValue();
+
+  f64 z0 = zoom;
+  f64 z1 = z0 + (amount * (z0 / zoomDeltaScale)); 
+
+  zoom.setValue(z1 <= 0 ? EPSILON : z1, nullptr);
+
+  f64 x0 = viewport.x;
+  f64 x1 = mouseX;
+  f64 d = x1 - x0;
+  f64 p = x1 / z0;
+  f64 X1 = p * z1;
+  f64 X0 = X1 - d;
+
+  viewport.setViewPosition(i32(X0), 0);
+  viewport.x = X0;
+}
+
 void Track::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& w) {
   if (cmdKeyPressed) {
     zoomTrack(w.deltaY * kZoomSpeed, e.position.x);
   } else if (shiftKeyPressed) {
     viewport.setViewPosition(i32(viewport.getViewPositionX() - w.deltaX * kScrollSpeed), 0);
   }
-}
-
-void Track::zoomTrack(f64 amount, f64 mouseX) {
-  f64 x0 = mouseX * zoom;
-  auto newValue = zoom + (amount * (zoom / zoomDeltaScale)); 
-  zoom.setValue(newValue <= 0 ? EPSILON : newValue, nullptr);
-  zoom.forceUpdateOfCachedValue();
-  f64 x1 = mouseX * zoom;
-  f64 dx = (x1 - x0) / zoom;
-  viewport.setViewPosition(i32(viewport.getViewPositionX() + dx), 0);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {

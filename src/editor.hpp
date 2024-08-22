@@ -122,6 +122,13 @@ struct AutomationLane : juce::Component {
 };
 
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
+  struct Viewport : juce::Viewport {
+    void visibleAreaChanged (const juce::Rectangle<int>& a) override {
+      x = a.getX();
+    }
+    f64 x = 0;
+  };
+
   Track(StateManager&, UIBridge&);
   void paint(juce::Graphics&) override;
   void resized() override;
@@ -151,7 +158,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   static constexpr f64 zoomDeltaScale = 5.0;
   f64 playheadPosition = 0;
 
-  juce::Viewport viewport;
+  Viewport viewport;
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
