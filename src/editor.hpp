@@ -124,6 +124,7 @@ struct AutomationLane : juce::Component {
 struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
   struct Viewport : juce::Viewport {
     void visibleAreaChanged (const juce::Rectangle<int>& a) override {
+      // TODO(luca): we might not need this
       x = a.getX();
     }
     f64 x = 0;
@@ -133,6 +134,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void paint(juce::Graphics&) override;
   void resized() override;
   void timerCallback() override;
+  void resetGrid();
   i32 getTrackWidth();
   void rebuildClips();
   bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override;
@@ -142,6 +144,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void zoomTrack(f64);
+  void scroll(f64);
 
   StateManager& manager;
   UIBridge& uiBridge;
@@ -154,11 +157,9 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
   AutomationLane automationLane { manager, grid };
   juce::OwnedArray<ClipView> clips;
-  juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
-  static constexpr f64 zoomDeltaScale = 5.0;
+  f64 zoom = 0;
+  static constexpr f64 zoomDeltaScale = 5;
   f64 playheadPosition = 0;
-
-  Viewport viewport;
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
@@ -172,6 +173,7 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   bool cmdKeyPressed = false;
   static constexpr i32 kScrollSpeed = 500;
   static constexpr i32 kZoomSpeed = 2;
+  f64 viewportDeltaX = 0;
 };
 
 struct DebugTools : juce::Component {

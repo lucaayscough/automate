@@ -376,12 +376,10 @@ void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
 
 Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
   addAndMakeVisible(automationLane);
+  zoom = f64(editTree[ID::zoom]);
   rebuildClips();
   editTree.addListener(this);
   startTimerHz(60);
-  viewport.setViewedComponent(this, false);
-  viewport.setScrollBarPosition(false, false);
-  viewport.setScrollBarsShown(false, true, true, true);
   setSize(getTrackWidth(), height);
 }
 
@@ -419,9 +417,7 @@ void Track::paint(juce::Graphics& g) {
 }
 
 void Track::resized() {
-  // TODO(luca): this will often run resized() twice
-  setSize(getTrackWidth(), height);
-
+  //DBG("Track::resized()");
   auto r = getLocalBounds();
 
   timelineBounds          = r.removeFromTop(timelineHeight);
@@ -437,13 +433,15 @@ void Track::resized() {
 }
 
 void Track::timerCallback() {
-  Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
-  zoom.forceUpdateOfCachedValue();
+  resetGrid();
+}
 
+void Track::resetGrid() {
+  Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
   auto ph = uiBridge.playheadPosition.load() * zoom;
 
   if (std::abs(playheadPosition - ph) > EPSILON) {
-    auto x = viewport.getViewPositionX();
+    auto x = -viewportDeltaX;
     auto inBoundsOld = playheadPosition > x && playheadPosition < x; 
     auto inBoundsNew = ph > x && ph < (x + getWidth()); 
 
@@ -474,7 +472,6 @@ i32 Track::getTrackWidth() {
     }
   }
 
-  zoom.forceUpdateOfCachedValue();
   width *= zoom;
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
@@ -523,6 +520,7 @@ void Track::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) {
 void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier& id) {
   if (v.hasType(ID::EDIT)) {
     if (id == ID::zoom) {
+      zoom = f64(editTree[ID::zoom]);
       resized();
       automationLane.resized();
       repaint();
@@ -538,35 +536,34 @@ void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier&
 
 void Track::zoomTrack(f64 amount) {
   //DBG("Track::zoomTrack()");
-
-  // TODO(luca): the component jiggles because of floats being cast to ints in setBounds()
-  // need to hack JUCE or find another way
-  
   f64 mouseX = getMouseXYRelative().x;
-
-  zoom.forceUpdateOfCachedValue();
-
   f64 z0 = zoom;
-  f64 z1 = z0 + (amount * (z0 / zoomDeltaScale)); 
-
-  zoom.setValue(z1 <= 0 ? EPSILON : z1, nullptr);
-
-  f64 x0 = viewport.x;
+  f64 z1 = z0 + (amount * kZoomSpeed * (z0 / zoomDeltaScale)); 
+  f64 x0 = -viewportDeltaX;
   f64 x1 = mouseX;
   f64 d = x1 - x0;
   f64 p = x1 / z0;
   f64 X1 = p * z1;
   f64 X0 = X1 - d;
+  viewportDeltaX = -X0;
+  viewportDeltaX = std::clamp(-X0, f64(-(getTrackWidth() - getParentWidth())), 0.0);
+  editTree.setProperty(ID::zoom, z1 <= 0 ? EPSILON : z1, nullptr);
+  setBounds(i32(viewportDeltaX), getY(), getTrackWidth(), getHeight());
+  jassert(std::abs(viewportDeltaX) + getParentWidth() <= getTrackWidth());
+  resetGrid();
+}
 
-  viewport.setViewPosition(i32(X0), 0);
-  viewport.x = X0;
+void Track::scroll(f64 amount) {
+  viewportDeltaX += amount * kScrollSpeed;
+  viewportDeltaX = std::clamp(viewportDeltaX, f64(-(getWidth() - getParentWidth())), 0.0);
+  setTopLeftPosition(i32(viewportDeltaX), getY());
 }
 
 void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   if (cmdKeyPressed) {
-    zoomTrack(w.deltaY * kZoomSpeed);
+    zoomTrack(w.deltaY);
   } else if (shiftKeyPressed) {
-    viewport.setViewPosition(i32(viewport.getViewPositionX() - w.deltaX * kScrollSpeed), 0);
+    scroll(w.deltaY);
   }
 }
 
@@ -892,17 +889,15 @@ void ParametersView::resized() {
 MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i, const juce::Array<juce::AudioProcessorParameter*>& p) : manager(m), uiBridge(b), instance(i), parametersView(p) {
   jassert(i);
   addAndMakeVisible(statesPanel);
-  addAndMakeVisible(track.viewport);
+  addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
   addChildComponent(parametersView);
   setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
 }
 
 void MainView::resized() {
-  // TODO(luca): clean up viewport stuff
   auto r = getLocalBounds();
-  track.viewport.setBounds(r.removeFromBottom(Track::height));
-  track.resized();
+  track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
   statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
   instance->setBounds(r.removeFromTop(instance->getHeight()));
   parametersView.setBounds(instance->getBounds());
@@ -985,6 +980,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   //static constexpr i32 keyCharX = 88;
   static constexpr i32 keyCharZ = 90;
   static constexpr i32 keyPlus = 43;
+  static constexpr i32 keyEquals = 61;
   static constexpr i32 keyMin = 45;
 
   auto& track = mainView->track;
@@ -1019,12 +1015,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         }
         return true;
       } break;
-      case keyPlus: {
-        track.zoomTrack(0.1);
-      } break;
-      case keyMin: {
-        track.zoomTrack(-0.1);
-      } break;
     };
   } else if (code == keyDelete) {
     std::vector<juce::ValueTree> toRemove;
@@ -1039,8 +1029,14 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       manager.removePath(v);
     }
     return true;
-  } 
-
+  } else if (code == keyPlus || code == keyEquals) {
+    track.zoomTrack(1);
+    return true;
+  } else if (code == keyMin) {
+    track.zoomTrack(-1);
+    return true;
+  }
+  //DBG(code);
   return false;
 }
 
