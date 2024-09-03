@@ -602,7 +602,7 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   auto plugin = static_cast<Plugin*>(&proc);
   jassert(plugin);
 
-  //printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
+  printStateButton.onClick = [this] { manager.getState(); };
   editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
   killButton.onClick = [this] { manager.setPluginID(""); };
   playButton.onClick = [plugin] { plugin->signalPlay(); };
