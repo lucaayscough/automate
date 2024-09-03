@@ -3,18 +3,15 @@
 #include "utils.hpp"
 #include "state_manager.hpp"
 #include "engine.hpp"
-#include "identifiers.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "ui_bridge.hpp"
-#include "types.h"
+#include "types.hpp"
 
 namespace atmt {
 
 struct Plugin : juce::AudioProcessor {
   Plugin();
   ~Plugin() override;
-
-  void pluginIDChangeCallback(const juce::var& v);
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
@@ -24,7 +21,7 @@ struct Plugin : juce::AudioProcessor {
   void signalPlay();
   void signalRewind();
   void signalStop();
-  void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+  void processBlock(juce::AudioBuffer<f32>&, juce::MidiBuffer&) override;
 
   juce::AudioProcessorEditor* createEditor() override;
   bool hasEditor() const override;
@@ -45,10 +42,7 @@ struct Plugin : juce::AudioProcessor {
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
-  juce::UndoManager undoManager;
-  juce::AudioProcessorValueTreeState apvts { *this, &undoManager, ID::PARAMETERS, {} };
-
-  StateManager manager { apvts };
+  StateManager manager { *this };
   UIBridge uiBridge;
   Engine engine { manager, uiBridge }; 
 
@@ -62,10 +56,6 @@ struct Plugin : juce::AudioProcessor {
   juce::PropertiesFile::Options optionsFile;
   juce::File deadMansPedalFile                    { "~/Desktop/dmpf.txt" };
   juce::PropertiesFile propertiesFile             { { "~/Desktop/properties.txt" }, optionsFile};
-
-  StateAttachment pluginIDAttachment { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), &undoManager };
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Plugin)
 };
 
 } // namespace atmt

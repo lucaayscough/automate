@@ -3,11 +3,8 @@
 
 namespace atmt {
 
-bool Grid::reset(f64 z, f64 mw, TimeSignature _ts) {
-  jassert(z > 0);
-
-  if (std::abs(zoom - z) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
-    zoom = z;
+bool Grid::reset(f64 mw, TimeSignature _ts) {
+  if (std::abs(zoom - zoom_) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
     maxWidth = mw;
     ts = _ts;
     reset();
@@ -124,49 +121,7 @@ void Grid::toggleSnap() {
   snapOn = !snapOn;
 }
 
-ClipView::ClipView(StateManager& m, juce::ValueTree& vt, juce::UndoManager* um, Grid& g) : Clip(vt, um), manager(m), grid(g) {
-  setTooltip(name);
-}
-
-void ClipView::paint(juce::Graphics& g) {
-  g.setColour(juce::Colours::red);
-  g.fillEllipse(getLocalBounds().toFloat());
-}
-
-void ClipView::mouseDown(const juce::MouseEvent& e) {
-  beginDrag(e);
-}
-
-void ClipView::mouseDoubleClick(const juce::MouseEvent&) {
-  undoManager->beginNewTransaction();
-  manager.removeClip(state); 
-}
-
-void ClipView::mouseUp(const juce::MouseEvent&) {
-  endDrag();
-}
-
-void ClipView::mouseDrag(const juce::MouseEvent& e) {
-  auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  x.setValue(grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom, undoManager);
-  if (parentLocalPoint.y > getHeight() / 2) {
-    y.setValue(1, undoManager);
-  } else {
-    y.setValue(0, undoManager);
-  }
-}
-
-void ClipView::beginDrag(const juce::MouseEvent& e) {
-  undoManager->beginNewTransaction();
-  mouseDownOffset = e.position.x;
-}
-
-void ClipView::endDrag() {
-  isTrimDrag = false;
-  mouseDownOffset = 0;
-}
-
-PathView::PathView(StateManager& m, juce::ValueTree& v, juce::UndoManager* um, Grid& g) : Path(v, um), manager(m), grid(g) {}
+PathView::PathView(StateManager& m, Grid& g, Path_* p) : manager(m), grid(g), path(p) {}
 
 void PathView::paint(juce::Graphics& g) {
   if (isMouseOverOrDragging()) {
@@ -177,25 +132,55 @@ void PathView::paint(juce::Graphics& g) {
   g.fillEllipse(getLocalBounds().toFloat());
 }
 
-void PathView::mouseDown(const juce::MouseEvent&) {
-  undoManager->beginNewTransaction();
-}
-
 void PathView::mouseDrag(const juce::MouseEvent& e) {
+  // TODO(luca): simplify this
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
   auto newX = f64(grid.snap(parentLocalPoint.x) / zoom);
   auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
   newY = std::clamp(newY, 0.0, 1.0);
-  x.setValue(newX >= 0 ? newX : 0, undoManager);
-  y.setValue(newY, undoManager);
+  manager.movePath(path, newX >= 0 ? newX : 0, newY, path->c);
 }
 
 void PathView::mouseDoubleClick(const juce::MouseEvent&) {
-  undoManager->beginNewTransaction();
-  manager.removePath(state);
+  manager.removePath(path);
 }
 
-AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {}
+ClipView::ClipView(StateManager& m, Grid& g, Clip* c) : manager(m), grid(g), clip(c) {
+  setTooltip(clip->name);
+}
+
+void ClipView::paint(juce::Graphics& g) {
+  g.setColour(juce::Colours::red);
+  g.fillEllipse(getLocalBounds().toFloat());
+}
+
+void ClipView::mouseDown(const juce::MouseEvent& e) {
+  mouseDownOffset = e.position.x;
+}
+
+void ClipView::mouseDoubleClick(const juce::MouseEvent&) {
+  manager.removeClip(clip); 
+}
+
+void ClipView::mouseUp(const juce::MouseEvent&) {
+  isTrimDrag = false;
+  mouseDownOffset = 0;
+}
+
+void ClipView::mouseDrag(const juce::MouseEvent& e) {
+  auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
+  f64 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
+  f64 x = grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom;
+  manager.moveClip(clip, x, y, clip->c);
+}
+
+AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {
+  manager.automationView = this;
+}
+
+AutomationLane::~AutomationLane() {
+  manager.automationView = nullptr;
+}
 
 void AutomationLane::paint(juce::Graphics& g) {
   //DBG("AutomationLane::paint()");
@@ -209,18 +194,16 @@ void AutomationLane::paint(juce::Graphics& g) {
   }
 
   { // NOTE(luca): draw automation line
-    auto p = automation.get();
-    p.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
-
-    juce::Path::Iterator it(p);
+    juce::Path::Iterator it(automation);
 
     bool end = false;
+    bool start = true;
     juce::Path tmp;
+    it.next();
 
     do {
       auto x1 = it.x2;
       auto y1 = it.y2;
-
       end = !it.next();
 
       if (xHighlightedSegment > x1 && xHighlightedSegment < it.x2) {
@@ -231,15 +214,21 @@ void AutomationLane::paint(juce::Graphics& g) {
 
       if (!end) {
         tmp.clear();
-        tmp.startNewSubPath(x1, y1);
-        tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
+        if (start) {
+          tmp.startNewSubPath(0, it.y2);
+          tmp.lineTo(it.x2, it.y2);
+          start = false;
+        } else {
+          tmp.startNewSubPath(x1, y1);
+          tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
+        }
         g.strokePath(tmp, juce::PathStrokeType { 2.f });
       }
     } while (!end);
   }
 
   { // NOTE(luca): draw point
-    auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };  
+    auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };
     auto it = std::find_if(paths.begin(), paths.end(), cond);
     if (it == paths.end()) {
       g.setColour(juce::Colours::orange);
@@ -249,30 +238,35 @@ void AutomationLane::paint(juce::Graphics& g) {
 }
 
 void AutomationLane::resized() {
-  zoom.forceUpdateOfCachedValue();
+  DBG("AutomationLane::resized()");
 
-  for (auto& path : paths) {
-    path->setBounds(i32(path->x * zoom) - PathView::posOffset,
-                    i32(path->y * getHeight()) - PathView::posOffset,
-                    PathView::size, PathView::size);
+  // TODO(luca): maybe not a good idea
+  if (u64(paths.size()) != manager.paths.size()) {
+    paths.clear();
+    for (auto& p : manager.paths) {
+      auto path = new PathView(manager, grid, p.get());
+      path->setBounds(i32(p->x * zoom) - PathView::posOffset, i32(p->y * getHeight()) - PathView::posOffset, PathView::size, PathView::size);
+      addAndMakeVisible(path);
+      paths.add(path); 
+    }
+  } else {
+    for (auto p : paths) {
+      p->setBounds(i32(p->path->x * zoom) - PathView::posOffset, i32(p->path->y * getHeight()) - PathView::posOffset, PathView::size, PathView::size);
+    }
   }
+
+  automation = manager.automation_;
+  automation.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
 }
 
 auto AutomationLane::getAutomationPoint(juce::Point<f32> p) {
   juce::Point<f32> np;
-  automation.get().getNearestPoint(p, np, juce::AffineTransform::scale(f32(zoom), getHeight()));
+  automation.getNearestPoint(p, np);
   return np;
 }
 
 f64 AutomationLane::getDistanceFromPoint(juce::Point<f32> p) {
   return p.getDistanceFrom(getAutomationPoint(p));
-}
-
-void AutomationLane::addPath(juce::ValueTree& v) {
-  auto path = new PathView(manager, v, undoManager, grid);
-  addAndMakeVisible(path);
-  paths.add(path);
-  resized();
 }
 
 void AutomationLane::mouseMove(const juce::MouseEvent& e) {
@@ -308,14 +302,12 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
   auto d = p.getDistanceFrom(e.position);
 
   if (d < mouseOverDistance && optKeyPressed) {
-    undoManager->beginNewTransaction();
     activeGesture = GestureType::bend;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else if (d < mouseIntersectDistance) {
-    undoManager->beginNewTransaction();
+    // TODO(luca): add gesture
     manager.addPath(grid.snap(p.x) / zoom, p.y / getHeight());
   } else if (d < mouseOverDistance) {
-    undoManager->beginNewTransaction();
     activeGesture = GestureType::drag;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else {
@@ -341,46 +333,74 @@ void AutomationLane::mouseUp(const juce::MouseEvent&) {
 
 void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
   if (activeGesture == GestureType::bend) {
-    auto p = automation.getClipPathForX(xHighlightedSegment / zoom);
-    jassert(p);
-    if (p) {
-      auto offset = e.getOffsetFromDragStart();
-      auto y = f64(lastMouseDragOffset.y - offset.y);
-      auto increment = y / kMoveIncrement;
-      auto newValue = std::clamp(p->curve + increment, 0.0, 1.0);
-      jassert(newValue >= 0 && newValue <= 1);
-      p->curve.setValue(newValue, undoManager);
-      lastMouseDragOffset = offset;
+    auto p = manager.findAutomationPoint(xHighlightedSegment / zoom);
+    assert(p->clip || p->path);
+
+    auto offset = e.getOffsetFromDragStart();
+    auto y = f64(lastMouseDragOffset.y - offset.y);
+    auto increment = y / kDragIncrement;
+    auto newValue = std::clamp(p->c + increment, 0.0, 1.0);
+    assert(newValue >= 0 && newValue <= 1);
+
+    if (p->clip) {
+      manager.moveClip(p->clip, p->x, p->y, newValue);
+    } else {
+      manager.movePath(p->path, p->x, p->y, newValue);
     }
+
+    lastMouseDragOffset = offset;
   } else if (activeGesture == GestureType::drag) {
-    // TODO(luca): 
+    auto p = manager.findAutomationPoint(xHighlightedSegment / zoom);
+    assert(p->clip || p->path);
+
+    auto offset = e.getOffsetFromDragStart();
+    auto y = f64(lastMouseDragOffset.y - offset.y);
+    auto increment = y / kDragIncrement;
+    auto newValue = std::clamp(p->y - increment, 0.0, 1.0);
+
+    if (p->path) {
+      manager.movePath(p->path, p->x, newValue, p->c);
+    }
+
+    if (p != manager.points.begin()) {
+      auto prev = std::prev(p);
+      if (prev->path) {
+        newValue = std::clamp(prev->y - increment, 0.0, 1.0);
+        manager.movePath(prev->path, prev->x, newValue, prev->c);
+      }
+    }
+
+    lastMouseDragOffset = offset;
   } else if (activeGesture == GestureType::select) {
     selection.end = grid.snap(e.position.x);
     repaint();
   } else {
-    jassertfalse;
+    // TODO(luca): occurs when a path has just been added
+    //jassertfalse;
   }
 }
 
 void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
   if (getDistanceFromPoint(e.position) < mouseOverDistance && optKeyPressed) {
-    auto p = automation.getClipPathForX(e.position.x / zoom);
-    jassert(p);
+    //auto p = automation.getClipPathForX(e.position.x / zoom);
+    //jassert(p);
 
-    if (p) {
-      undoManager->beginNewTransaction();
-      p->curve.setValue(0.5, undoManager);
-    }
+    //if (p) {
+    //  undoManager->beginNewTransaction();
+    //  p->setCurve(0.5);
+    //}
   }
 }
 
-Track::Track(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {
+Track::Track(StateManager& m, UIBridge& u) : manager(m), uiBridge(u) {
   addAndMakeVisible(automationLane);
-  zoom = f64(editTree[ID::zoom]);
-  rebuildClips();
-  editTree.addListener(this);
   startTimerHz(60);
   setSize(getTrackWidth(), height);
+  manager.trackView = this;
+}
+
+Track::~Track() {
+  manager.trackView = nullptr;
 }
 
 void Track::paint(juce::Graphics& g) {
@@ -390,21 +410,21 @@ void Track::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::grey);
 
   g.setColour(juce::Colours::coral);
-  g.fillRect(timelineBounds);
+  g.fillRect(b.timeline);
 
   g.setColour(juce::Colours::aqua);
-  g.fillRect(presetLaneTopBounds);
-  g.fillRect(presetLaneBottomBounds);
+  g.fillRect(b.presetLaneTop);
+  g.fillRect(b.presetLaneBottom);
 
   { // NOTE(luca): beats
     g.setFont(10);
     g.setColour(juce::Colours::black);
-    for (auto& b : grid.beats) {
-      auto beatText = juce::String(b.bar);
-      if (b.beat > 1) {
-        beatText << "." + juce::String(b.beat);
+    for (auto& beat : grid.beats) {
+      auto beatText = juce::String(beat.bar);
+      if (beat.beat > 1) {
+        beatText << "." + juce::String(beat.beat);
       }
-      g.drawText(beatText, i32(b.x), r.getY(), 40, 20, juce::Justification::left);
+      g.drawText(beatText, i32(beat.x), r.getY(), 40, 20, juce::Justification::left);
     }
     g.setColour(juce::Colours::darkgrey);
     for (u32 i = 0; i < grid.lines.size(); ++i) {
@@ -418,17 +438,30 @@ void Track::paint(juce::Graphics& g) {
 
 void Track::resized() {
   //DBG("Track::resized()");
-  auto r = getLocalBounds();
 
-  timelineBounds          = r.removeFromTop(timelineHeight);
-  presetLaneTopBounds     = r.removeFromTop(presetLaneHeight);
-  presetLaneBottomBounds  = r.removeFromBottom(presetLaneHeight);
+  auto r = getLocalBounds();
+  b.timeline = r.removeFromTop(timelineHeight);
+  b.presetLaneTop = r.removeFromTop(presetLaneHeight);
+  b.presetLaneBottom = r.removeFromBottom(presetLaneHeight);
   automationLane.setBounds(r);
 
-  for (auto* clip : clips) {
-    clip->setBounds(i32(clip->x * zoom) - presetLaneHeight / 2,
-                    !bool(i32(clip->y)) ? presetLaneTopBounds.getY() : presetLaneBottomBounds.getY(),
-                    presetLaneHeight, presetLaneHeight);
+  // TODO(luca): maybe not a good idea
+  if (u64(clips.size()) != manager.clips.size()) {
+    clips.clear();
+    for (auto& c : manager.clips) {
+      auto clip = new ClipView(manager, grid, c.get());
+      clip->setBounds(i32(c->x * zoom) - presetLaneHeight / 2,
+                      !bool(i32(c->y)) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY(),
+                      presetLaneHeight, presetLaneHeight);
+      addAndMakeVisible(clip);
+      clips.add(clip); 
+    }
+  } else {
+    for (auto c : clips) {
+      c->setBounds(i32(c->clip->x * zoom) - presetLaneHeight / 2,
+                   !bool(i32(c->clip->y)) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY(),
+                   presetLaneHeight, presetLaneHeight);
+    }
   }
 }
 
@@ -452,7 +485,7 @@ void Track::resetGrid() {
     }
   }
 
-  if (getWidth() > 0 && grid.reset(zoom, getWidth(), ts)) {
+  if (getWidth() > 0 && grid.reset(getWidth(), ts)) {
     repaint();
   }
 }
@@ -460,13 +493,13 @@ void Track::resetGrid() {
 i32 Track::getTrackWidth() {
   f64 width = 0;
 
-  for (auto* c : clips) {
+  for (auto& c : manager.clips) {
     if (c->x > width) {
       width = c->x;
     }
   }
 
-  for (auto* p : automationLane.paths) {
+  for (auto& p : manager.paths) {
     if (p->x > width) {
       width = p->x;
     }
@@ -476,24 +509,6 @@ i32 Track::getTrackWidth() {
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
 
-void Track::rebuildClips() {
-  clips.clear();
-  automationLane.paths.clear();
-
-  for (auto child : editTree) {
-    if (child.hasType(ID::CLIP)) {
-      auto clip = new ClipView(manager, child, undoManager, grid);
-      addAndMakeVisible(clip);
-      clips.add(clip);
-    } else if (child.hasType(ID::PATH)) {
-      automationLane.addPath(child);
-    }
-  }
-
-  resized();
-  repaint();
-}
-
 bool Track::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) {
   return true;
 }
@@ -501,36 +516,19 @@ bool Track::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetail
 void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
   jassert(!details.description.isVoid());
   auto name = details.description.toString();
-  auto preset = presets.getPresetFromName(name);
-  auto id = preset->_id.load();
-  auto x = grid.snap(details.localPosition.x) / zoom;
-  auto y = details.localPosition.y > (getHeight() / 2);
-  undoManager->beginNewTransaction();
-  manager.addClip(id, name, x, y);
-}
 
-void Track::valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) {
-  rebuildClips();
-}
-
-void Track::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) { 
-  rebuildClips();
-}
-
-void Track::valueTreePropertyChanged(juce::ValueTree& v, const juce::Identifier& id) {
-  if (v.hasType(ID::EDIT)) {
-    if (id == ID::zoom) {
-      zoom = f64(editTree[ID::zoom]);
-      resized();
-      automationLane.resized();
-      repaint();
+  Preset* preset = nullptr;
+  for (auto& p : manager.presets) {
+    if (p.name == name) {
+      preset = &p;
     }
-  } else if (v.hasType(ID::CLIP) || v.hasType(ID::PATH)) {
-    if (id == ID::x || id == ID::y || id == ID::curve) {
-      resized();
-      automationLane.resized();
-      repaint();
-    } 
+  }
+
+  assert(preset);
+  if (preset) {
+    auto x = grid.snap(details.localPosition.x) / zoom;
+    auto y = details.localPosition.y > (getHeight() / 2);
+    manager.addClip(preset, x, y);
   }
 }
 
@@ -547,10 +545,12 @@ void Track::zoomTrack(f64 amount) {
   f64 X0 = X1 - d;
   viewportDeltaX = -X0;
   viewportDeltaX = std::clamp(-X0, f64(-(getTrackWidth() - getParentWidth())), 0.0);
-  editTree.setProperty(ID::zoom, z1 <= 0 ? EPSILON : z1, nullptr);
+  zoom = z1 <= 0 ? EPSILON : z1;
   setBounds(i32(viewportDeltaX), getY(), getTrackWidth(), getHeight());
   jassert(std::abs(viewportDeltaX) + getParentWidth() <= getTrackWidth());
   resetGrid();
+  resized();
+  repaint();
 }
 
 void Track::scroll(f64 amount) {
@@ -585,6 +585,8 @@ Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
 }
 
 DebugTools::DebugTools(StateManager& m) : manager(m) {
+  manager.debugView = this; 
+
   addAndMakeVisible(printStateButton);
   addAndMakeVisible(killButton);
   addAndMakeVisible(parametersToggleButton);
@@ -600,21 +602,25 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   auto plugin = static_cast<Plugin*>(&proc);
   jassert(plugin);
 
-  printStateButton        .onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
-  editModeButton          .onClick = [this] { editModeAttachment.setValue({ !editMode }); };
-  killButton              .onClick = [this] { pluginID.setValue("", undoManager); };
-  playButton              .onClick = [plugin] { plugin->signalPlay(); };
-  stopButton              .onClick = [plugin] { plugin->signalStop(); };
-  rewindButton            .onClick = [plugin] { plugin->signalRewind(); };
-  undoButton              .onClick = [this] { undoManager->undo(); };
-  redoButton              .onClick = [this] { undoManager->redo(); };
-  randomiseButton         .onClick = [plugin] { plugin->engine.randomiseParameters(); };
-  modulateDiscreteButton  .onClick = [this] { modulateDiscreteAttachment.setValue({ !modulateDiscrete }); };
+  //printStateButton.onClick = [this] { DBG(manager.valueTreeToXmlString(manager.state)); };
+  editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
+  killButton.onClick = [this] { manager.setPluginID(""); };
+  playButton.onClick = [plugin] { plugin->signalPlay(); };
+  stopButton.onClick = [plugin] { plugin->signalStop(); };
+  rewindButton.onClick = [plugin] { plugin->signalRewind(); };
+  undoButton.onClick = {};
+  redoButton.onClick = {};
+  randomiseButton.onClick = [plugin] { plugin->engine.randomiseParameters(); };
+  modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
 
   parametersToggleButton.onClick = [this] { 
     auto editor = static_cast<Editor*>(getParentComponent());
     if (editor->useMainView) editor->mainView->toggleParametersView();
   };
+}
+
+DebugTools::~DebugTools() {
+  manager.debugView = nullptr;
 }
 
 void DebugTools::resized() {
@@ -631,14 +637,9 @@ void DebugTools::resized() {
   undoButton.setBounds(r.removeFromLeft(width));
   redoButton.setBounds(r.removeFromLeft(width));
   randomiseButton.setBounds(r);
-}
 
-void DebugTools::editModeChangeCallback(const juce::var& v) {
-  editModeButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
-}
-
-void DebugTools::modulateDiscreteChangeCallback(const juce::var& v) {
-  modulateDiscreteButton.setToggleState(bool(v), juce::NotificationType::dontSendNotification);
+  editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
+  modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
 }
 
 DebugInfo::DebugInfo(UIBridge& b) : uiBridge(b) {
@@ -659,31 +660,20 @@ void PresetsListPanel::Title::paint(juce::Graphics& g) {
   g.drawText(text, r, juce::Justification::centred);
 }
 
-PresetsListPanel::Preset::Preset(StateManager& m, const juce::String& n) : manager(m) {
-  setName(n);
-  selectorButton.setButtonText(n);
+PresetsListPanel::PresetView::PresetView(StateManager& m, Preset* p) : manager(m), preset(p) {
+  setName(preset->name);
+  selectorButton.setButtonText(preset->name);
 
   addAndMakeVisible(selectorButton);
   addAndMakeVisible(overwriteButton);
   addAndMakeVisible(removeButton);
 
-  // TODO(luca): find more appropriate way of doing this 
-  selectorButton.onClick = [this] {
-    static_cast<Plugin*>(&proc)->engine.restoreFromPreset(getName());
-  };
-
-  overwriteButton.onClick = [this] {
-    undoManager->beginNewTransaction();
-    manager.overwritePreset(getName());
-  };
-
-  removeButton.onClick = [this] {
-    undoManager->beginNewTransaction();
-    manager.removePreset(getName());
-  };
+  selectorButton.onClick  = [this] { manager.loadPreset(preset); };
+  overwriteButton.onClick = [this] { manager.overwritePreset(preset); };
+  removeButton.onClick    = [this] { manager.removePreset(preset); };
 }
 
-void PresetsListPanel::Preset::resized() {
+void PresetsListPanel::PresetView::resized() {
   auto r = getLocalBounds();
   r.removeFromLeft(getWidth() / 8);
   removeButton.setBounds(r.removeFromRight(getWidth() / 4));
@@ -691,7 +681,7 @@ void PresetsListPanel::Preset::resized() {
   selectorButton.setBounds(r);
 }
 
-void PresetsListPanel::Preset::mouseDown(const juce::MouseEvent&) {
+void PresetsListPanel::PresetView::mouseDown(const juce::MouseEvent&) {
   auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
   if (container) {
     container->startDragging(getName(), this);
@@ -699,11 +689,11 @@ void PresetsListPanel::Preset::mouseDown(const juce::MouseEvent&) {
 }
 
 PresetsListPanel::PresetsListPanel(StateManager& m) : manager(m) {
+  manager.presetView = this;
+
   addAndMakeVisible(title);
   addAndMakeVisible(presetNameInput);
   addAndMakeVisible(savePresetButton);
-
-  // TODO(luca): the vt listeners can probably go now
 
   savePresetButton.onClick = [this] () -> void {
     auto name = presetNameInput.getText();
@@ -714,59 +704,27 @@ PresetsListPanel::PresetsListPanel(StateManager& m) : manager(m) {
       juce::AlertWindow::showAsync(options.withTitle("Error").withMessage("Preset name unavailable."), nullptr);
     }
   };
+}
 
-  presetsTree.addListener(this);
-
-  for (const auto& child : presetsTree) {
-    addPreset(child);
-  }
+PresetsListPanel::~PresetsListPanel() {
+  manager.presetView = nullptr;
 }
 
 void PresetsListPanel::resized() {
   auto r = getLocalBounds(); 
   title.setBounds(r.removeFromTop(40));
-  for (auto* preset : presets) {
-    preset->setBounds(r.removeFromTop(30));
+
+  presets.clear();
+
+  for (auto& preset : manager.presets) {
+    auto p = new PresetView(manager, &preset);
+    addAndMakeVisible(p);
+    p->setBounds(r.removeFromTop(30));
+    presets.add(p); 
   }
   auto b = r.removeFromBottom(40);
   savePresetButton.setBounds(b.removeFromRight(getWidth() / 2));
   presetNameInput.setBounds(b);
-}
-
-void PresetsListPanel::addPreset(const juce::ValueTree& presetTree) {
-  jassert(presetTree.isValid());
-  auto nameVar = presetTree[ID::name];
-  jassert(!nameVar.isVoid());
-  auto preset = new Preset(manager, nameVar.toString());
-  presets.add(preset);
-  addAndMakeVisible(preset);
-  resized();
-}
-
-void PresetsListPanel::removePreset(const juce::ValueTree& presetTree) {
-  jassert(presetTree.isValid());
-  auto nameVar = presetTree[ID::name];
-  jassert(!nameVar.isVoid());
-  auto name = nameVar.toString();
-  for (i32 i = 0; i < presets.size(); ++i) {
-    if (presets[i]->getName() == name) {
-      removeChildComponent(presets[i]);
-      presets.remove(i);
-    }
-  }
-  resized();
-}
-
-i32 PresetsListPanel::getNumPresets() {
-  return presets.size();
-}
-
-void PresetsListPanel::valueTreeChildAdded(juce::ValueTree&, juce::ValueTree& child) {
-  addPreset(child);
-}
-
-void PresetsListPanel::valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree& child, i32) { 
-  removePreset(child);
 }
 
 PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
@@ -793,7 +751,7 @@ void PluginListView::Contents::addPlugin(juce::PluginDescription& pd) {
   auto button = new juce::TextButton(pd.pluginFormatName + " - " + pd.name);
   auto id = pd.createIdentifierString();
   addAndMakeVisible(button);
-  button->onClick = [id, this] { pluginID.setValue(id, undoManager); };
+  button->onClick = [id, this] { manager.setPluginID(id); };
   plugins.add(button);
 }
 
@@ -853,10 +811,7 @@ void ParametersView::Parameter::resized() {
 }
 
 void ParametersView::Parameter::parameterValueChanged(i32, f32 v) {
-  juce::MessageManager::callAsync([v, this] {
-    slider.setValue(v);
-    repaint();
-  });
+  juce::MessageManager::callAsync([v, this] { slider.setValue(v); repaint(); });
 }
  
 void ParametersView::Parameter::parameterGestureChanged(i32, bool) {}
@@ -943,11 +898,6 @@ void Editor::showDefaultView() {
   setSize(width, height);
 }
 
-void Editor::pluginIDChangeCallback(const juce::var&) {
-  // TODO(luca):
-  //auto description = proc.knownPluginList.getTypeForIdentifierString(v.toString());
-}
-
 void Editor::createInstanceChangeCallback() {
   useMainView = true;
   showMainView();
@@ -1009,25 +959,26 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       } break;
       case keyCharZ: {
         if (modifier.isShiftDown()) {
-          undoManager->redo();
+          // TODO(luca): implment 
         } else {
-          undoManager->undo(); 
+          // TODO(luca): implment 
         }
         return true;
       } break;
     };
   } else if (code == keyDelete) {
-    std::vector<juce::ValueTree> toRemove;
-    for (auto p : track.automationLane.paths) {
-      auto zoom = f64(manager.editTree[ID::zoom]);
-      if (p->x * zoom >= track.automationLane.selection.start && p->x * zoom <= track.automationLane.selection.end) {
-        toRemove.push_back(p->state);
-      }
-    }
-    undoManager->beginNewTransaction();
-    for (auto& v : toRemove) {
-      manager.removePath(v);
-    }
+    //std::vector<juce::ValueTree> toRemove;
+    //for (auto p : track.automationLane.paths) {
+    //  auto zoom = f64(manager.editTree[ID::zoom]);
+    //  if (p->x * zoom >= track.automationLane.selection.start && p->x * zoom <= track.automationLane.selection.end) {
+    //    toRemove.push_back(p->state);
+    //  }
+    //}
+    //undoManager->beginNewTransaction();
+    //for (auto& v : toRemove) {
+    //  // TODO(luca): fix
+    //  //manager.removePath(v);
+    //}
     return true;
   } else if (code == keyPlus || code == keyEquals) {
     track.zoomTrack(1);

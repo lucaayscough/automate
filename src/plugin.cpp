@@ -19,27 +19,6 @@ Plugin::~Plugin() {
   saveKnownPluginList(knownPluginList);
 }
 
-void Plugin::pluginIDChangeCallback(const juce::var& v) {
-  suspendProcessing(true);
-  juce::String errorMessage;
-  auto id = v.toString();
-  if (id != "") {
-    auto description = knownPluginList.getTypeForIdentifierString(id);
-    if (description) {
-      auto instance = apfm.createPluginInstance(*description, getSampleRate(), getBlockSize(), errorMessage);
-      engine.setPluginInstance(instance);
-      prepareToPlay(getSampleRate(), getBlockSize());
-    }
-  } else {
-    engine.kill();
-    manager.clearEdit();
-    manager.clearPresets();
-  }
-
-  undoManager.clearUndoHistory();
-  suspendProcessing(false);
-}
-
 void Plugin::prepareToPlay(double sampleRate, int blockSize) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(sampleRate > 0 && blockSize > 0);
@@ -60,7 +39,7 @@ void Plugin::signalStop() {
   stop = true;
 }
 
-void Plugin::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
+void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
@@ -137,19 +116,57 @@ juce::AudioProcessorEditor* Plugin::createEditor() {
   return new Editor(*this);
 }
 
-void Plugin::getStateInformation(juce::MemoryBlock& destData) {
-  auto state = manager.getState();
-  std::unique_ptr<juce::XmlElement> xml(state.createXml());
-  copyXmlToBinary(*xml, destData);
+void Plugin::getStateInformation(juce::MemoryBlock& mb) {
+  juce::ValueTree tree("tree");
+
+  tree.setProperty("zoom", zoom, nullptr)
+      .setProperty("editMode", editMode.load(), nullptr)
+      .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
+      .setProperty("pluginID", pluginID, nullptr);
+
+  juce::ValueTree presets("presets");
+
+  for (auto& p : manager.presets) {
+    juce::ValueTree preset("preset");
+    preset.setProperty("name", p.name, nullptr)
+          .setProperty("parameters", { p.parameters.data(), p.parameters.size() * sizeof(f32) }, nullptr);
+    presets.appendChild(preset, nullptr);
+  }
+
+  juce::ValueTree clips("clips");
+  for (auto& c : manager.clips) {
+    juce::ValueTree clip("clip");
+    clip.setProperty("x", c->x, nullptr)
+        .setProperty("y", c->y, nullptr)
+        .setProperty("c", c->c, nullptr)
+        .setProperty("name", c->preset->name, nullptr);
+    clips.appendChild(clip, nullptr);
+  }
+
+  juce::ValueTree paths("paths");
+  for (auto& p : manager.paths) {
+    juce::ValueTree path("path");
+    path.setProperty("x", p->x, nullptr)
+        .setProperty("y", p->y, nullptr)
+        .setProperty("c", p->c, nullptr);
+    paths.appendChild(path, nullptr);
+  }
+
+  tree.appendChild(presets, nullptr);
+  tree.appendChild(clips, nullptr);
+  tree.appendChild(paths, nullptr);
+
+  DBG(manager.valueTreeToXmlString(tree));
+
+  std::unique_ptr<juce::XmlElement> xml(tree.createXml());
+  copyXmlToBinary(*xml, mb);
 }
 
-void Plugin::setStateInformation(const void* data, int sizeInBytes) {
-  std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-  if (xmlState.get()) {
-    if (xmlState->hasTagName(manager.state.getType())) {
-      auto newState = juce::ValueTree::fromXml(*xmlState);
-      manager.replace(newState);
-    }
+void Plugin::setStateInformation(const void* data, int size) {
+  std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, size));
+  if (xml.get() != nullptr) {
+    auto tree = juce::ValueTree::fromXml(*xml);
+    manager.replace(tree);
   }
 }
 

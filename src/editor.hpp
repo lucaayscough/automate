@@ -18,7 +18,7 @@ struct Grid {
     u32 denominator = 4;
   };
 
-  bool reset(f64, f64, TimeSignature);
+  bool reset(f64, TimeSignature);
   void reset();
   f64 snap(f64);
 
@@ -28,7 +28,6 @@ struct Grid {
   void toggleSnap();
 
   TimeSignature ts;
-  f64 zoom = 0;
   f64 maxWidth = 0;
 
   static constexpr f64 intervalMin = 40;
@@ -36,43 +35,41 @@ struct Grid {
   bool tripletMode = false;
   i32 gridWidth = 0;
   bool snapOn = true;
+  f64 zoom_ = 0;
 
   std::vector<Beat> beats;
   std::vector<f64> lines;
 };
 
-struct ClipView : juce::Component, Clip, juce::SettableTooltipClient {
-  ClipView(StateManager&, juce::ValueTree&, juce::UndoManager*, Grid&);
+struct PathView : juce::Component {
+  PathView(StateManager&, Grid&, Path_*);
+  void paint(juce::Graphics&) override;
+  void mouseDrag(const juce::MouseEvent&) override;
+  void mouseDoubleClick(const juce::MouseEvent&) override;
+
+  StateManager& manager;
+  Grid& grid;
+  Path_* path = nullptr;
+
+  static constexpr i32 size = 10;
+  static constexpr i32 posOffset = size / 2;
+};
+
+struct ClipView : juce::Component, juce::SettableTooltipClient {
+  ClipView(StateManager&, Grid&, Clip*);
   void paint(juce::Graphics&) override;
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
   void mouseUp(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent&) override;
-  void beginDrag(const juce::MouseEvent&);
-  void endDrag();
 
   StateManager& manager;
-  juce::ValueTree editValueTree { manager.editTree };
   Grid& grid;
-  juce::CachedValue<f64> zoom { editValueTree, ID::zoom, nullptr };
+  Clip* clip = nullptr;
   static constexpr i32 trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
   f64 mouseDownOffset = 0;
-};
-
-struct PathView : juce::Component, Path {
-  PathView(StateManager&, juce::ValueTree&, juce::UndoManager*, Grid&);
-  void paint(juce::Graphics&) override;
-  void mouseDown(const juce::MouseEvent&) override;
-  void mouseDrag(const juce::MouseEvent&) override;
-  void mouseDoubleClick(const juce::MouseEvent&) override;
-
-  StateManager& manager;
-  Grid& grid;
-  juce::CachedValue<f64> zoom { manager.editTree, ID::zoom, nullptr };
-  static constexpr i32 size = 10;
-  static constexpr i32 posOffset = size / 2;
 };
 
 struct AutomationLane : juce::Component {
@@ -84,13 +81,12 @@ struct AutomationLane : juce::Component {
   };
 
   AutomationLane(StateManager&, Grid&);
+  ~AutomationLane() override;
   void paint(juce::Graphics&) override;
   void resized() override;
   
   auto getAutomationPoint(juce::Point<f32>);
   f64 getDistanceFromPoint(juce::Point<f32>);
-
-  void addPath(juce::ValueTree&);
 
   void mouseMove(const juce::MouseEvent&) override;
   void mouseDown(const juce::MouseEvent&) override;
@@ -101,10 +97,7 @@ struct AutomationLane : juce::Component {
 
   StateManager& manager;
   Grid& grid;
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree editTree { manager.editTree };
-  juce::CachedValue<f64> zoom { editTree, ID::zoom, nullptr };
-  Automation automation { editTree, undoManager };
+  juce::Path automation;
   juce::OwnedArray<PathView> paths;
 
   juce::Rectangle<f32> hoverBounds;
@@ -114,50 +107,35 @@ struct AutomationLane : juce::Component {
   bool optKeyPressed = false;
   juce::Point<i32> lastMouseDragOffset;
 
-  f64 kMoveIncrement = 50;
+  f64 kDragIncrement = 50;
   f64 bendMouseDistanceProportion = 0;
 
   GestureType activeGesture = GestureType::none;
   Selection selection;
 };
 
-struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarget, juce::Timer {
-  struct Viewport : juce::Viewport {
-    void visibleAreaChanged (const juce::Rectangle<int>& a) override {
-      // TODO(luca): we might not need this
-      x = a.getX();
-    }
-    f64 x = 0;
-  };
-
+struct Track : juce::Component, juce::DragAndDropTarget, juce::Timer {
   Track(StateManager&, UIBridge&);
+  ~Track() override;
   void paint(juce::Graphics&) override;
   void resized() override;
   void timerCallback() override;
   void resetGrid();
   i32 getTrackWidth();
-  void rebuildClips();
   bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override;
   void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override;
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override;
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) override;
-  void valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+
   void zoomTrack(f64);
   void scroll(f64);
 
   StateManager& manager;
   UIBridge& uiBridge;
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree editTree { manager.editTree };
-  juce::ValueTree presetsTree { manager.presetsTree };
-  Presets presets { presetsTree, undoManager };
 
   Grid grid;
+  juce::OwnedArray<ClipView> clips;
 
   AutomationLane automationLane { manager, grid };
-  juce::OwnedArray<ClipView> clips;
-  f64 zoom = 0;
   static constexpr f64 zoomDeltaScale = 5;
   f64 playheadPosition = 0;
 
@@ -165,9 +143,14 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
   static constexpr i32 presetLaneHeight = 25;
   static constexpr i32 height = 200;
 
-  juce::Rectangle<i32> timelineBounds;
-  juce::Rectangle<i32> presetLaneTopBounds;
-  juce::Rectangle<i32> presetLaneBottomBounds;
+  struct Bounds {
+    juce::Rectangle<i32> timeline;
+    juce::Rectangle<i32> automation;
+    juce::Rectangle<i32> presetLaneTop;
+    juce::Rectangle<i32> presetLaneBottom;
+  };
+
+  Bounds b;
 
   bool shiftKeyPressed = false;
   bool cmdKeyPressed = false;
@@ -178,17 +161,11 @@ struct Track : juce::Component, juce::ValueTree::Listener, juce::DragAndDropTarg
 
 struct DebugTools : juce::Component {
   DebugTools(StateManager&);
+  ~DebugTools() override;
   void resized() override;
-  void editModeChangeCallback(const juce::var&);
-  void modulateDiscreteChangeCallback(const juce::var&);
 
   StateManager& manager;
-  juce::AudioProcessor& proc { manager.apvts.processor };
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree editTree { manager.editTree };
-  juce::CachedValue<bool> editMode { editTree, ID::editMode, nullptr };
-  juce::CachedValue<bool> modulateDiscrete { editTree, ID::modulateDiscrete, undoManager };
-  juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
+  juce::AudioProcessor& proc { manager.proc };
   juce::TextButton printStateButton { "Print State" };
   juce::TextButton killButton { "Kill" };
   juce::TextButton playButton { "Play" };
@@ -200,9 +177,6 @@ struct DebugTools : juce::Component {
   juce::ToggleButton parametersToggleButton { "Show Parameters" };
   juce::ToggleButton editModeButton { "Edit Mode" };
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
-
-  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr };
-  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
 };
 
 struct DebugInfo : juce::Component {
@@ -213,38 +187,31 @@ struct DebugInfo : juce::Component {
   juce::DrawableText info;
 };
 
-struct PresetsListPanel : juce::Component, juce::ValueTree::Listener {
+struct PresetsListPanel : juce::Component {
   struct Title : juce::Component {
     void paint(juce::Graphics&) override;
     juce::String text { "Presets" };
   };
 
-  struct Preset : juce::Component {
-    Preset(StateManager&, const juce::String&);
+  struct PresetView : juce::Component {
+    PresetView(StateManager&, Preset*);
     void resized() override;
     void mouseDown(const juce::MouseEvent&) override;
 
     StateManager& manager;
-    juce::UndoManager* undoManager { manager.undoManager };
-    juce::AudioProcessor& proc { manager.proc };
+    Preset* preset = nullptr;
     juce::TextButton selectorButton;
     juce::TextButton removeButton { "X" };
     juce::TextButton overwriteButton { "Overwrite" };
   };
 
   PresetsListPanel(StateManager&);
+  ~PresetsListPanel() override;
   void resized() override;
-  void addPreset(const juce::ValueTree&);
-  void removePreset(const juce::ValueTree&);
-  i32 getNumPresets();
-  void valueTreeChildAdded(juce::ValueTree&, juce::ValueTree&) override;
-  void valueTreeChildRemoved(juce::ValueTree&, juce::ValueTree&, i32) override;
 
   StateManager& manager;
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::ValueTree presetsTree { manager.presetsTree };
   Title title;
-  juce::OwnedArray<Preset> presets;
+  juce::OwnedArray<PresetView> presets;
   juce::TextEditor presetNameInput;
   juce::TextButton savePresetButton { "Save Preset" };
 };
@@ -259,9 +226,6 @@ struct PluginListView : juce::Viewport {
     void filesDropped(const juce::StringArray&, i32, i32) override;
 
     StateManager& manager;
-    juce::UndoManager* undoManager { manager.undoManager };
-    juce::ValueTree editTree { manager.editTree };
-    juce::CachedValue<juce::String> pluginID { editTree, ID::pluginID, undoManager };
     juce::KnownPluginList& knownPluginList;
     juce::AudioPluginFormatManager& formatManager;
     juce::OwnedArray<juce::TextButton> plugins;
@@ -328,7 +292,6 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   void showDefaultView();
   void showMainView();
 
-  void pluginIDChangeCallback(const juce::var&);
   void createInstanceChangeCallback();
   void killInstanceChangeCallback();
   void childBoundsChanged(juce::Component*) override;
@@ -337,7 +300,6 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   Plugin& proc;
   StateManager& manager { proc.manager };
-  juce::UndoManager* undoManager { manager.undoManager };
   UIBridge& uiBridge { proc.uiBridge };
   Engine& engine { proc.engine };
 
@@ -359,9 +321,6 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
   ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };
-  StateAttachment  pluginIDAttachment       { manager.editTree, ID::pluginID, STATE_CB(pluginIDChangeCallback), manager.undoManager };
-
-  JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
 };
 
 } // namespace atmt

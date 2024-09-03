@@ -65,24 +65,18 @@ void Engine::prepare(double sampleRate, int blockSize) {
   }
 }
 
-void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuffer) {
+void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
     if (!editMode) {
       auto time = double(uiBridge.playheadPosition);
-      auto lerpPos = automation.getYFromX(time);
+      auto lerpPos = getYFromX(manager.automation_, time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
       auto clipPair = getClipPair(time);
 
       if (clipPair.a && !clipPair.b) {
-        auto preset = presets.getPresetForClip(clipPair.a);
-        setParameters(preset);
+        setParameters(clipPair.a->preset);
       } else if (clipPair.a && clipPair.b) {
-        auto p1 = presets.getPresetForClip(clipPair.a);
-        auto p2 = presets.getPresetForClip(clipPair.b);
-
-        if (p1 && p2) {
-          interpolateParameters(p1, p2, bool(clipPair.a->_y) ? 1.0 - lerpPos : lerpPos); 
-        } 
+        interpolateParameters(clipPair.a->preset, clipPair.b->preset, bool(clipPair.a->y) ? 1.0 - lerpPos : lerpPos); 
       }
     }
 
@@ -95,13 +89,11 @@ void Engine::process(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiBuf
 }
 
 void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
-  auto& beginParameters = p1->_parameters;
-  auto& endParameters   = p2->_parameters;
+  auto& beginParameters = p1->parameters;
+  auto& endParameters   = p2->parameters;
   auto& parameters      = instance->getParameters();
 
-  auto numParameters = p1->_numParameters < p2->_numParameters ? p1->_numParameters.load() : p2->_numParameters.load();
-
-  for (std::size_t i = 0; i < numParameters; ++i) {
+  for (u32 i = 0; i < u32(parameters.size()); ++i) {
     auto distance  = endParameters[i] - beginParameters[i];
     auto increment = distance * position; 
     auto newValue  = beginParameters[i] + increment;
@@ -111,14 +103,15 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
       continue; 
     }
 
-    parameters[int(i)]->setValue(float(newValue));
+    parameters[int(i)]->setValue(f32(newValue));
   }
 }
 
 ClipPair Engine::getClipPair(double time) {
   ClipPair clipPair;
   
-  auto cond = [time] (const std::unique_ptr<Clip>& c) { return time > c->_x; }; 
+  auto& clips = manager.clips;
+  auto cond = [time] (ClipPtr& c) { return time > c->x; }; 
   auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
   if (it != clips.rend()) {
@@ -136,7 +129,7 @@ ClipPair Engine::getClipPair(double time) {
 }
 
 void Engine::setParameters(Preset* preset) {
-  auto& presetParameters = preset->_parameters;
+  auto& presetParameters = preset->parameters;
   auto& parameters = instance->getParameters();
 
   for (int i = 0; i < parameters.size(); ++i) {
@@ -155,9 +148,10 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
   createInstanceBroadcaster.sendChangeMessage();
 }
 
-void Engine::getCurrentParameterValues(std::vector<float>& values) {
+void Engine::getCurrentParameterValues(std::vector<f32>& values) {
   jassert(instance);
 
+  values.clear();
   auto parameters = instance->getParameters();
   values.reserve(std::size_t(parameters.size()));
   for (auto* parameter : parameters) {
@@ -165,15 +159,16 @@ void Engine::getCurrentParameterValues(std::vector<float>& values) {
   }
 }
 
-void Engine::restoreFromPreset(const juce::String& name) {
+void Engine::restoreFromPreset(Preset* preset) {
   jassert(instance);
 
-  editModeAttachment.setValue(true);
+  manager.setEditMode(true);
 
   proc.suspendProcessing(true);
-  auto preset = presets.getPresetFromName(name);
-  auto& presetParameters = preset->_parameters;
+
+  auto& presetParameters = preset->parameters;
   auto parameters = instance->getParameters();
+
   for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
     auto parameter = parameters[int(i)]; 
     if (shouldProcessParameter(parameter)) {
@@ -181,13 +176,14 @@ void Engine::restoreFromPreset(const juce::String& name) {
       parameter->setValue(presetParameters[i]);
     }
   }
+
   proc.suspendProcessing(false);
 }
 
 void Engine::randomiseParameters() {
   proc.suspendProcessing(true);  
 
-  editModeAttachment.setValue(true);
+  manager.setEditMode(true);
 
   for (auto p : instance->getParameters()) {
     p->setValue(rand.nextFloat());  
@@ -200,25 +196,17 @@ bool Engine::shouldProcessParameter(juce::AudioProcessorParameter* p) {
   return p->isDiscrete() ? modulateDiscrete.load() : true; 
 }
 
-void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, int, float) {}
+void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32, f32) {}
 void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
 
 void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) {
   if (!editMode) {
-    editModeAttachment.setValue(true);
+    manager.setEditMode(true);
   }
 }
 
 void Engine::audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) {
   // TODO(luca): implent this
-}
-
-void Engine::editModeChangeCallback(const juce::var& v) {
-  editMode = bool(v); 
-}
-
-void Engine::modulateDiscreteChangeCallback(const juce::var& v) {
-  modulateDiscrete = bool(v);
 }
 
 bool Engine::hasInstance() {

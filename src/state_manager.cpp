@@ -1,256 +1,363 @@
 #include "state_manager.hpp"
 #include "plugin.hpp"
+#include <assert.h>
 
 namespace atmt {
 
-StateAttachment::StateAttachment(juce::ValueTree& s, const juce::Identifier& i, std::function<void(juce::var)> cb, juce::UndoManager* um)
-  : state(s), identifier(i), callback(std::move(cb)), undoManager(um) {
-  JUCE_ASSERT_MESSAGE_THREAD
-  state.addListener(this);
-  performUpdate();
+StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {
+  rand.setSeedRandomly();
 }
 
-StateAttachment::~StateAttachment() {
-  state.removeListener(this);
-}
-
-void StateAttachment::setValue(const juce::var& v) {
-  JUCE_ASSERT_MESSAGE_THREAD
-  state.setProperty(identifier, v, undoManager);
-}
-
-juce::var StateAttachment::getValue() {
-  JUCE_ASSERT_MESSAGE_THREAD
-  return state[identifier];
-}
-
-void StateAttachment::performUpdate() {
-  callback(getValue());
-}
-
-void StateAttachment::valueTreePropertyChanged(juce::ValueTree&, const juce::Identifier& i) {
+void StateManager::replace(const juce::ValueTree& tree) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  if (identifier == i) {
-    performUpdate();
-  }
-}
+  juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
-Automation::Automation(juce::ValueTree& v, juce::UndoManager* um, juce::AudioProcessor* p=nullptr) : TreeWrapper(v, um), proc(p) {
-  jassert(v.hasType(ID::EDIT));
-  rebuild();
-}
-
-auto Automation::getPointFromXIntersection(f64 x) {
-  return automation.getPointAlongPath(f32(x), juce::AffineTransform::scale(1, kFlat));
-}
-
-f64 Automation::getYFromX(f64 x) {
-  return getPointFromXIntersection(x).y * kExpand;
-}
-
-ClipPath* Automation::getClipPathForX(f64 x) {
-  for (auto it = clipPaths.begin(); it != clipPaths.end(); ++it) {
-    if (it != clipPaths.begin()) {
-      auto& a = *std::prev(it);
-      auto& b = *it;
-
-      if (x >= a->x && x <= b->x) {
-        return b.get();
+  if (lk.lockWasGained()) {
+    clear();
+    
+    setZoom(tree["zoom"]);
+    setEditMode(tree["editMode"]);
+    setModulateDiscrete(tree["modulateDiscrete"]);
+    
+    auto presetsTree = tree.getChild(0);
+    for (auto p : presetsTree) {
+      presets.emplace_back();
+      auto& preset = presets.back();
+      preset.name = p["name"];
+      auto mb = p["parameters"].getBinaryData(); 
+      auto parameters = (f32*)mb->getData();
+      auto numParameters = mb->getSize() / sizeof(f32);
+      preset.parameters.reserve(numParameters); 
+      for (u32 i = 0; i < numParameters; ++i) {
+        preset.parameters.emplace_back(parameters[i]); 
       }
     }
-  }
-  return nullptr;
-}
 
-void Automation::rebuild() {
-  if (proc) proc->suspendProcessing(true);
+    auto clipsTree = tree.getChild(1);
+    for (auto c : clipsTree) {
+      clips.emplace_back(std::make_unique<Clip>());
+      auto& clip = clips.back();
+      auto name = c["name"].toString();
 
-  automation.clear();
-  clipPaths.rebuild();
- 
-  for (auto& p : clipPaths) {
-    auto c = automation.getCurrentPosition();
-    
-    auto curve = *p->curve;
-    auto cx = c.x + (p->x - c.x) * (c.y < p->y ? curve : 1.0 - curve); 
-    auto cy = (c.y < p->y ? c.y : p->y) + std::abs(p->y - c.y) * (1.0 - curve);
-    
-    automation.quadraticTo(f32(cx), f32(cy), f32(p->x), f32(p->y));
-  }
+      for (auto& p : presets) {
+        if (name == p.name) {
+          clip->preset = &p; 
+        }
+      }
 
-  if (proc) proc->suspendProcessing(false);
-}
-
-juce::Path& Automation::get() { return automation; }
-
-StateManager::StateManager(juce::AudioProcessorValueTreeState& a) : apvts(a) {
-  rand.setSeedRandomly();
-  init();
-}
-
-void StateManager::init() {
-  JUCE_ASSERT_MESSAGE_THREAD
-    
-  state.appendChild(parametersTree, undoManager);
-  state.appendChild(editTree, undoManager);
-  state.appendChild(presetsTree, undoManager);
-
-  editTree.setProperty(ID::editMode, false, nullptr);
-  editTree.setProperty(ID::modulateDiscrete, true, nullptr);
-  editTree.setProperty(ID::pluginID, {}, undoManager);
-  editTree.setProperty(ID::zoom, defaultZoomValue, undoManager);
-
-  undoManager->clearUndoHistory();
-  validate();
-}
-
-void StateManager::replace(const juce::ValueTree& newState) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
-
-  if (lk.lockWasGained()) {
-    parametersTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PARAMETERS), undoManager);
-    editTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::EDIT), undoManager);
-    presetsTree.copyPropertiesAndChildrenFrom(newState.getChildWithName(ID::PRESETS), undoManager);
-
-    undoManager->clearUndoHistory();
-    validate();
-  }
-}
-
-juce::ValueTree StateManager::getState() {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
-
-  juce::ValueTree copy;
-
-  if (lk.lockWasGained()) {
-    copy = state.createCopy();
-  }
-
-  return copy;
-}
-
-void StateManager::validate() {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  jassert(state.isValid());
-  jassert(parametersTree.isValid());
-  jassert(editTree.isValid());
-  jassert(presetsTree.isValid());
-
-  jassert(editTree.hasProperty(ID::pluginID));
-  jassert(editTree.hasProperty(ID::editMode));
-  jassert(editTree.hasProperty(ID::modulateDiscrete));
-  jassert(editTree.hasProperty(ID::zoom));
-}
-
-void StateManager::addClip(std::int64_t id, const juce::String& name, double x, double y) {
-  JUCE_ASSERT_MESSAGE_THREAD
-  juce::ValueTree clip { ID::CLIP };
-  clip.setProperty(ID::id, id, undoManager)
-      .setProperty(ID::name, name, undoManager)
-      .setProperty(ID::x, x, undoManager)
-      .setProperty(ID::y, y, undoManager)
-      .setProperty(ID::curve, 0.5, undoManager);
-  editTree.addChild(clip, -1, undoManager);
-}
-
-void StateManager::removeClip(const juce::ValueTree& vt) {
-  editTree.removeChild(vt, undoManager);
-}
-
-void StateManager::removeClipsIfInvalid(const juce::var& preset) {
-  for (int i = 0; i < editTree.getNumChildren(); ++i) {
-    const auto& clip = editTree.getChild(i);
-    if (clip[ID::name].toString() == preset.toString()) {
-      editTree.removeChild(i, undoManager);
-      --i;
+      clip->x = c["x"];
+      clip->y = c["y"];
+      clip->c = c["c"];
     }
+
+    auto pathsTree = tree.getChild(2);
+    for (auto p : pathsTree) {
+      paths.emplace_back(std::make_unique<Path_>());
+      auto& path = paths.back();
+
+      path->x = p["x"];
+      path->y = p["y"];
+      path->c = p["c"];
+    }
+
+    setPluginID(tree["pluginID"]);
+    updateTrack(); 
+    updatePresetList();
   }
 }
 
-void StateManager::clearEdit() {
-  editTree.removeAllChildren(undoManager);
-  undoManager->clearUndoHistory();
+void StateManager::addClip(Preset* p, f64 x, f64 y) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  assert(x >= 0 && y >= 0 && y <= 1);
+
+  proc.suspendProcessing(true);
+
+  clips.emplace_back(std::make_unique<Clip>()); 
+
+  auto& c = clips.back();
+  c->preset = p;
+  c->name = p->name;
+  c->x = x;
+  c->y = y;
+
+  std::sort(clips.begin(), clips.end(), [] (ClipPtr& a, ClipPtr& b) { return a->x < b->x; });
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
 }
 
-void StateManager::overwritePreset(const juce::String& name) {
+void StateManager::removeClip(Clip* c) {
   JUCE_ASSERT_MESSAGE_THREAD
-  auto& _proc = *static_cast<Plugin*>(&proc);
-  std::vector<f32> values;
-  _proc.engine.getCurrentParameterValues(values);
-  auto preset = presets.getPresetFromName(name); 
-  preset->parameters.setValue(values, undoManager);
+  assert(c);
+
+  proc.suspendProcessing(true);
+
+  std::erase_if(clips, [c] (ClipPtr& o) { return c == o.get(); });
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
+}
+
+void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  assert(c);
+
+  proc.suspendProcessing(true);
+
+  c->x = x < 0 ? 0 : x;
+  c->y = std::clamp(y, 0.0, 1.0);
+  c->c = std::clamp(curve, 0.0, 1.0);
+
+  std::sort(clips.begin(), clips.end(), [] (ClipPtr& a, ClipPtr& b) { return a->x < b->x; });
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
+}
+
+void StateManager::overwritePreset(Preset* preset) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  proc.suspendProcessing(true);
+
+  auto& p = *static_cast<Plugin*>(&proc);
+  p.engine.getCurrentParameterValues(preset->parameters);
+
+  proc.suspendProcessing(false);
+}
+
+void StateManager::loadPreset(Preset* preset) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  proc.suspendProcessing(true);
+
+  auto& p = *static_cast<Plugin*>(&proc);
+  p.engine.restoreFromPreset(preset);
+
+  proc.suspendProcessing(false);
 }
 
 void StateManager::savePreset(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-  auto& _proc = *static_cast<Plugin*>(&proc);
-  std::vector<f32> values;
-  _proc.engine.getCurrentParameterValues(values);
 
-  std::int64_t id = 0;
-  {
-    bool foundValidID = false;
-    while (!foundValidID) {
-      id = rand.nextInt64();
-      auto cond = [id] (const std::unique_ptr<Preset>& p) { return p->_id == id; };
-      auto it = std::find_if(presets.begin(), presets.end(), cond);
-      if (it == presets.end()) {
-        foundValidID = true; 
-      }
-    }
-  }
+  proc.suspendProcessing(true);
 
-  juce::ValueTree preset { ID::PRESET };
-  preset.setProperty(ID::id, id, undoManager);
-  preset.setProperty(ID::name, name, undoManager);
-  preset.setProperty(ID::parameters, { values.data(), values.size() * sizeof(f32) }, undoManager);
-  presetsTree.addChild(preset, -1, undoManager);
+  presets.emplace_back();
+  auto& preset = presets.back();
+
+  preset.name = name;
+
+  auto& p = *static_cast<Plugin*>(&proc);
+  p.engine.getCurrentParameterValues(preset.parameters);
+
+  proc.suspendProcessing(false);
+
+  updatePresetList();
 }
 
-void StateManager::removePreset(const juce::String& name) {
+void StateManager::removePreset(Preset* preset) {
   JUCE_ASSERT_MESSAGE_THREAD
-  auto preset = presetsTree.getChildWithProperty(ID::name, name);
-  presetsTree.removeChild(preset, undoManager);
-  removeClipsIfInvalid(preset[ID::name]);
+
+  proc.suspendProcessing(true);
+
+  std::erase_if(clips, [preset] (ClipPtr& c) { return c->preset == preset; });
+  std::erase_if(presets, [preset] (Preset& p) { return p.name == preset->name; });
+
+  proc.suspendProcessing(false);
+
+  updatePresetList();
+  updateTrack();
 }
 
 bool StateManager::doesPresetNameExist(const juce::String& name) {
   JUCE_ASSERT_MESSAGE_THREAD
-
-  for (const auto& preset : presetsTree) {
-    if (preset[ID::name].toString() == name) {
+  for (const auto& preset : presets) {
+    if (preset.name == name) {
       return true;
     }
   }
   return false;
 }
 
-void StateManager::clearPresets() {
-  presetsTree.removeAllChildren(undoManager);
-  undoManager->clearUndoHistory();
-}
-
 void StateManager::addPath(double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
-  jassert(x >= 0 && y >= 0 && y <= 1);
+  assert(x >= 0 && y >= 0 && y <= 1);
 
-  juce::ValueTree path(ID::PATH);
-  path.setProperty(ID::x, x, undoManager)
-      .setProperty(ID::y, y, undoManager)
-      .setProperty(ID::curve, 0.5, undoManager);
+  proc.suspendProcessing(true);
 
-  editTree.appendChild(path, undoManager);
+  paths.emplace_back(std::make_unique<Path_>());
+
+  auto& path = paths.back();
+  path->x = x;
+  path->y = y;
+
+  std::sort(paths.begin(), paths.end(), [] (PathPtr& a, PathPtr& b) { return a->x < b->x; });
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
 }
 
-void StateManager::removePath(const juce::ValueTree& v) {
+void StateManager::removePath(Path_* p) {
   JUCE_ASSERT_MESSAGE_THREAD
-  editTree.removeChild(v, undoManager);
+
+  proc.suspendProcessing(true);
+
+  std::erase_if(paths, [p] (PathPtr& o) { return p == o.get(); });
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
+}
+
+void StateManager::movePath(Path_* p, f64 x, f64 y, f64 c) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  proc.suspendProcessing(true);
+
+  p->x = x < 0 ? 0 : x;
+  p->y = std::clamp(y, 0.0, 1.0);
+  p->c = std::clamp(c, 0.0, 1.0);
+
+  std::sort(paths.begin(), paths.end(), [] (PathPtr& a, PathPtr& b) { return a->x < b->x; });
+
+  proc.suspendProcessing(false);
+
+  updateTrack(); 
+}
+
+void StateManager::setPluginID(const juce::String& id) {
+  auto& p = *static_cast<Plugin*>(&proc);
+  p.suspendProcessing(true);
+
+  pluginID = id;
+  juce::String errorMessage;
+
+  if (id != "") {
+    auto description = p.knownPluginList.getTypeForIdentifierString(id);
+    if (description) {
+      auto instance = p.apfm.createPluginInstance(*description, p.getSampleRate(), p.getBlockSize(), errorMessage);
+      p.engine.setPluginInstance(instance);
+      p.prepareToPlay(p.getSampleRate(), p.getBlockSize());
+    }
+  } else {
+    p.engine.kill();
+    clear();
+  }
+
+  p.suspendProcessing(false);
+
+  // TODO(luca): update proc and editor
+}
+
+void StateManager::setZoom(f64 z) {
+  zoom = z;
+  updateTrack(); 
+}
+
+void StateManager::setEditMode(bool m) {
+  editMode = m;
+
+  if (debugView) {
+    debugView->resized();
+  }
+}
+
+void StateManager::setModulateDiscrete(bool m) {
+  modulateDiscrete = m;
+
+  if (debugView) {
+    debugView->resized();
+  }
+}
+
+void StateManager::clear() {
+  proc.suspendProcessing(true);
+
+  paths.clear();
+  clips.clear();
+  presets.clear();
+
+  proc.suspendProcessing(false);
+
+  updateTrack();
+  updatePresetList();
+}
+
+auto StateManager::findAutomationPoint(f64 x) {
+  for (auto it = points.begin(); it != points.end(); ++it) {
+    if (it != points.begin()) {
+      auto& a = *std::prev(it);
+      auto& b = *it;
+
+      if (x >= a.x && x <= b.x) {
+        return it;
+      }
+    }
+  }
+  assert(false);
+  return points.end();
+}
+
+void StateManager::updateAutomation() {
+  DBG("StateManager::updateAutomation()");
+
+  proc.suspendProcessing(true);
+
+  automation_.clear();
+
+  points.resize(clips.size() + paths.size());
+
+  u32 n = 0;
+  for (; n < clips.size(); ++n) {
+    points[n].x = clips[n]->x; 
+    points[n].y = clips[n]->y; 
+    points[n].c = clips[n]->c; 
+    points[n].clip = clips[n].get();
+    points[n].path = nullptr;
+  }
+  for (u32 i = 0; i < paths.size(); ++i) {
+    points[i + n].x = paths[i]->x; 
+    points[i + n].y = paths[i]->y; 
+    points[i + n].c = paths[i]->c; 
+    points[i + n].clip = nullptr;
+    points[i + n].path = paths[i].get();
+  }
+
+  std::sort(points.begin(), points.end(), [] (AutomationPoint& a, AutomationPoint& b) { return a.x < b.x; });
+
+  // TODO(luca): tidy this 
+  for (auto& p : points) {
+    auto c = automation_.getCurrentPosition();
+    f64 curve = p.c;
+    f64 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.0 - curve); 
+    f64 cy = (c.y < p.y ? c.y : f64(p.y)) + std::abs(p.y - c.y) * (1.0 - curve);
+    automation_.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
+  }
+
+  proc.suspendProcessing(false);
+
+  if (automationView) {
+    automationView->resized();
+    automationView->repaint();
+  }
+}
+
+void StateManager::updateTrack() {
+  updateAutomation();
+  if (trackView) {
+    trackView->resized();
+    trackView->repaint();
+  }
+}
+
+void StateManager::updatePresetList() {
+  if (presetView) {
+    presetView->resized();
+  }
 }
 
 juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {

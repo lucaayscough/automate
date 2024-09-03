@@ -1,6 +1,6 @@
 #pragma once
 
-#include "identifiers.hpp"
+#include "geometry.hpp"
 #include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -18,49 +18,35 @@ struct Engine : juce::AudioProcessorListener {
   ~Engine() override;
 
   void kill();
-  void prepare(double, int);
-  void process(juce::AudioBuffer<float>&, juce::MidiBuffer&);
-  void interpolateParameters(Preset*, Preset*, double);
+  void prepare(f64, i32);
+  void process(juce::AudioBuffer<f32>&, juce::MidiBuffer&);
+  void interpolateParameters(Preset*, Preset*, f64);
   
-  ClipPair getClipPair(double);
+  ClipPair getClipPair(f64);
   void setParameters(Preset*);
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>&);
-  void getCurrentParameterValues(std::vector<float>&);
-  void restoreFromPreset(const juce::String&);
+  void getCurrentParameterValues(std::vector<f32>&);
+  void restoreFromPreset(Preset*);
   void randomiseParameters();
   bool shouldProcessParameter(juce::AudioProcessorParameter*);
 
-  void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override;
+  void audioProcessorParameterChanged(juce::AudioProcessor*, i32, f32) override;
   void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override;
-  void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) override;
-  void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) override;
-
-  void editModeChangeCallback(const juce::var&);
-  void modulateDiscreteChangeCallback(const juce::var&);
+  void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32) override;
+  void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, i32) override;
 
   bool hasInstance();
   juce::AudioProcessorEditor* getEditor();
 
   StateManager& manager;
   UIBridge& uiBridge;
-  juce::UndoManager* undoManager { manager.undoManager };
-  juce::AudioProcessorValueTreeState& apvts { manager.apvts };
-  juce::AudioProcessor& proc { apvts.processor };
-  juce::ValueTree editTree { manager.editTree };
-  juce::ValueTree presetsTree { manager.presetsTree };
+  juce::AudioProcessor& proc { manager.proc };
+  
+  // TODO(luca): decide if we should keep these
   juce::ChangeBroadcaster createInstanceBroadcaster;
   juce::ChangeBroadcaster killInstanceBroadcaster;
+
   std::unique_ptr<juce::AudioPluginInstance> instance; 
-
-  Presets presets { presetsTree, undoManager, &proc };
-  Clips clips { editTree, undoManager, &proc };
-  Automation automation { editTree, undoManager, &proc };
-
-  std::atomic<bool> editMode = false;
-  std::atomic<bool> modulateDiscrete = false;
-
-  StateAttachment editModeAttachment { editTree, ID::editMode, STATE_CB(editModeChangeCallback), nullptr};
-  StateAttachment modulateDiscreteAttachment { editTree, ID::modulateDiscrete, STATE_CB(modulateDiscreteChangeCallback), undoManager };
 
   juce::Random rand;
 };
