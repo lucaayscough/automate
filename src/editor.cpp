@@ -545,7 +545,7 @@ void Track::zoomTrack(f64 amount) {
   f64 X0 = X1 - d;
   viewportDeltaX = -X0;
   viewportDeltaX = std::clamp(-X0, f64(-(getTrackWidth() - getParentWidth())), 0.0);
-  zoom = z1 <= 0 ? EPSILON : z1;
+  manager.setZoom(z1 <= 0 ? EPSILON : z1);
   setBounds(i32(viewportDeltaX), getY(), getTrackWidth(), getHeight());
   jassert(std::abs(viewportDeltaX) + getParentWidth() <= getTrackWidth());
   resetGrid();

@@ -348,6 +348,7 @@ void StateManager::updateAutomation() {
 
 void StateManager::updateTrack() {
   updateAutomation();
+
   if (trackView) {
     trackView->resized();
     trackView->repaint();

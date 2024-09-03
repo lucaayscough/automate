@@ -156,7 +156,7 @@ void Plugin::getStateInformation(juce::MemoryBlock& mb) {
   tree.appendChild(clips, nullptr);
   tree.appendChild(paths, nullptr);
 
-  DBG(manager.valueTreeToXmlString(tree));
+  //DBG(manager.valueTreeToXmlString(tree));
 
   std::unique_ptr<juce::XmlElement> xml(tree.createXml());
   copyXmlToBinary(*xml, mb);
