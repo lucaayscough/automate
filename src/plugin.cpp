@@ -117,48 +117,7 @@ juce::AudioProcessorEditor* Plugin::createEditor() {
 }
 
 void Plugin::getStateInformation(juce::MemoryBlock& mb) {
-  juce::ValueTree tree("tree");
-
-  tree.setProperty("zoom", zoom, nullptr)
-      .setProperty("editMode", editMode.load(), nullptr)
-      .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
-      .setProperty("pluginID", pluginID, nullptr);
-
-  juce::ValueTree presets("presets");
-
-  for (auto& p : manager.presets) {
-    juce::ValueTree preset("preset");
-    preset.setProperty("name", p.name, nullptr)
-          .setProperty("parameters", { p.parameters.data(), p.parameters.size() * sizeof(f32) }, nullptr);
-    presets.appendChild(preset, nullptr);
-  }
-
-  juce::ValueTree clips("clips");
-  for (auto& c : manager.clips) {
-    juce::ValueTree clip("clip");
-    clip.setProperty("x", c->x, nullptr)
-        .setProperty("y", c->y, nullptr)
-        .setProperty("c", c->c, nullptr)
-        .setProperty("name", c->preset->name, nullptr);
-    clips.appendChild(clip, nullptr);
-  }
-
-  juce::ValueTree paths("paths");
-  for (auto& p : manager.paths) {
-    juce::ValueTree path("path");
-    path.setProperty("x", p->x, nullptr)
-        .setProperty("y", p->y, nullptr)
-        .setProperty("c", p->c, nullptr);
-    paths.appendChild(path, nullptr);
-  }
-
-  tree.appendChild(presets, nullptr);
-  tree.appendChild(clips, nullptr);
-  tree.appendChild(paths, nullptr);
-
-  //DBG(manager.valueTreeToXmlString(tree));
-
-  std::unique_ptr<juce::XmlElement> xml(tree.createXml());
+  std::unique_ptr<juce::XmlElement> xml(manager.getState().createXml());
   copyXmlToBinary(*xml, mb);
 }
 

@@ -41,6 +41,11 @@ struct AutomationPoint {
   Path_* path = nullptr;
 };
 
+struct Parameter {
+  juce::AudioProcessorParameter* parameter = nullptr;
+  bool active = true;
+};
+
 using ClipPtr = std::unique_ptr<Clip>;
 using PathPtr = std::unique_ptr<Path_>;
 
@@ -48,6 +53,7 @@ struct StateManager {
   StateManager(juce::AudioProcessor&);
 
   void replace(const juce::ValueTree&);
+  juce::ValueTree getState();
 
   void addClip(Preset*, f64, f64);
   void removeClip(Clip* c);

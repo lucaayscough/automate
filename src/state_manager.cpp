@@ -61,10 +61,64 @@ void StateManager::replace(const juce::ValueTree& tree) {
       path->c = p["c"];
     }
 
+    DBG(valueTreeToXmlString(tree));
+
     setPluginID(tree["pluginID"]);
     updateTrack(); 
     updatePresetList();
   }
+}
+
+juce::ValueTree StateManager::getState() {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
+
+  if (lk.lockWasGained()) {
+    juce::ValueTree tree("tree");
+
+    tree.setProperty("zoom", zoom, nullptr)
+        .setProperty("editMode", editMode.load(), nullptr)
+        .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
+        .setProperty("pluginID", pluginID, nullptr);
+
+    juce::ValueTree presetsTree("presets");
+
+    for (auto& p : presets) {
+      juce::ValueTree preset("preset");
+      preset.setProperty("name", p.name, nullptr)
+            .setProperty("parameters", { p.parameters.data(), p.parameters.size() * sizeof(f32) }, nullptr);
+      presetsTree.appendChild(preset, nullptr);
+    }
+
+    juce::ValueTree clipsTree("clips");
+    for (auto& c : clips) {
+      juce::ValueTree clip("clip");
+      clip.setProperty("x", c->x, nullptr)
+          .setProperty("y", c->y, nullptr)
+          .setProperty("c", c->c, nullptr)
+          .setProperty("name", c->preset->name, nullptr);
+      clipsTree.appendChild(clip, nullptr);
+    }
+
+    juce::ValueTree pathsTree("paths");
+    for (auto& p : paths) {
+      juce::ValueTree path("path");
+      path.setProperty("x", p->x, nullptr)
+          .setProperty("y", p->y, nullptr)
+          .setProperty("c", p->c, nullptr);
+      pathsTree.appendChild(path, nullptr);
+    }
+
+    tree.appendChild(presetsTree, nullptr);
+    tree.appendChild(clipsTree, nullptr);
+    tree.appendChild(pathsTree, nullptr);
+
+    DBG(valueTreeToXmlString(tree));
+    return tree;
+  }
+
+  return {};
 }
 
 void StateManager::addClip(Preset* p, f64 x, f64 y) {
