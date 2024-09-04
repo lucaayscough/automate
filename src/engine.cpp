@@ -69,7 +69,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
   if (instance) {
     if (!editMode) {
       auto time = double(uiBridge.playheadPosition);
-      auto lerpPos = getYFromX(manager.automation_, time);
+      auto lerpPos = getYFromX(manager.automation, time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
       auto clipPair = getClipPair(time);
 
@@ -111,18 +111,18 @@ ClipPair Engine::getClipPair(double time) {
   ClipPair clipPair;
   
   auto& clips = manager.clips;
-  auto cond = [time] (ClipPtr& c) { return time > c->x; }; 
+  auto cond = [time] (Clip& c) { return time > c.x; }; 
   auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
   if (it != clips.rend()) {
     if (it == clips.rbegin()) {
-      clipPair.a = it->get();
+      clipPair.a = &(*it);
     } else {
-      clipPair.a = it->get();
-      clipPair.b = std::prev(it)->get();
+      clipPair.a = &(*it);
+      clipPair.b = &(*std::prev(it));
     }
   } else if (!clips.empty()) {
-    clipPair.a = clips.front().get();
+    clipPair.a = &clips.front();
   }
 
   return clipPair;

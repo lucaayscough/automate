@@ -18,8 +18,7 @@ struct Preset {
   std::vector<f32> parameters;
 };
 
-// TODO(luca): rename this
-struct Path_ {
+struct Path {
   f64 x = 0;
   f64 y = 0;
   f64 c = 0.5;
@@ -38,16 +37,13 @@ struct AutomationPoint {
   f64 y = 0;
   f64 c = 0.5;
   Clip* clip = nullptr;
-  Path_* path = nullptr;
+  Path* path = nullptr;
 };
 
 struct Parameter {
   juce::AudioProcessorParameter* parameter = nullptr;
   bool active = true;
 };
-
-using ClipPtr = std::unique_ptr<Clip>;
-using PathPtr = std::unique_ptr<Path_>;
 
 struct StateManager {
   StateManager(juce::AudioProcessor&);
@@ -68,8 +64,8 @@ struct StateManager {
   bool doesPresetNameExist(const juce::String&);
 
   void addPath(f64, f64);
-  void removePath(Path_*);
-  void movePath(Path_*, f64, f64, f64);
+  void removePath(Path*);
+  void movePath(Path*, f64, f64, f64);
 
   void setPluginID(const juce::String&);
   void setZoom(f64);
@@ -94,12 +90,11 @@ struct StateManager {
   juce::Component* debugView = nullptr;
 
   std::vector<Preset> presets;
-  std::vector<ClipPtr> clips;
-  std::vector<PathPtr> paths;
+  std::vector<Clip> clips;
+  std::vector<Path> paths;
   std::vector<AutomationPoint> points;
 
-  // TODO(luca): rename this
-  juce::Path automation_;
+  juce::Path automation;
 
   juce::Random rand;
 };

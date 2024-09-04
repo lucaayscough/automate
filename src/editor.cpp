@@ -121,7 +121,7 @@ void Grid::toggleSnap() {
   snapOn = !snapOn;
 }
 
-PathView::PathView(StateManager& m, Grid& g, Path_* p) : manager(m), grid(g), path(p) {}
+PathView::PathView(StateManager& m, Grid& g, Path* p) : manager(m), grid(g), path(p) {}
 
 void PathView::paint(juce::Graphics& g) {
   if (isMouseOverOrDragging()) {
@@ -244,8 +244,8 @@ void AutomationLane::resized() {
   if (u64(paths.size()) != manager.paths.size()) {
     paths.clear();
     for (auto& p : manager.paths) {
-      auto path = new PathView(manager, grid, p.get());
-      path->setBounds(i32(p->x * zoom) - PathView::posOffset, i32(p->y * getHeight()) - PathView::posOffset, PathView::size, PathView::size);
+      auto path = new PathView(manager, grid, &p);
+      path->setBounds(i32(p.x * zoom) - PathView::posOffset, i32(p.y * getHeight()) - PathView::posOffset, PathView::size, PathView::size);
       addAndMakeVisible(path);
       paths.add(path); 
     }
@@ -255,7 +255,7 @@ void AutomationLane::resized() {
     }
   }
 
-  automation = manager.automation_;
+  automation = manager.automation;
   automation.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
 }
 
@@ -449,9 +449,9 @@ void Track::resized() {
   if (u64(clips.size()) != manager.clips.size()) {
     clips.clear();
     for (auto& c : manager.clips) {
-      auto clip = new ClipView(manager, grid, c.get());
-      clip->setBounds(i32(c->x * zoom) - presetLaneHeight / 2,
-                      !bool(i32(c->y)) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY(),
+      auto clip = new ClipView(manager, grid, &c);
+      clip->setBounds(i32(c.x * zoom) - presetLaneHeight / 2,
+                      !bool(i32(c.y)) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY(),
                       presetLaneHeight, presetLaneHeight);
       addAndMakeVisible(clip);
       clips.add(clip); 
@@ -494,14 +494,14 @@ i32 Track::getTrackWidth() {
   f64 width = 0;
 
   for (auto& c : manager.clips) {
-    if (c->x > width) {
-      width = c->x;
+    if (c.x > width) {
+      width = c.x;
     }
   }
 
   for (auto& p : manager.paths) {
-    if (p->x > width) {
-      width = p->x;
+    if (p.x > width) {
+      width = p.x;
     }
   }
 

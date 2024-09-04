@@ -42,14 +42,14 @@ struct Grid {
 };
 
 struct PathView : juce::Component {
-  PathView(StateManager&, Grid&, Path_*);
+  PathView(StateManager&, Grid&, Path*);
   void paint(juce::Graphics&) override;
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
   StateManager& manager;
   Grid& grid;
-  Path_* path = nullptr;
+  Path* path = nullptr;
 
   static constexpr i32 size = 10;
   static constexpr i32 posOffset = size / 2;

@@ -36,29 +36,29 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     auto clipsTree = tree.getChild(1);
     for (auto c : clipsTree) {
-      clips.emplace_back(std::make_unique<Clip>());
+      clips.emplace_back();
       auto& clip = clips.back();
       auto name = c["name"].toString();
 
       for (auto& p : presets) {
         if (name == p.name) {
-          clip->preset = &p; 
+          clip.preset = &p; 
         }
       }
 
-      clip->x = c["x"];
-      clip->y = c["y"];
-      clip->c = c["c"];
+      clip.x = c["x"];
+      clip.y = c["y"];
+      clip.c = c["c"];
     }
 
     auto pathsTree = tree.getChild(2);
     for (auto p : pathsTree) {
-      paths.emplace_back(std::make_unique<Path_>());
+      paths.emplace_back();
       auto& path = paths.back();
 
-      path->x = p["x"];
-      path->y = p["y"];
-      path->c = p["c"];
+      path.x = p["x"];
+      path.y = p["y"];
+      path.c = p["c"];
     }
 
     DBG(valueTreeToXmlString(tree));
@@ -94,19 +94,19 @@ juce::ValueTree StateManager::getState() {
     juce::ValueTree clipsTree("clips");
     for (auto& c : clips) {
       juce::ValueTree clip("clip");
-      clip.setProperty("x", c->x, nullptr)
-          .setProperty("y", c->y, nullptr)
-          .setProperty("c", c->c, nullptr)
-          .setProperty("name", c->preset->name, nullptr);
+      clip.setProperty("x", c.x, nullptr)
+          .setProperty("y", c.y, nullptr)
+          .setProperty("c", c.c, nullptr)
+          .setProperty("name", c.preset->name, nullptr);
       clipsTree.appendChild(clip, nullptr);
     }
 
     juce::ValueTree pathsTree("paths");
     for (auto& p : paths) {
       juce::ValueTree path("path");
-      path.setProperty("x", p->x, nullptr)
-          .setProperty("y", p->y, nullptr)
-          .setProperty("c", p->c, nullptr);
+      path.setProperty("x", p.x, nullptr)
+          .setProperty("y", p.y, nullptr)
+          .setProperty("c", p.c, nullptr);
       pathsTree.appendChild(path, nullptr);
     }
 
@@ -127,15 +127,12 @@ void StateManager::addClip(Preset* p, f64 x, f64 y) {
 
   proc.suspendProcessing(true);
 
-  clips.emplace_back(std::make_unique<Clip>()); 
-
+  clips.emplace_back(); 
   auto& c = clips.back();
-  c->preset = p;
-  c->name = p->name;
-  c->x = x;
-  c->y = y;
-
-  std::sort(clips.begin(), clips.end(), [] (ClipPtr& a, ClipPtr& b) { return a->x < b->x; });
+  c.preset = p;
+  c.name = p->name;
+  c.x = x;
+  c.y = y;
 
   proc.suspendProcessing(false);
 
@@ -148,7 +145,7 @@ void StateManager::removeClip(Clip* c) {
 
   proc.suspendProcessing(true);
 
-  std::erase_if(clips, [c] (ClipPtr& o) { return c == o.get(); });
+  std::erase_if(clips, [c] (Clip& o) { return c == &o; });
 
   proc.suspendProcessing(false);
 
@@ -164,8 +161,6 @@ void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
   c->x = x < 0 ? 0 : x;
   c->y = std::clamp(y, 0.0, 1.0);
   c->c = std::clamp(curve, 0.0, 1.0);
-
-  std::sort(clips.begin(), clips.end(), [] (ClipPtr& a, ClipPtr& b) { return a->x < b->x; });
 
   proc.suspendProcessing(false);
 
@@ -217,7 +212,7 @@ void StateManager::removePreset(Preset* preset) {
 
   proc.suspendProcessing(true);
 
-  std::erase_if(clips, [preset] (ClipPtr& c) { return c->preset == preset; });
+  std::erase_if(clips, [preset] (Clip& c) { return c.preset == preset; });
   std::erase_if(presets, [preset] (Preset& p) { return p.name == preset->name; });
 
   proc.suspendProcessing(false);
@@ -242,32 +237,30 @@ void StateManager::addPath(double x, double y) {
 
   proc.suspendProcessing(true);
 
-  paths.emplace_back(std::make_unique<Path_>());
+  paths.emplace_back();
 
   auto& path = paths.back();
-  path->x = x;
-  path->y = y;
-
-  std::sort(paths.begin(), paths.end(), [] (PathPtr& a, PathPtr& b) { return a->x < b->x; });
+  path.x = x;
+  path.y = y;
 
   proc.suspendProcessing(false);
 
   updateTrack();
 }
 
-void StateManager::removePath(Path_* p) {
+void StateManager::removePath(Path* p) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   proc.suspendProcessing(true);
 
-  std::erase_if(paths, [p] (PathPtr& o) { return p == o.get(); });
+  std::erase_if(paths, [p] (Path& o) { return p == &o; });
 
   proc.suspendProcessing(false);
 
   updateTrack();
 }
 
-void StateManager::movePath(Path_* p, f64 x, f64 y, f64 c) {
+void StateManager::movePath(Path* p, f64 x, f64 y, f64 c) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   proc.suspendProcessing(true);
@@ -275,8 +268,6 @@ void StateManager::movePath(Path_* p, f64 x, f64 y, f64 c) {
   p->x = x < 0 ? 0 : x;
   p->y = std::clamp(y, 0.0, 1.0);
   p->c = std::clamp(c, 0.0, 1.0);
-
-  std::sort(paths.begin(), paths.end(), [] (PathPtr& a, PathPtr& b) { return a->x < b->x; });
 
   proc.suspendProcessing(false);
 
@@ -335,6 +326,12 @@ void StateManager::clear() {
   clips.clear();
   presets.clear();
 
+  // TODO(luca): this is temporary hack to avoid the vector reallocating
+  // its memory when adding new element invalidating all pointers
+  paths.reserve(1000);
+  clips.reserve(1000);
+  presets.reserve(1000);
+
   proc.suspendProcessing(false);
 
   updateTrack();
@@ -361,35 +358,35 @@ void StateManager::updateAutomation() {
 
   proc.suspendProcessing(true);
 
-  automation_.clear();
+  automation.clear();
 
   points.resize(clips.size() + paths.size());
 
   u32 n = 0;
   for (; n < clips.size(); ++n) {
-    points[n].x = clips[n]->x; 
-    points[n].y = clips[n]->y; 
-    points[n].c = clips[n]->c; 
-    points[n].clip = clips[n].get();
+    points[n].x = clips[n].x; 
+    points[n].y = clips[n].y; 
+    points[n].c = clips[n].c; 
+    points[n].clip = &clips[n];
     points[n].path = nullptr;
   }
   for (u32 i = 0; i < paths.size(); ++i) {
-    points[i + n].x = paths[i]->x; 
-    points[i + n].y = paths[i]->y; 
-    points[i + n].c = paths[i]->c; 
+    points[i + n].x = paths[i].x; 
+    points[i + n].y = paths[i].y; 
+    points[i + n].c = paths[i].c; 
     points[i + n].clip = nullptr;
-    points[i + n].path = paths[i].get();
+    points[i + n].path = &paths[i];
   }
 
   std::sort(points.begin(), points.end(), [] (AutomationPoint& a, AutomationPoint& b) { return a.x < b.x; });
 
   // TODO(luca): tidy this 
   for (auto& p : points) {
-    auto c = automation_.getCurrentPosition();
+    auto c = automation.getCurrentPosition();
     f64 curve = p.c;
     f64 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.0 - curve); 
     f64 cy = (c.y < p.y ? c.y : f64(p.y)) + std::abs(p.y - c.y) * (1.0 - curve);
-    automation_.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
+    automation.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
   }
 
   proc.suspendProcessing(false);
