@@ -109,20 +109,34 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
 
 ClipPair Engine::getClipPair(double time) {
   ClipPair clipPair;
-  
-  auto& clips = manager.clips;
-  auto cond = [time] (Clip& c) { return time > c.x; }; 
-  auto it = std::find_if(clips.rbegin(), clips.rend(), cond);
 
-  if (it != clips.rend()) {
-    if (it == clips.rbegin()) {
-      clipPair.a = &(*it);
-    } else {
-      clipPair.a = &(*it);
-      clipPair.b = &(*std::prev(it));
+  f64 closest = u32(-1);
+
+  auto& clips = manager.clips;
+
+  for (u32 i = 0; i < clips.size(); ++i) {
+    if (time >= clips[i].x) {
+      if (time - clips[i].x < closest) {
+        clipPair.a = &clips[i];  
+        closest = time - clips[i].x;
+      }
     }
-  } else if (!clips.empty()) {
-    clipPair.a = &clips.front();
+  }
+
+  closest = u32(-1);
+  
+  for (u32 i = 0; i < clips.size(); ++i) {
+    if (time <= clips[i].x) {
+      if (clips[i].x - time < closest) {
+        clipPair.b = &clips[i];  
+        closest = time - clips[i].x;
+      }
+    }
+  }
+
+  if (!clipPair.a && clipPair.b) {
+    clipPair.a = clipPair.b;
+    clipPair.b = nullptr;
   }
 
   return clipPair;
