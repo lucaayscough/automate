@@ -100,7 +100,7 @@ void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
       auto newValue  = beginParameters[i] + increment;
       assert(newValue >= 0.f && newValue <= 1.f);
 
-      if (engine.shouldProcessParameter(&parameters[i])) {
+      if (manager.shouldProcessParameter(&parameters[i])) {
         parameters[i].parameter->setValue(f32(newValue));
       }
     }
