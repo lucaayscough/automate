@@ -1,11 +1,17 @@
 #include "state_manager.hpp"
 #include "plugin.hpp"
+#include "editor.hpp"
 #include <assert.h>
 
 namespace atmt {
 
 StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {
   rand.setSeedRandomly();
+}
+
+void StateManager::init() {
+  plugin = static_cast<Plugin*>(&proc); 
+  engine = &plugin->engine;
 }
 
 void StateManager::replace(const juce::ValueTree& tree) {
@@ -26,11 +32,11 @@ void StateManager::replace(const juce::ValueTree& tree) {
       auto& preset = presets.back();
       preset.name = p["name"];
       auto mb = p["parameters"].getBinaryData(); 
-      auto parameters = (f32*)mb->getData();
+      auto parameters_ = (f32*)mb->getData();
       auto numParameters = mb->getSize() / sizeof(f32);
       preset.parameters.reserve(numParameters); 
       for (u32 i = 0; i < numParameters; ++i) {
-        preset.parameters.emplace_back(parameters[i]); 
+        preset.parameters.emplace_back(parameters_[i]); 
       }
     }
 
@@ -127,7 +133,7 @@ void StateManager::addClip(Preset* p, f64 x, f64 y) {
 
   proc.suspendProcessing(true);
 
-  clips.emplace_back(); 
+  clips.emplace_back();
   auto& c = clips.back();
   c.preset = p;
   c.name = p->name;
@@ -172,8 +178,12 @@ void StateManager::overwritePreset(Preset* preset) {
 
   proc.suspendProcessing(true);
 
-  auto& p = *static_cast<Plugin*>(&proc);
-  p.engine.getCurrentParameterValues(preset->parameters);
+  preset->parameters.clear();
+  preset->parameters.reserve(parameters.size());
+
+  for (auto& parameter : parameters) {
+    preset->parameters.push_back(parameter.parameter->getValue());
+  }
 
   proc.suspendProcessing(false);
 }
@@ -183,10 +193,54 @@ void StateManager::loadPreset(Preset* preset) {
 
   proc.suspendProcessing(true);
 
-  auto& p = *static_cast<Plugin*>(&proc);
-  p.engine.restoreFromPreset(preset);
+  if (engine->hasInstance()) {
+    if (!editMode) {
+      setEditMode(true);
+    }
+
+    auto& presetParameters = preset->parameters;
+
+    for (u32 i = 0; i < parameters.size(); ++i) {
+      auto parameter = parameters[i]; 
+      assert(presetParameters[i] >= 0.f && presetParameters[i] <= 1.f);
+
+      if (std::abs(parameter.parameter->getValue() - presetParameters[i]) > EPSILON) {
+        if (captureParameterChanges) {
+          setParameterActive(i, true);
+        }
+
+        if (shouldProcessParameter(&parameter)) {
+          parameter.parameter->setValue(presetParameters[i]);
+        }
+      }
+    }
+  }
 
   proc.suspendProcessing(false);
+}
+
+void StateManager::randomiseParameters() {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  proc.suspendProcessing(true);  
+
+  setEditMode(true);
+
+  for (auto& p : parameters) {
+    if (shouldProcessParameter(&p)) {
+      p.parameter->setValue(rand.nextFloat());
+    }
+  }
+
+  proc.suspendProcessing(false);
+}
+
+bool StateManager::shouldProcessParameter(Parameter* p) {
+  // TODO(luca): make active responsible for discrete and bool parameters too
+  if (p->active) {
+    return p->parameter->isDiscrete() ? modulateDiscrete.load() : true; 
+  }
+  return false;
 }
 
 void StateManager::savePreset(const juce::String& name) {
@@ -194,13 +248,12 @@ void StateManager::savePreset(const juce::String& name) {
 
   proc.suspendProcessing(true);
 
+  assert(engine->hasInstance());
+
   presets.emplace_back();
   auto& preset = presets.back();
-
   preset.name = name;
-
-  auto& p = *static_cast<Plugin*>(&proc);
-  p.engine.getCurrentParameterValues(preset.parameters);
+  overwritePreset(&presets.back());
 
   proc.suspendProcessing(false);
 
@@ -275,27 +328,38 @@ void StateManager::movePath(Path* p, f64 x, f64 y, f64 c) {
 }
 
 void StateManager::setPluginID(const juce::String& id) {
-  auto& p = *static_cast<Plugin*>(&proc);
-  p.suspendProcessing(true);
+  DBG("StateManager::setPluginID");
+
+  proc.suspendProcessing(true);
 
   pluginID = id;
   juce::String errorMessage;
 
   if (id != "") {
-    auto description = p.knownPluginList.getTypeForIdentifierString(id);
+    auto description = plugin->knownPluginList.getTypeForIdentifierString(id);
+
     if (description) {
-      auto instance = p.apfm.createPluginInstance(*description, p.getSampleRate(), p.getBlockSize(), errorMessage);
-      p.engine.setPluginInstance(instance);
-      p.prepareToPlay(p.getSampleRate(), p.getBlockSize());
+      auto instance = plugin->apfm.createPluginInstance(*description, proc.getSampleRate(), proc.getBlockSize(), errorMessage);
+      
+      auto processorParameters = instance->getParameters();
+      u32 numParameters = u32(processorParameters.size());
+      parameters.clear();
+      parameters.reserve(numParameters);
+
+      for (u32 i = 0; i < numParameters; ++i) {
+        parameters.emplace_back();
+        parameters.back().parameter = processorParameters[i32(i)];
+      }
+
+      engine->setPluginInstance(instance);
+      proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
     }
   } else {
-    p.engine.kill();
+    engine->kill();
     clear();
   }
 
-  p.suspendProcessing(false);
-
-  // TODO(luca): update proc and editor
+  proc.suspendProcessing(false);
 }
 
 void StateManager::setZoom(f64 z) {
@@ -319,18 +383,41 @@ void StateManager::setModulateDiscrete(bool m) {
   }
 }
 
+void StateManager::setCaptureParameterChanges(bool v) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  
+  captureParameterChanges = v;
+
+  if (v) {
+    for (auto& p : parameters) {
+      p.active = false;
+    }
+  }
+
+  updateParametersView(); 
+}
+
+void StateManager::setParameterActive(u32 i, bool a) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
+  parameters[i].active = a;
+  updateParametersView();
+}
+
 void StateManager::clear() {
   proc.suspendProcessing(true);
 
   paths.clear();
   clips.clear();
   presets.clear();
+  parameters.clear();
 
   // TODO(luca): this is temporary hack to avoid the vector reallocating
   // its memory when adding new element invalidating all pointers
   paths.reserve(1000);
   clips.reserve(1000);
   presets.reserve(1000);
+  parameters.reserve(1000);
 
   proc.suspendProcessing(false);
 
@@ -351,6 +438,12 @@ auto StateManager::findAutomationPoint(f64 x) {
   }
   assert(false);
   return points.end();
+}
+
+void StateManager::updateParametersView() {
+  if (parametersView) {
+    parametersView->updateParameters();
+  }
 }
 
 void StateManager::updateAutomation() {

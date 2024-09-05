@@ -598,6 +598,7 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   addAndMakeVisible(undoButton);
   addAndMakeVisible(redoButton);
   addAndMakeVisible(randomiseButton);
+  addAndMakeVisible(captureParameterChangesButton);
 
   auto plugin = static_cast<Plugin*>(&proc);
   jassert(plugin);
@@ -610,8 +611,9 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   rewindButton.onClick = [plugin] { plugin->signalRewind(); };
   undoButton.onClick = {};
   redoButton.onClick = {};
-  randomiseButton.onClick = [plugin] { plugin->engine.randomiseParameters(); };
+  randomiseButton.onClick = [this] { manager.randomiseParameters(); };
   modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
+  captureParameterChangesButton.onClick = [this] { manager.setCaptureParameterChanges(!captureParameterChanges); };
 
   parametersToggleButton.onClick = [this] { 
     auto editor = static_cast<Editor*>(getParentComponent());
@@ -636,10 +638,12 @@ void DebugTools::resized() {
   rewindButton.setBounds(r.removeFromLeft(width));
   undoButton.setBounds(r.removeFromLeft(width));
   redoButton.setBounds(r.removeFromLeft(width));
+  captureParameterChangesButton.setBounds(r.removeFromLeft(width));
   randomiseButton.setBounds(r);
 
   editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
   modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
+  captureParameterChangesButton.setToggleState(captureParameterChanges, juce::NotificationType::dontSendNotification);
 }
 
 DebugInfo::DebugInfo(UIBridge& b) : uiBridge(b) {
@@ -785,45 +789,59 @@ void DefaultView::resized() {
   list.setBounds(getLocalBounds());
 }
 
-ParametersView::Parameter::Parameter(juce::AudioProcessorParameter* p) : parameter(p) {
-  jassert(parameter);
-  parameter->addListener(this);
-  name.setText(parameter->getName(150), juce::NotificationType::dontSendNotification);
+ParametersView::ParameterView::ParameterView(Parameter* p) : parameter(p) {
+  assert(parameter);
+  assert(parameter->parameter);
+
+  parameter->parameter->addListener(this);
+
+  name.setText(parameter->parameter->getName(150), juce::NotificationType::dontSendNotification);
+
   slider.setRange(0, 1);
-  slider.setValue(parameter->getValue());
+  slider.setValue(parameter->parameter->getValue());
+
   addAndMakeVisible(name);
   addAndMakeVisible(slider);
-  slider.onValueChange = [this] { parameter->setValue(f32(slider.getValue())); };
+  addAndMakeVisible(activeToggle);
+
+  slider.onValueChange = [this] { parameter->parameter->setValue(f32(slider.getValue())); };
+  activeToggle.setToggleState(parameter->active, juce::NotificationType::dontSendNotification);
+
+  activeToggle.onClick = [this] { parameter->active = !parameter->active; };
 }
 
-ParametersView::Parameter::~Parameter() {
-  parameter->removeListener(this);
+ParametersView::ParameterView::~ParameterView() {
+  parameter->parameter->removeListener(this);
 }
 
-void ParametersView::Parameter::paint(juce::Graphics& g) {
+void ParametersView::ParameterView::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::green);
 }
 
-void ParametersView::Parameter::resized() {
+void ParametersView::ParameterView::resized() {
   auto r = getLocalBounds();
+  activeToggle.setBounds(r.removeFromLeft(50));
   name.setBounds(r.removeFromLeft(160));
   slider.setBounds(r);
 }
 
-void ParametersView::Parameter::parameterValueChanged(i32, f32 v) {
+void ParametersView::ParameterView::update() {
+  activeToggle.setToggleState(parameter->active, juce::NotificationType::dontSendNotification);
+}
+
+void ParametersView::ParameterView::parameterValueChanged(i32, f32 v) {
   juce::MessageManager::callAsync([v, this] { slider.setValue(v); repaint(); });
 }
  
-void ParametersView::Parameter::parameterGestureChanged(i32, bool) {}
+void ParametersView::ParameterView::parameterGestureChanged(i32, bool) {}
 
-ParametersView::Contents::Contents(const juce::Array<juce::AudioProcessorParameter*>& i) {
-  for (auto p : i) {
-    jassert(p);
-    auto param = new Parameter(p);
+ParametersView::Contents::Contents(StateManager& m) : manager(m) {
+  for (auto& p : manager.parameters) {
+    auto param = new ParameterView(&p);
     addAndMakeVisible(param);
     parameters.add(param);
   }
-  setSize(getWidth(), parameters.size() * 20);
+  setSize(getWidth(), i32(parameters.size()) * 20);
 }
 
 void ParametersView::Contents::resized() {
@@ -833,15 +851,27 @@ void ParametersView::Contents::resized() {
   }
 }
 
-ParametersView::ParametersView(const juce::Array<juce::AudioProcessorParameter*>& i) : c(i) {
+ParametersView::ParametersView(StateManager& m) : manager(m), c(m) {
+  DBG("ParametersView::ParametersView()");
   setViewedComponent(&c, false);
+  manager.parametersView = this;
+}
+
+ParametersView::~ParametersView() {
+  manager.parametersView = nullptr;
 }
 
 void ParametersView::resized() {
   c.setSize(getWidth(), c.getHeight());
 }
 
-MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i, const juce::Array<juce::AudioProcessorParameter*>& p) : manager(m), uiBridge(b), instance(i), parametersView(p) {
+void ParametersView::updateParameters() {
+  for (auto& p : c.parameters) {
+    p->update();
+  }
+}
+
+MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) : manager(m), uiBridge(b), instance(i) {
   jassert(i);
   addAndMakeVisible(statesPanel);
   addAndMakeVisible(track);
@@ -885,7 +915,7 @@ void Editor::resized() {
 void Editor::showMainView() {
   jassert(useMainView);
   if (!mainView) {
-    mainView = std::make_unique<MainView>(manager, uiBridge, engine.getEditor(), engine.instance->getParameters());
+    mainView = std::make_unique<MainView>(manager, uiBridge, engine.getEditor());
     addAndMakeVisible(mainView.get());
   }
   defaultView.setVisible(false);

@@ -12,6 +12,7 @@ juce::String pluginID = "";
 f64 zoom = 100;
 std::atomic<bool> editMode = false;
 std::atomic<bool> modulateDiscrete = false;
+std::atomic<bool> captureParameterChanges = false;
 
 struct Preset {
   juce::String name;
@@ -43,11 +44,18 @@ struct AutomationPoint {
 struct Parameter {
   juce::AudioProcessorParameter* parameter = nullptr;
   bool active = true;
+  // TODO(luca): wrap this in an atomic
 };
+
+struct Plugin;
+struct Engine;
+struct Track;
+struct ParametersView;
 
 struct StateManager {
   StateManager(juce::AudioProcessor&);
 
+  void init();
   void replace(const juce::ValueTree&);
   juce::ValueTree getState();
 
@@ -59,6 +67,8 @@ struct StateManager {
   void removePreset(Preset*);
   void overwritePreset(Preset*);
   void loadPreset(Preset*);
+  void randomiseParameters();
+  bool shouldProcessParameter(Parameter*);
 
   // TODO(luca): remove this
   bool doesPresetNameExist(const juce::String&);
@@ -72,10 +82,14 @@ struct StateManager {
   void setEditMode(bool);
   void setModulateDiscrete(bool);
 
+  void setCaptureParameterChanges(bool);
+  void setParameterActive(u32, bool);
+
   void clear();
 
   auto findAutomationPoint(f64);
 
+  void updateParametersView();
   void updateAutomation();
   void updateTrack();
   void updatePresetList();
@@ -83,9 +97,12 @@ struct StateManager {
   static juce::String valueTreeToXmlString(const juce::ValueTree&);
 
   juce::AudioProcessor& proc;
+  Plugin* plugin = nullptr;
+  Engine* engine = nullptr;
 
+  Track* trackView = nullptr;
+  ParametersView* parametersView = nullptr;
   juce::Component* automationView = nullptr;
-  juce::Component* trackView = nullptr;
   juce::Component* presetView = nullptr;
   juce::Component* debugView = nullptr;
 
@@ -93,6 +110,7 @@ struct StateManager {
   std::vector<Clip> clips;
   std::vector<Path> paths;
   std::vector<AutomationPoint> points;
+  std::vector<Parameter> parameters;
 
   juce::Path automation;
 

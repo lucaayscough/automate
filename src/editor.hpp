@@ -177,6 +177,7 @@ struct DebugTools : juce::Component {
   juce::ToggleButton parametersToggleButton { "Show Parameters" };
   juce::ToggleButton editModeButton { "Edit Mode" };
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
+  juce::ToggleButton captureParameterChangesButton { "Capture Parameters" };
 };
 
 struct DebugInfo : juce::Component {
@@ -244,32 +245,40 @@ struct DefaultView : juce::Component {
 };
 
 struct ParametersView : juce::Viewport {
-  struct Parameter : juce::Component, juce::AudioProcessorParameter::Listener {
-    Parameter(juce::AudioProcessorParameter*);
-    ~Parameter() override;
+  struct ParameterView : juce::Component, juce::AudioProcessorParameter::Listener {
+    ParameterView(Parameter*);
+    ~ParameterView() override;
     void paint(juce::Graphics&) override;
     void resized() override;
+    void update();
     void parameterValueChanged(i32, f32) override;
     void parameterGestureChanged(i32, bool) override;
 
-    juce::AudioProcessorParameter* parameter;
+    Parameter* parameter = nullptr;
     juce::Slider slider;
     juce::Label name;
+    juce::ToggleButton activeToggle;
   };
 
   struct Contents : juce::Component {
-    Contents(const juce::Array<juce::AudioProcessorParameter*>&);
+    Contents(StateManager&);
     void resized() override;
-    juce::OwnedArray<Parameter> parameters;
+
+    StateManager& manager;
+    juce::OwnedArray<ParameterView> parameters;
   };
 
-  ParametersView(const juce::Array<juce::AudioProcessorParameter*>&);
+  ParametersView(StateManager&);
+  ~ParametersView() override;
   void resized() override;
+  void updateParameters();
+
+  StateManager& manager;
   Contents c;
 };
 
 struct MainView : juce::Component {
-  MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*, const juce::Array<juce::AudioProcessorParameter*>&);
+  MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*);
   void resized() override;
   void toggleParametersView();
   void childBoundsChanged(juce::Component*) override;
@@ -279,7 +288,7 @@ struct MainView : juce::Component {
   PresetsListPanel statesPanel { manager };
   Track track { manager, uiBridge };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
-  ParametersView parametersView;
+  ParametersView parametersView { manager };
   i32 statesPanelWidth = 150;
 };
 

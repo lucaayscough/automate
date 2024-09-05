@@ -91,19 +91,19 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
   auto& beginParameters = p1->parameters;
   auto& endParameters   = p2->parameters;
-  auto& parameters      = instance->getParameters();
+  auto& parameters      = manager.parameters;
 
   for (u32 i = 0; i < u32(parameters.size()); ++i) {
-    auto distance  = endParameters[i] - beginParameters[i];
-    auto increment = distance * position; 
-    auto newValue  = beginParameters[i] + increment;
-    jassert(newValue >= 0.f && newValue <= 1.f);
+    if (parameters[i].active) {
+      auto distance  = endParameters[i] - beginParameters[i];
+      auto increment = distance * position; 
+      auto newValue  = beginParameters[i] + increment;
+      assert(newValue >= 0.f && newValue <= 1.f);
 
-    if (!modulateDiscrete && parameters[int(i)]->isDiscrete()) {
-      continue; 
+      if (engine.shouldProcessParameter(&parameters[i])) {
+        parameters[i].parameter->setValue(f32(newValue));
+      }
     }
-
-    parameters[int(i)]->setValue(f32(newValue));
   }
 }
 
@@ -144,14 +144,12 @@ ClipPair Engine::getClipPair(double time) {
 
 void Engine::setParameters(Preset* preset) {
   auto& presetParameters = preset->parameters;
-  auto& parameters = instance->getParameters();
+  auto& parameters = manager.parameters;
 
-  for (int i = 0; i < parameters.size(); ++i) {
-    if (!modulateDiscrete && parameters[i]->isDiscrete()) {
-      continue; 
+  for (u32 i = 0; i < parameters.size(); ++i) {
+    if (manager.shouldProcessParameter(&parameters[i])) {
+      parameters[i].parameter->setValue(presetParameters[i]);
     }
-
-    parameters[i]->setValue(presetParameters[std::size_t(i)]);
   }
 }
 
@@ -162,60 +160,29 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
   createInstanceBroadcaster.sendChangeMessage();
 }
 
-void Engine::getCurrentParameterValues(std::vector<f32>& values) {
-  jassert(instance);
+void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
+  DBG("Engine::audioProcessorParameterChanged()");
 
-  values.clear();
-  auto parameters = instance->getParameters();
-  values.reserve(std::size_t(parameters.size()));
-  for (auto* parameter : parameters) {
-    values.push_back(parameter->getValue());
-  }
-}
-
-void Engine::restoreFromPreset(Preset* preset) {
-  jassert(instance);
-
-  manager.setEditMode(true);
-
-  proc.suspendProcessing(true);
-
-  auto& presetParameters = preset->parameters;
-  auto parameters = instance->getParameters();
-
-  for (std::size_t i = 0; i < std::size_t(parameters.size()); ++i) {
-    auto parameter = parameters[int(i)]; 
-    if (shouldProcessParameter(parameter)) {
-      jassert(presetParameters[i] >= 0.f && presetParameters[i] <= 1.f);
-      parameter->setValue(presetParameters[i]);
-    }
-  }
-
-  proc.suspendProcessing(false);
-}
-
-void Engine::randomiseParameters() {
-  proc.suspendProcessing(true);  
-
-  manager.setEditMode(true);
-
-  for (auto p : instance->getParameters()) {
-    p->setValue(rand.nextFloat());  
-  }
-
-  proc.suspendProcessing(false);
-}
-
-bool Engine::shouldProcessParameter(juce::AudioProcessorParameter* p) {
-  return p->isDiscrete() ? modulateDiscrete.load() : true; 
-}
-
-void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32, f32) {}
-void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
-
-void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, int) {
   if (!editMode) {
     manager.setEditMode(true);
+  }
+
+  if (captureParameterChanges) {
+    manager.setParameterActive(u32(i), true); 
+  }
+}
+
+void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
+
+void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32 i) {
+  DBG("Engine::audioProcessorParameterChangeGestureBegin()");
+
+  if (!editMode) {
+    manager.setEditMode(true);
+  }
+
+  if (captureParameterChanges) {
+    manager.setParameterActive(u32(i), true); 
   }
 }
 

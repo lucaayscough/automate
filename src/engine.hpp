@@ -25,10 +25,6 @@ struct Engine : juce::AudioProcessorListener {
   ClipPair getClipPair(f64);
   void setParameters(Preset*);
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>&);
-  void getCurrentParameterValues(std::vector<f32>&);
-  void restoreFromPreset(Preset*);
-  void randomiseParameters();
-  bool shouldProcessParameter(juce::AudioProcessorParameter*);
 
   void audioProcessorParameterChanged(juce::AudioProcessor*, i32, f32) override;
   void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override;

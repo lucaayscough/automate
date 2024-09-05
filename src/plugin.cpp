@@ -13,6 +13,7 @@ Plugin::Plugin()
   FilePath::init();
   loadKnownPluginList(knownPluginList);
   apfm.addDefaultFormats();
+  manager.init();
 }
 
 Plugin::~Plugin() {
@@ -54,8 +55,12 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
     auto position = playhead->getPosition();
     if (position.hasValue()) {
       auto ppq = position->getPpqPosition();
+      auto sec = position->getTimeInSeconds();
       if (ppq.hasValue()) {
         uiBridge.playheadPosition.store(*ppq);
+      } else {
+        // TODO(luca): we need a way of converting seconds to ppq
+        uiBridge.playheadPosition.store(*sec);
       }
 
       auto bpm = position->getBpm();
