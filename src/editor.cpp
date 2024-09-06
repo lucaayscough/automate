@@ -509,29 +509,6 @@ i32 Track::getTrackWidth() {
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
 
-bool Track::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) {
-  return true;
-}
-
-void Track::itemDropped(const juce::DragAndDropTarget::SourceDetails& details) {
-  jassert(!details.description.isVoid());
-  auto name = details.description.toString();
-
-  Preset* preset = nullptr;
-  for (auto& p : manager.presets) {
-    if (p.name == name) {
-      preset = &p;
-    }
-  }
-
-  assert(preset);
-  if (preset) {
-    auto x = grid.snap(details.localPosition.x) / zoom;
-    auto y = details.localPosition.y > (getHeight() / 2);
-    manager.addClip(preset, x, y);
-  }
-}
-
 void Track::zoomTrack(f64 amount) {
   //DBG("Track::zoomTrack()");
   f64 mouseX = getMouseXYRelative().x;
@@ -564,6 +541,14 @@ void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetail
     zoomTrack(w.deltaY);
   } else if (shiftKeyPressed) {
     scroll(w.deltaY);
+  }
+}
+
+void Track::mouseDoubleClick(const juce::MouseEvent& e) {
+  if (b.presetLaneTop.contains(e.position.toInt())) {
+    manager.addClip(grid.snap(e.position.x) / zoom, 0);
+  } else if (b.presetLaneBottom.contains(e.position.toInt())) {
+    manager.addClip(grid.snap(e.position.x) / zoom, 1);
   }
 }
 
@@ -655,80 +640,6 @@ DebugInfo::DebugInfo(UIBridge& b) : uiBridge(b) {
 
 void DebugInfo::resized() {
   info.setBounds(getLocalBounds());
-}
-
-void PresetsListPanel::Title::paint(juce::Graphics& g) {
-  auto r = getLocalBounds();
-  g.setColour(juce::Colours::white);
-  g.setFont(getHeight());
-  g.drawText(text, r, juce::Justification::centred);
-}
-
-PresetsListPanel::PresetView::PresetView(StateManager& m, Preset* p) : manager(m), preset(p) {
-  setName(preset->name);
-  selectorButton.setButtonText(preset->name);
-
-  addAndMakeVisible(selectorButton);
-  addAndMakeVisible(overwriteButton);
-  addAndMakeVisible(removeButton);
-
-  selectorButton.onClick  = [this] { manager.loadPreset(preset); };
-  overwriteButton.onClick = [this] { manager.overwritePreset(preset); };
-  removeButton.onClick    = [this] { manager.removePreset(preset); };
-}
-
-void PresetsListPanel::PresetView::resized() {
-  auto r = getLocalBounds();
-  r.removeFromLeft(getWidth() / 8);
-  removeButton.setBounds(r.removeFromRight(getWidth() / 4));
-  overwriteButton.setBounds(r.removeFromLeft(getWidth() / 6));
-  selectorButton.setBounds(r);
-}
-
-void PresetsListPanel::PresetView::mouseDown(const juce::MouseEvent&) {
-  auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
-  if (container) {
-    container->startDragging(getName(), this);
-  }
-}
-
-PresetsListPanel::PresetsListPanel(StateManager& m) : manager(m) {
-  manager.presetView = this;
-
-  addAndMakeVisible(title);
-  addAndMakeVisible(presetNameInput);
-  addAndMakeVisible(savePresetButton);
-
-  savePresetButton.onClick = [this] () -> void {
-    auto name = presetNameInput.getText();
-    if (presetNameInput.getText() != "" && !manager.doesPresetNameExist(name)) {
-      manager.savePreset(name);
-    } else {
-      juce::MessageBoxOptions options;
-      juce::AlertWindow::showAsync(options.withTitle("Error").withMessage("Preset name unavailable."), nullptr);
-    }
-  };
-}
-
-PresetsListPanel::~PresetsListPanel() {
-  manager.presetView = nullptr;
-}
-
-void PresetsListPanel::resized() {
-  auto r = getLocalBounds(); 
-  title.setBounds(r.removeFromTop(40));
-
-  presets.clear();
-
-  for (auto& preset : manager.presets) {
-    auto p = new PresetView(manager, &preset);
-    addAndMakeVisible(p);
-    p->setBounds(r.removeFromTop(30));
-    presets.add(p); 
-  }
-  auto b = r.removeFromBottom(40);
-  savePresetButton.setBounds(b.removeFromRight(getWidth() / 2));
-  presetNameInput.setBounds(b);
 }
 
 PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
@@ -873,17 +784,15 @@ void ParametersView::updateParameters() {
 
 MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) : manager(m), uiBridge(b), instance(i) {
   jassert(i);
-  addAndMakeVisible(statesPanel);
   addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
   addChildComponent(parametersView);
-  setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+  setSize(instance->getWidth(), instance->getHeight() + Track::height);
 }
 
 void MainView::resized() {
   auto r = getLocalBounds();
   track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
-  statesPanel.setBounds(r.removeFromLeft(statesPanelWidth));
   instance->setBounds(r.removeFromTop(instance->getHeight()));
   parametersView.setBounds(instance->getBounds());
 }
@@ -894,7 +803,7 @@ void MainView::toggleParametersView() {
 }
 
 void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth() + statesPanelWidth, instance->getHeight() + Track::height);
+  setSize(instance->getWidth(), instance->getHeight() + Track::height);
 }
 
 void Editor::paint(juce::Graphics& g) {

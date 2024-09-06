@@ -114,7 +114,7 @@ struct AutomationLane : juce::Component {
   Selection selection;
 };
 
-struct Track : juce::Component, juce::DragAndDropTarget, juce::Timer {
+struct Track : juce::Component, juce::Timer {
   Track(StateManager&, UIBridge&);
   ~Track() override;
   void paint(juce::Graphics&) override;
@@ -122,9 +122,8 @@ struct Track : juce::Component, juce::DragAndDropTarget, juce::Timer {
   void timerCallback() override;
   void resetGrid();
   i32 getTrackWidth();
-  bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails&) override;
-  void itemDropped(const juce::DragAndDropTarget::SourceDetails&) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+  void mouseDoubleClick(const juce::MouseEvent&) override;
 
   void zoomTrack(f64);
   void scroll(f64);
@@ -186,35 +185,6 @@ struct DebugInfo : juce::Component {
 
   UIBridge& uiBridge;
   juce::DrawableText info;
-};
-
-struct PresetsListPanel : juce::Component {
-  struct Title : juce::Component {
-    void paint(juce::Graphics&) override;
-    juce::String text { "Presets" };
-  };
-
-  struct PresetView : juce::Component {
-    PresetView(StateManager&, Preset*);
-    void resized() override;
-    void mouseDown(const juce::MouseEvent&) override;
-
-    StateManager& manager;
-    Preset* preset = nullptr;
-    juce::TextButton selectorButton;
-    juce::TextButton removeButton { "X" };
-    juce::TextButton overwriteButton { "Overwrite" };
-  };
-
-  PresetsListPanel(StateManager&);
-  ~PresetsListPanel() override;
-  void resized() override;
-
-  StateManager& manager;
-  Title title;
-  juce::OwnedArray<PresetView> presets;
-  juce::TextEditor presetNameInput;
-  juce::TextButton savePresetButton { "Save Preset" };
 };
 
 struct PluginListView : juce::Viewport {
@@ -286,11 +256,9 @@ struct MainView : juce::Component {
 
   StateManager& manager;
   UIBridge& uiBridge;
-  PresetsListPanel statesPanel { manager };
   Track track { manager, uiBridge };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView { manager };
-  i32 statesPanelWidth = 150;
 };
 
 struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {

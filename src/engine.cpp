@@ -74,9 +74,33 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
       auto clipPair = getClipPair(time);
 
       if (clipPair.a && !clipPair.b) {
-        setParameters(clipPair.a->preset);
+        auto& presetParameters = clipPair.a->parameters;
+        auto& parameters = manager.parameters;
+
+        for (u32 i = 0; i < parameters.size(); ++i) {
+          if (manager.shouldProcessParameter(&parameters[i])) {
+            parameters[i].parameter->setValue(presetParameters[i]);
+          }
+        }
       } else if (clipPair.a && clipPair.b) {
-        interpolateParameters(clipPair.a->preset, clipPair.b->preset, bool(clipPair.a->y) ? 1.0 - lerpPos : lerpPos); 
+        f64 position = bool(clipPair.a->y) ? 1.0 - lerpPos : lerpPos;
+
+        auto& beginParameters = clipPair.a->parameters;
+        auto& endParameters   = clipPair.b->parameters;
+        auto& parameters      = manager.parameters;
+
+        for (u32 i = 0; i < u32(parameters.size()); ++i) {
+          if (parameters[i].active) {
+            auto distance  = endParameters[i] - beginParameters[i];
+            auto increment = distance * position; 
+            auto newValue  = beginParameters[i] + increment;
+            assert(newValue >= 0.f && newValue <= 1.f);
+
+            if (manager.shouldProcessParameter(&parameters[i])) {
+              parameters[i].parameter->setValue(f32(newValue));
+            }
+          }
+        }
       }
     }
 
@@ -85,25 +109,6 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
     }
 
     instance->processBlock(buffer, midiBuffer);
-  }
-}
-
-void Engine::interpolateParameters(Preset* p1, Preset* p2, double position) {
-  auto& beginParameters = p1->parameters;
-  auto& endParameters   = p2->parameters;
-  auto& parameters      = manager.parameters;
-
-  for (u32 i = 0; i < u32(parameters.size()); ++i) {
-    if (parameters[i].active) {
-      auto distance  = endParameters[i] - beginParameters[i];
-      auto increment = distance * position; 
-      auto newValue  = beginParameters[i] + increment;
-      assert(newValue >= 0.f && newValue <= 1.f);
-
-      if (manager.shouldProcessParameter(&parameters[i])) {
-        parameters[i].parameter->setValue(f32(newValue));
-      }
-    }
   }
 }
 
@@ -140,17 +145,6 @@ ClipPair Engine::getClipPair(double time) {
   }
 
   return clipPair;
-}
-
-void Engine::setParameters(Preset* preset) {
-  auto& presetParameters = preset->parameters;
-  auto& parameters = manager.parameters;
-
-  for (u32 i = 0; i < parameters.size(); ++i) {
-    if (manager.shouldProcessParameter(&parameters[i])) {
-      parameters[i].parameter->setValue(presetParameters[i]);
-    }
-  }
 }
 
 void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {

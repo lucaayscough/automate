@@ -26,38 +26,27 @@ void StateManager::replace(const juce::ValueTree& tree) {
     setEditMode(tree["editMode"]);
     setModulateDiscrete(tree["modulateDiscrete"]);
     
-    auto presetsTree = tree.getChild(0);
-    for (auto p : presetsTree) {
-      presets.emplace_back();
-      auto& preset = presets.back();
-      preset.name = p["name"];
-      auto mb = p["parameters"].getBinaryData(); 
-      auto parameters_ = (f32*)mb->getData();
-      auto numParameters = mb->getSize() / sizeof(f32);
-      preset.parameters.reserve(numParameters); 
-      for (u32 i = 0; i < numParameters; ++i) {
-        preset.parameters.emplace_back(parameters_[i]); 
-      }
-    }
-
-    auto clipsTree = tree.getChild(1);
+    auto clipsTree = tree.getChild(0);
     for (auto c : clipsTree) {
       clips.emplace_back();
       auto& clip = clips.back();
       auto name = c["name"].toString();
 
-      for (auto& p : presets) {
-        if (name == p.name) {
-          clip.preset = &p; 
-        }
-      }
-
+      clip.name = name;
       clip.x = c["x"];
       clip.y = c["y"];
       clip.c = c["c"];
+
+      auto mb = c["parameters"].getBinaryData(); 
+      auto parameters_ = (f32*)mb->getData();
+      auto numParameters = mb->getSize() / sizeof(f32);
+      clip.parameters.reserve(numParameters); 
+      for (u32 i = 0; i < numParameters; ++i) {
+        clip.parameters.emplace_back(parameters_[i]); 
+      }
     }
 
-    auto pathsTree = tree.getChild(2);
+    auto pathsTree = tree.getChild(1);
     for (auto p : pathsTree) {
       paths.emplace_back();
       auto& path = paths.back();
@@ -71,7 +60,6 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     setPluginID(tree["pluginID"]);
     updateTrack(); 
-    updatePresetList();
   }
 }
 
@@ -88,22 +76,14 @@ juce::ValueTree StateManager::getState() {
         .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
         .setProperty("pluginID", pluginID, nullptr);
 
-    juce::ValueTree presetsTree("presets");
-
-    for (auto& p : presets) {
-      juce::ValueTree preset("preset");
-      preset.setProperty("name", p.name, nullptr)
-            .setProperty("parameters", { p.parameters.data(), p.parameters.size() * sizeof(f32) }, nullptr);
-      presetsTree.appendChild(preset, nullptr);
-    }
-
     juce::ValueTree clipsTree("clips");
     for (auto& c : clips) {
       juce::ValueTree clip("clip");
       clip.setProperty("x", c.x, nullptr)
           .setProperty("y", c.y, nullptr)
           .setProperty("c", c.c, nullptr)
-          .setProperty("name", c.preset->name, nullptr);
+          .setProperty("name", c.name, nullptr)
+          .setProperty("parameters", { c.parameters.data(), c.parameters.size() * sizeof(f32) }, nullptr);
       clipsTree.appendChild(clip, nullptr);
     }
 
@@ -116,7 +96,6 @@ juce::ValueTree StateManager::getState() {
       pathsTree.appendChild(path, nullptr);
     }
 
-    tree.appendChild(presetsTree, nullptr);
     tree.appendChild(clipsTree, nullptr);
     tree.appendChild(pathsTree, nullptr);
 
@@ -127,20 +106,30 @@ juce::ValueTree StateManager::getState() {
   return {};
 }
 
-void StateManager::addClip(Preset* p, f64 x, f64 y) {
+void StateManager::addClip(f64 x, f64 y) {
   JUCE_ASSERT_MESSAGE_THREAD
+  DBG("StateManager::addClip()");
+
   assert(x >= 0 && y >= 0 && y <= 1);
+  assert(engine->hasInstance());
 
-  proc.suspendProcessing(true);
+  {
+    ScopedProcLock lk(proc);
 
-  clips.emplace_back();
-  auto& c = clips.back();
-  c.preset = p;
-  c.name = p->name;
-  c.x = x;
-  c.y = y;
+    clips.emplace_back();
+    auto& c = clips.back();
 
-  proc.suspendProcessing(false);
+    // TODO(luca):
+    c.name = "";//p->name;
+    c.x = x;
+    c.y = y;
+
+    c.parameters.reserve(parameters.size());
+
+    for (auto& parameter : parameters) {
+      c.parameters.push_back(parameter.parameter->getValue());
+    }
+  }
 
   updateTrack();
 }
@@ -149,11 +138,10 @@ void StateManager::removeClip(Clip* c) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(c);
 
-  proc.suspendProcessing(true);
-
-  std::erase_if(clips, [c] (Clip& o) { return c == &o; });
-
-  proc.suspendProcessing(false);
+  {
+    ScopedProcLock lk(proc);
+    std::erase_if(clips, [c] (Clip& o) { return c == &o; });
+  }
 
   updateTrack();
 }
@@ -173,113 +161,24 @@ void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
   updateTrack();
 }
 
-void StateManager::overwritePreset(Preset* preset) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  proc.suspendProcessing(true);
-
-  preset->parameters.clear();
-  preset->parameters.reserve(parameters.size());
-
-  for (auto& parameter : parameters) {
-    preset->parameters.push_back(parameter.parameter->getValue());
-  }
-
-  proc.suspendProcessing(false);
-}
-
-void StateManager::loadPreset(Preset* preset) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  proc.suspendProcessing(true);
-
-  if (engine->hasInstance()) {
-    if (!editMode) {
-      setEditMode(true);
-    }
-
-    auto& presetParameters = preset->parameters;
-
-    for (u32 i = 0; i < parameters.size(); ++i) {
-      auto& parameter = parameters[i]; 
-      assert(presetParameters[i] >= 0.f && presetParameters[i] <= 1.f);
-
-      if (std::abs(parameter.parameter->getValue() - presetParameters[i]) > EPSILON) {
-        if (captureParameterChanges) {
-          setParameterActive(&parameter, true);
-        }
-
-        if (shouldProcessParameter(&parameter)) {
-          parameter.parameter->setValue(presetParameters[i]);
-        }
-      }
-    }
-  }
-
-  proc.suspendProcessing(false);
-}
-
 void StateManager::randomiseParameters() {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  proc.suspendProcessing(true);  
-
-  setEditMode(true);
-
-  for (auto& p : parameters) {
-    if (shouldProcessParameter(&p)) {
-      p.parameter->setValue(rand.nextFloat());
+  {
+    ScopedProcLock lk(proc);
+    setEditMode(true);
+    for (auto& p : parameters) {
+      if (shouldProcessParameter(&p)) {
+        p.parameter->setValue(rand.nextFloat());
+      }
     }
   }
-
-  proc.suspendProcessing(false);
 }
 
 bool StateManager::shouldProcessParameter(Parameter* p) {
   // TODO(luca): make active responsible for discrete and bool parameters too
   if (p->active) {
     return p->parameter->isDiscrete() ? modulateDiscrete.load() : true; 
-  }
-  return false;
-}
-
-void StateManager::savePreset(const juce::String& name) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  proc.suspendProcessing(true);
-
-  assert(engine->hasInstance());
-
-  presets.emplace_back();
-  auto& preset = presets.back();
-  preset.name = name;
-  overwritePreset(&presets.back());
-
-  proc.suspendProcessing(false);
-
-  updatePresetList();
-}
-
-void StateManager::removePreset(Preset* preset) {
-  JUCE_ASSERT_MESSAGE_THREAD
-
-  proc.suspendProcessing(true);
-
-  std::erase_if(clips, [preset] (Clip& c) { return c.preset == preset; });
-  std::erase_if(presets, [preset] (Preset& p) { return p.name == preset->name; });
-
-  proc.suspendProcessing(false);
-
-  updatePresetList();
-  updateTrack();
-}
-
-bool StateManager::doesPresetNameExist(const juce::String& name) {
-  JUCE_ASSERT_MESSAGE_THREAD
-  for (const auto& preset : presets) {
-    if (preset.name == name) {
-      return true;
-    }
   }
   return false;
 }
@@ -417,19 +316,16 @@ void StateManager::clear() {
 
     paths.clear();
     clips.clear();
-    presets.clear();
     parameters.clear();
 
     // TODO(luca): this is temporary hack to avoid the vector reallocating
     // its memory when adding new element invalidating all pointers
     paths.reserve(1000);
     clips.reserve(1000);
-    presets.reserve(1000);
     parameters.reserve(1000);
   }
 
   updateTrack();
-  updatePresetList();
 }
 
 auto StateManager::findAutomationPoint(f64 x) {
@@ -503,12 +399,6 @@ void StateManager::updateTrack() {
   if (trackView) {
     trackView->resized();
     trackView->repaint();
-  }
-}
-
-void StateManager::updatePresetList() {
-  if (presetView) {
-    presetView->resized();
   }
 }
 

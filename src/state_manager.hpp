@@ -26,11 +26,6 @@ struct ScopedProcLock {
   juce::AudioProcessor& proc;
 };
 
-struct Preset {
-  juce::String name;
-  std::vector<f32> parameters;
-};
-
 struct Path {
   f64 x = 0;
   f64 y = 0;
@@ -38,7 +33,7 @@ struct Path {
 };
 
 struct Clip {
-  Preset* preset; 
+  std::vector<f32> parameters; 
   juce::String name;
   f64 x = 0;
   f64 y = 0;
@@ -56,7 +51,6 @@ struct AutomationPoint {
 struct Parameter {
   juce::AudioProcessorParameter* parameter = nullptr;
   bool active = true;
-  // TODO(luca): wrap this in an atomic
 };
 
 struct Plugin;
@@ -71,19 +65,12 @@ struct StateManager {
   void replace(const juce::ValueTree&);
   juce::ValueTree getState();
 
-  void addClip(Preset*, f64, f64);
+  void addClip(f64, f64);
   void removeClip(Clip* c);
   void moveClip(Clip*, f64, f64, f64);
 
-  void savePreset(const juce::String&);
-  void removePreset(Preset*);
-  void overwritePreset(Preset*);
-  void loadPreset(Preset*);
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);
-
-  // TODO(luca): remove this
-  bool doesPresetNameExist(const juce::String&);
 
   void addPath(f64, f64);
   void removePath(Path*);
@@ -104,7 +91,6 @@ struct StateManager {
   void updateParametersView();
   void updateAutomation();
   void updateTrack();
-  void updatePresetList();
 
   juce::AudioProcessor& proc;
   Plugin* plugin = nullptr;
@@ -113,10 +99,8 @@ struct StateManager {
   Track* trackView = nullptr;
   ParametersView* parametersView = nullptr;
   juce::Component* automationView = nullptr;
-  juce::Component* presetView = nullptr;
   juce::Component* debugView = nullptr;
 
-  std::vector<Preset> presets;
   std::vector<Clip> clips;
   std::vector<Path> paths;
   std::vector<AutomationPoint> points;
