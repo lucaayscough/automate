@@ -554,7 +554,6 @@ void Track::mouseDoubleClick(const juce::MouseEvent& e) {
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
   addAndMakeVisible(debugTools);
-  addAndMakeVisible(debugInfo);
   addAndMakeVisible(defaultView);
   
   useMainView = engine.hasInstance();
@@ -629,17 +628,6 @@ void DebugTools::resized() {
   editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
   modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
   captureParameterChangesButton.setToggleState(captureParameterChanges, juce::NotificationType::dontSendNotification);
-}
-
-DebugInfo::DebugInfo(UIBridge& b) : uiBridge(b) {
-  addAndMakeVisible(info);
-  info.setText("some info");
-  info.setFont(juce::FontOptions { 12 }, false);
-  info.setColour(juce::Colours::white);
-}
-
-void DebugInfo::resized() {
-  info.setBounds(getLocalBounds());
 }
 
 PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
@@ -813,7 +801,6 @@ void Editor::paint(juce::Graphics& g) {
 void Editor::resized() {
   auto r = getLocalBounds();
   debugTools.setBounds(r.removeFromTop(debugToolsHeight));
-  debugInfo.setBounds(r.removeFromBottom(debugInfoHeight));
   if (useMainView) {
     mainView->setTopLeftPosition(r.getX(), r.getY());
   } else {
@@ -828,7 +815,7 @@ void Editor::showMainView() {
     addAndMakeVisible(mainView.get());
   }
   defaultView.setVisible(false);
-  setSize(mainView->getWidth(), mainView->getHeight() + debugToolsHeight + debugInfoHeight);
+  setSize(mainView->getWidth(), mainView->getHeight() + debugToolsHeight);
 }
 
 void Editor::showDefaultView() {

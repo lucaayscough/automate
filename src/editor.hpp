@@ -179,14 +179,6 @@ struct DebugTools : juce::Component {
   juce::ToggleButton captureParameterChangesButton { "Capture Parameters" };
 };
 
-struct DebugInfo : juce::Component {
-  DebugInfo(UIBridge&);
-  void resized();
-
-  UIBridge& uiBridge;
-  juce::DrawableText info;
-};
-
 struct PluginListView : juce::Viewport {
   struct Contents : juce::Component, juce::FileDragAndDropTarget {
     Contents(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
@@ -287,12 +279,10 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   int height = 350;
 
   int debugToolsHeight = 30;
-  int debugInfoHeight = 60;
 
   bool useMainView = false;
 
   DebugTools debugTools { manager };
-  DebugInfo debugInfo { uiBridge };
 
   std::unique_ptr<MainView> mainView;
   DefaultView defaultView { manager, proc.knownPluginList, proc.apfm };
