@@ -75,11 +75,6 @@ struct ClipView : juce::Component, juce::SettableTooltipClient {
 struct AutomationLane : juce::Component {
   enum class GestureType { none, bend, drag, select };
 
-  struct Selection {
-    f64 start = 0;
-    f64 end = 0;
-  };
-
   AutomationLane(StateManager&, Grid&);
   ~AutomationLane() override;
   void paint(juce::Graphics&) override;

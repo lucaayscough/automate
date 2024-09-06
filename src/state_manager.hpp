@@ -53,6 +53,11 @@ struct Parameter {
   bool active = true;
 };
 
+struct Selection {
+  f64 start = 0;
+  f64 end = 0;
+};
+
 struct Plugin;
 struct Engine;
 struct Track;
@@ -75,6 +80,7 @@ struct StateManager {
   void addPath(f64, f64);
   void removePath(Path*);
   void movePath(Path*, f64, f64, f64);
+  void removeSelection(Selection selection);
 
   void setPluginID(const juce::String&);
   void setZoom(f64);

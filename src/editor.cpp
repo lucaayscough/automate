@@ -885,26 +885,18 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       } break;
       case keyCharZ: {
         if (modifier.isShiftDown()) {
-          // TODO(luca): implment 
+          // TODO(luca): implement redo
         } else {
-          // TODO(luca): implment 
+          // TODO(luca): implement undo
         }
         return true;
       } break;
     };
   } else if (code == keyDelete) {
-    //std::vector<juce::ValueTree> toRemove;
-    //for (auto p : track.automationLane.paths) {
-    //  auto zoom = f64(manager.editTree[ID::zoom]);
-    //  if (p->x * zoom >= track.automationLane.selection.start && p->x * zoom <= track.automationLane.selection.end) {
-    //    toRemove.push_back(p->state);
-    //  }
-    //}
-    //undoManager->beginNewTransaction();
-    //for (auto& v : toRemove) {
-    //  // TODO(luca): fix
-    //  //manager.removePath(v);
-    //}
+    Selection selection = track.automationLane.selection;
+    selection.start /= zoom;
+    selection.end /= zoom;
+    manager.removeSelection(selection);
     return true;
   } else if (code == keyPlus || code == keyEquals) {
     track.zoomTrack(1);
@@ -913,7 +905,9 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
     track.zoomTrack(-1);
     return true;
   }
-  //DBG(code);
+
+  DBG("Key code: " + juce::String(code));
+
   return false;
 }
 

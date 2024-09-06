@@ -226,6 +226,18 @@ void StateManager::movePath(Path* p, f64 x, f64 y, f64 c) {
   updateTrack(); 
 }
 
+void StateManager::removeSelection(Selection selection) {
+  assert(selection.start >= 0 && selection.end >= 0);
+
+  if (std::abs(selection.start - selection.end) > EPSILON) {
+    ScopedProcLock lk(proc);
+    std::erase_if(clips, [selection] (Clip& c) { return c.x >= selection.start && c.x <= selection.end; }); 
+    std::erase_if(paths, [selection] (Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
+  }
+
+  updateTrack();
+}
+
 void StateManager::setPluginID(const juce::String& id) {
   DBG("StateManager::setPluginID");
 
