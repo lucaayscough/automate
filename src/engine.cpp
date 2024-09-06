@@ -168,7 +168,7 @@ void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
   }
 
   if (captureParameterChanges) {
-    manager.setParameterActive(u32(i), true); 
+    manager.setParameterActive(&manager.parameters[u32(i)], true); 
   }
 }
 
@@ -182,7 +182,7 @@ void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i3
   }
 
   if (captureParameterChanges) {
-    manager.setParameterActive(u32(i), true); 
+    manager.setParameterActive(&manager.parameters[u32(i)], true); 
   }
 }
 

@@ -246,7 +246,7 @@ struct DefaultView : juce::Component {
 
 struct ParametersView : juce::Viewport {
   struct ParameterView : juce::Component, juce::AudioProcessorParameter::Listener {
-    ParameterView(Parameter*);
+    ParameterView(StateManager&, Parameter*);
     ~ParameterView() override;
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -254,6 +254,7 @@ struct ParametersView : juce::Viewport {
     void parameterValueChanged(i32, f32) override;
     void parameterGestureChanged(i32, bool) override;
 
+    StateManager& manager;
     Parameter* parameter = nullptr;
     juce::Slider slider;
     juce::Label name;

@@ -789,7 +789,7 @@ void DefaultView::resized() {
   list.setBounds(getLocalBounds());
 }
 
-ParametersView::ParameterView::ParameterView(Parameter* p) : parameter(p) {
+ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : manager(m), parameter(p) {
   assert(parameter);
   assert(parameter->parameter);
 
@@ -807,7 +807,7 @@ ParametersView::ParameterView::ParameterView(Parameter* p) : parameter(p) {
   slider.onValueChange = [this] { parameter->parameter->setValue(f32(slider.getValue())); };
   activeToggle.setToggleState(parameter->active, juce::NotificationType::dontSendNotification);
 
-  activeToggle.onClick = [this] { parameter->active = !parameter->active; };
+  activeToggle.onClick = [this] { manager.setParameterActive(parameter, !parameter->active); };
 }
 
 ParametersView::ParameterView::~ParameterView() {
@@ -837,7 +837,7 @@ void ParametersView::ParameterView::parameterGestureChanged(i32, bool) {}
 
 ParametersView::Contents::Contents(StateManager& m) : manager(m) {
   for (auto& p : manager.parameters) {
-    auto param = new ParameterView(&p);
+    auto param = new ParameterView(manager, &p);
     addAndMakeVisible(param);
     parameters.add(param);
   }

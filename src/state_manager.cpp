@@ -201,12 +201,12 @@ void StateManager::loadPreset(Preset* preset) {
     auto& presetParameters = preset->parameters;
 
     for (u32 i = 0; i < parameters.size(); ++i) {
-      auto parameter = parameters[i]; 
+      auto& parameter = parameters[i]; 
       assert(presetParameters[i] >= 0.f && presetParameters[i] <= 1.f);
 
       if (std::abs(parameter.parameter->getValue() - presetParameters[i]) > EPSILON) {
         if (captureParameterChanges) {
-          setParameterActive(i, true);
+          setParameterActive(&parameter, true);
         }
 
         if (shouldProcessParameter(&parameter)) {
@@ -388,38 +388,45 @@ void StateManager::setCaptureParameterChanges(bool v) {
   
   captureParameterChanges = v;
 
-  if (v) {
-    for (auto& p : parameters) {
-      p.active = false;
+  {
+    ScopedProcLock lk(proc);
+    if (v) {
+      for (auto& p : parameters) {
+        p.active = false;
+      }
     }
   }
 
   updateParametersView(); 
 }
 
-void StateManager::setParameterActive(u32 i, bool a) {
+void StateManager::setParameterActive(Parameter* p, bool a) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  parameters[i].active = a;
+  {
+    ScopedProcLock lk(proc);
+    p->active = a;
+  }
+
   updateParametersView();
 }
 
 void StateManager::clear() {
-  proc.suspendProcessing(true);
+  {
+    ScopedProcLock lk(proc);
 
-  paths.clear();
-  clips.clear();
-  presets.clear();
-  parameters.clear();
+    paths.clear();
+    clips.clear();
+    presets.clear();
+    parameters.clear();
 
-  // TODO(luca): this is temporary hack to avoid the vector reallocating
-  // its memory when adding new element invalidating all pointers
-  paths.reserve(1000);
-  clips.reserve(1000);
-  presets.reserve(1000);
-  parameters.reserve(1000);
-
-  proc.suspendProcessing(false);
+    // TODO(luca): this is temporary hack to avoid the vector reallocating
+    // its memory when adding new element invalidating all pointers
+    paths.reserve(1000);
+    clips.reserve(1000);
+    presets.reserve(1000);
+    parameters.reserve(1000);
+  }
 
   updateTrack();
   updatePresetList();

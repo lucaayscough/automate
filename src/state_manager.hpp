@@ -14,6 +14,18 @@ std::atomic<bool> editMode = false;
 std::atomic<bool> modulateDiscrete = false;
 std::atomic<bool> captureParameterChanges = false;
 
+struct ScopedProcLock {
+  ScopedProcLock(juce::AudioProcessor& p) : proc(p) {
+    proc.suspendProcessing(true);
+  }
+
+  ~ScopedProcLock() {
+    proc.suspendProcessing(false);
+  }
+
+  juce::AudioProcessor& proc;
+};
+
 struct Preset {
   juce::String name;
   std::vector<f32> parameters;
@@ -83,7 +95,7 @@ struct StateManager {
   void setModulateDiscrete(bool);
 
   void setCaptureParameterChanges(bool);
-  void setParameterActive(u32, bool);
+  void setParameterActive(Parameter*, bool);
 
   void clear();
 
