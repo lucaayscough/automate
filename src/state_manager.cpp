@@ -67,7 +67,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
       path.c = p["c"];
     }
 
-    DBG(valueTreeToXmlString(tree));
+    DBG(tree.toXmlString());
 
     setPluginID(tree["pluginID"]);
     updateTrack(); 
@@ -120,7 +120,7 @@ juce::ValueTree StateManager::getState() {
     tree.appendChild(clipsTree, nullptr);
     tree.appendChild(pathsTree, nullptr);
 
-    DBG(valueTreeToXmlString(tree));
+    DBG(tree.toXmlString());
     return tree;
   }
 
@@ -510,40 +510,6 @@ void StateManager::updatePresetList() {
   if (presetView) {
     presetView->resized();
   }
-}
-
-juce::String StateManager::valueTreeToXmlString(const juce::ValueTree& vt) {
-  std::function<juce::String(const juce::ValueTree&, juce::String)> printTree = [&] (const juce::ValueTree& v, juce::String indentation) -> juce::String {
-    auto printChildren = [&] (const juce::ValueTree& vRec, juce::String indentationRec) -> juce::String {
-      juce::String contents;
-      for (const auto& child : vRec)
-        contents << printTree(child, indentationRec);
-      return contents;
-    };
-
-    auto numChildren   = v.getNumChildren();
-    auto numProperties = v.getNumProperties();
-    juce::String contents;
-    contents << indentation << "<" << v.getType();
-
-    for (int i = 0; i < numProperties; ++i) {
-      auto id = v.getPropertyName(i).toString();
-      auto value = v[id].toString();
-      contents << " " << id << "=\"" << value << "\"";
-    }
-
-    if (numChildren > 0) {
-      contents << ">\n";
-      contents << printChildren(v, indentation + "  ");
-      contents << indentation + "<" + v.getType() + "/>\n";
-    } else {
-      contents << "/>\n";
-    }
-
-    return contents;
-  };
-
-  return printTree(vt, "");
 }
 
 } // namespace atmt 

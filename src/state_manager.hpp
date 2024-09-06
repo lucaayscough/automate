@@ -106,8 +106,6 @@ struct StateManager {
   void updateTrack();
   void updatePresetList();
 
-  static juce::String valueTreeToXmlString(const juce::ValueTree&);
-
   juce::AudioProcessor& proc;
   Plugin* plugin = nullptr;
   Engine* engine = nullptr;
