@@ -574,14 +574,8 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   addAndMakeVisible(printStateButton);
   addAndMakeVisible(killButton);
   addAndMakeVisible(parametersToggleButton);
-  addAndMakeVisible(playButton);
-  addAndMakeVisible(stopButton);
-  addAndMakeVisible(rewindButton);
   addAndMakeVisible(editModeButton);
   addAndMakeVisible(modulateDiscreteButton);
-  addAndMakeVisible(undoButton);
-  addAndMakeVisible(redoButton);
-  addAndMakeVisible(randomiseButton);
   addAndMakeVisible(captureParameterChangesButton);
 
   auto plugin = static_cast<Plugin*>(&proc);
@@ -590,12 +584,6 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   printStateButton.onClick = [this] { manager.getState(); };
   editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
   killButton.onClick = [this] { manager.setPluginID(""); };
-  playButton.onClick = [plugin] { plugin->signalPlay(); };
-  stopButton.onClick = [plugin] { plugin->signalStop(); };
-  rewindButton.onClick = [plugin] { plugin->signalRewind(); };
-  undoButton.onClick = {};
-  redoButton.onClick = {};
-  randomiseButton.onClick = [this] { manager.randomiseParameters(); };
   modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
   captureParameterChangesButton.onClick = [this] { manager.setCaptureParameterChanges(!captureParameterChanges); };
 
@@ -617,13 +605,7 @@ void DebugTools::resized() {
   modulateDiscreteButton.setBounds(r.removeFromLeft(width));
   parametersToggleButton.setBounds(r.removeFromLeft(width));
   killButton.setBounds(r.removeFromLeft(width));
-  playButton.setBounds(r.removeFromLeft(width));
-  stopButton.setBounds(r.removeFromLeft(width));
-  rewindButton.setBounds(r.removeFromLeft(width));
-  undoButton.setBounds(r.removeFromLeft(width));
-  redoButton.setBounds(r.removeFromLeft(width));
   captureParameterChangesButton.setBounds(r.removeFromLeft(width));
-  randomiseButton.setBounds(r);
 
   editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
   modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
@@ -858,52 +840,94 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyPlus = 43;
   static constexpr i32 keyEquals = 61;
   static constexpr i32 keyMin = 45;
+  static constexpr i32 keyCharE = 69;
+  static constexpr i32 keyCharD = 68;
+  static constexpr i32 keyCharR = 82;
+  static constexpr i32 keyCharT = 84;
 
   auto& track = mainView->track;
 
-  if (modifier.isCommandDown()) {
-    switch (code) {
-      case keyNum1: {
-        track.grid.narrow(); 
-        track.repaint();
-        return true;
-      } break;
-      case keyNum2: {
-        track.grid.widen(); 
-        track.repaint();
-        return true;
-      } break;
-      case keyNum3: {
-        track.grid.triplet(); 
-        track.repaint();
-        return true;
-      } break;
-      case keyNum4: {
-        track.grid.toggleSnap(); 
-        track.repaint();
-        return true;
-      } break;
-      case keyCharZ: {
-        if (modifier.isShiftDown()) {
-          // TODO(luca): implement redo
-        } else {
-          // TODO(luca): implement undo
-        }
-        return true;
-      } break;
-    };
-  } else if (code == keyDelete) {
-    Selection selection = track.automationLane.selection;
-    selection.start /= zoom;
-    selection.end /= zoom;
-    manager.removeSelection(selection);
-    return true;
-  } else if (code == keyPlus || code == keyEquals) {
-    track.zoomTrack(1);
-    return true;
-  } else if (code == keyMin) {
-    track.zoomTrack(-1);
-    return true;
+  if (modifier.isAltDown()) {
+    if (!captureParameterChanges) {
+      manager.setCaptureParameterChanges(true);
+    }
+  } else {
+    if (captureParameterChanges) {
+      manager.setCaptureParameterChanges(false);
+    }
+
+    if (modifier.isCommandDown()) {
+      switch (code) {
+        case keyNum1: {
+          track.grid.narrow(); 
+          track.repaint();
+          return true;
+        } break;
+        case keyNum2: {
+          track.grid.widen(); 
+          track.repaint();
+          return true;
+        } break;
+        case keyNum3: {
+          track.grid.triplet(); 
+          track.repaint();
+          return true;
+        } break;
+        case keyNum4: {
+          track.grid.toggleSnap(); 
+          track.repaint();
+          return true;
+        } break;
+        case keyCharZ: {
+          if (modifier.isShiftDown()) {
+            // TODO(luca): implement redo
+          } else {
+            // TODO(luca): implement undo
+          }
+          return true;
+        } break;
+      };
+    } else {
+      switch (code) {
+        case keyDelete: {
+          Selection selection = track.automationLane.selection;
+          selection.start /= zoom;
+          selection.end /= zoom;
+          manager.removeSelection(selection);
+          return true;
+        } break;
+        case keyPlus: {
+          track.zoomTrack(1);
+          return true;
+        } break;
+        case keyEquals: {
+          track.zoomTrack(1);
+          return true;
+        } break;
+        case keyMin: {
+          track.zoomTrack(-1);
+          return true;
+        } break;
+        case keyCharE: {
+          manager.setEditMode(!editMode);
+          return true;
+        } break;
+        case keyCharD: {
+          manager.setModulateDiscrete(!modulateDiscrete);
+          return true;
+        } break;
+        case keyCharR: {
+          manager.randomiseParameters();
+          return true;
+        } break;
+        case keyCharT: {
+          if (mainView) {
+            mainView->toggleParametersView();
+          }
+          return true;
+        } break;
+      };
+    } 
   }
 
   DBG("Key code: " + juce::String(code));

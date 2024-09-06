@@ -28,18 +28,6 @@ void Plugin::prepareToPlay(double sampleRate, int blockSize) {
 
 void Plugin::releaseResources() {}
 
-void Plugin::signalPlay() {
-  play = true;
-}
-
-void Plugin::signalRewind() {
-  rewind = true;
-}
-
-void Plugin::signalStop() {
-  stop = true;
-}
-
 void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   juce::ScopedNoDenormals noDeNormals;
 
@@ -73,19 +61,6 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
         uiBridge.numerator = u32(timeSignature->numerator);
         uiBridge.denominator = u32(timeSignature->denominator);
       }
-    }
-
-    if (play) {
-      playhead->transportPlay(true);
-      play = false;
-    }
-    if (stop) {
-      playhead->transportPlay(false);
-      stop = false;
-    }
-    if (rewind) {
-      playhead->transportRewind();
-      rewind = false;
     }
   }
 

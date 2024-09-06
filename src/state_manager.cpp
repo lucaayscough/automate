@@ -297,6 +297,8 @@ void StateManager::setModulateDiscrete(bool m) {
 void StateManager::setCaptureParameterChanges(bool v) {
   JUCE_ASSERT_MESSAGE_THREAD
   
+  DBG("StateManager::setCaptureParameterChanges()");
+
   captureParameterChanges = v;
 
   {

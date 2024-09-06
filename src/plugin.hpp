@@ -15,12 +15,7 @@ struct Plugin : juce::AudioProcessor {
 
   void prepareToPlay(double sampleRate, int samplesPerBlock) override;
   void releaseResources() override;
-
   bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
-
-  void signalPlay();
-  void signalRewind();
-  void signalStop();
   void processBlock(juce::AudioBuffer<f32>&, juce::MidiBuffer&) override;
 
   juce::AudioProcessorEditor* createEditor() override;
@@ -45,10 +40,6 @@ struct Plugin : juce::AudioProcessor {
   StateManager manager { *this };
   UIBridge uiBridge;
   Engine engine { manager, uiBridge }; 
-
-  std::atomic<bool> play = false;
-  std::atomic<bool> stop = false;
-  std::atomic<bool> rewind = false;
 
   // TODO(luca): some of these may not be needed and need appropriate dirs for these files
   juce::AudioPluginFormatManager apfm;
