@@ -572,25 +572,17 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   manager.debugView = this; 
 
   addAndMakeVisible(printStateButton);
-  addAndMakeVisible(killButton);
-  addAndMakeVisible(parametersToggleButton);
   addAndMakeVisible(editModeButton);
   addAndMakeVisible(modulateDiscreteButton);
   addAndMakeVisible(captureParameterChangesButton);
 
   auto plugin = static_cast<Plugin*>(&proc);
-  jassert(plugin);
+  assert(plugin);
 
   printStateButton.onClick = [this] { manager.getState(); };
   editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
-  killButton.onClick = [this] { manager.setPluginID(""); };
   modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
   captureParameterChangesButton.onClick = [this] { manager.setCaptureParameterChanges(!captureParameterChanges); };
-
-  parametersToggleButton.onClick = [this] { 
-    auto editor = static_cast<Editor*>(getParentComponent());
-    if (editor->useMainView) editor->mainView->toggleParametersView();
-  };
 }
 
 DebugTools::~DebugTools() {
@@ -603,8 +595,6 @@ void DebugTools::resized() {
   printStateButton.setBounds(r.removeFromLeft(width));
   editModeButton.setBounds(r.removeFromLeft(width));
   modulateDiscreteButton.setBounds(r.removeFromLeft(width));
-  parametersToggleButton.setBounds(r.removeFromLeft(width));
-  killButton.setBounds(r.removeFromLeft(width));
   captureParameterChangesButton.setBounds(r.removeFromLeft(width));
 
   editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
@@ -831,25 +821,30 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   auto code = k.getKeyCode();
 
   static constexpr i32 keyDelete = 127;
+
   static constexpr i32 keyNum1 = 49;
   static constexpr i32 keyNum2 = 50;
   static constexpr i32 keyNum3 = 51;
   static constexpr i32 keyNum4 = 52;
-  //static constexpr i32 keyCharX = 88;
-  static constexpr i32 keyCharZ = 90;
+
   static constexpr i32 keyPlus = 43;
   static constexpr i32 keyEquals = 61;
   static constexpr i32 keyMin = 45;
-  static constexpr i32 keyCharE = 69;
+
+  static constexpr i32 keyCharC = 67;
   static constexpr i32 keyCharD = 68;
+  static constexpr i32 keyCharE = 69;
+  static constexpr i32 keyCharK = 75;
   static constexpr i32 keyCharR = 82;
-  static constexpr i32 keyCharT = 84;
+  static constexpr i32 keyCharV = 86;
+  static constexpr i32 keyCharZ = 90;
 
   auto& track = mainView->track;
 
-  if (modifier.isAltDown()) {
+  if (code == keyCharC) {
     if (!captureParameterChanges) {
       manager.setCaptureParameterChanges(true);
+      return true;
     }
   } else {
     if (captureParameterChanges) {
@@ -920,10 +915,14 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
           manager.randomiseParameters();
           return true;
         } break;
-        case keyCharT: {
+        case keyCharV: {
           if (mainView) {
             mainView->toggleParametersView();
           }
+          return true;
+        } break;
+        case keyCharK: {
+          manager.setPluginID({}); 
           return true;
         } break;
       };

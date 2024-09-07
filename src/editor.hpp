@@ -161,8 +161,6 @@ struct DebugTools : juce::Component {
   StateManager& manager;
   juce::AudioProcessor& proc { manager.proc };
   juce::TextButton printStateButton { "Print State" };
-  juce::TextButton killButton { "Kill" };
-  juce::ToggleButton parametersToggleButton { "Show Parameters" };
   juce::ToggleButton editModeButton { "Edit Mode" };
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
   juce::ToggleButton captureParameterChangesButton { "Capture Parameters" };
