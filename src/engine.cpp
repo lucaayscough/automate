@@ -158,11 +158,11 @@ void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
   DBG("Engine::audioProcessorParameterChanged()");
 
   if (!editMode) {
-    manager.setEditMode(true);
+    juce::MessageManager::callAsync([this] { manager.setEditMode(true); });
   }
 
   if (captureParameterChanges) {
-    manager.setParameterActive(&manager.parameters[u32(i)], true); 
+    juce::MessageManager::callAsync([i, this] { manager.setParameterActive(&manager.parameters[u32(i)], true); }); 
   }
 }
 
@@ -172,11 +172,11 @@ void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i3
   DBG("Engine::audioProcessorParameterChangeGestureBegin()");
 
   if (!editMode) {
-    manager.setEditMode(true);
+    juce::MessageManager::callAsync([this] { manager.setEditMode(true); });
   }
 
   if (captureParameterChanges) {
-    manager.setParameterActive(&manager.parameters[u32(i)], true); 
+    juce::MessageManager::callAsync([i, this] { manager.setParameterActive(&manager.parameters[u32(i)], true); }); 
   }
 }
 

@@ -150,13 +150,12 @@ void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(c);
 
-  proc.suspendProcessing(true);
-
-  c->x = x < 0 ? 0 : x;
-  c->y = std::clamp(y, 0.0, 1.0);
-  c->c = std::clamp(curve, 0.0, 1.0);
-
-  proc.suspendProcessing(false);
+  {
+    ScopedProcLock lk(proc);
+    c->x = x < 0 ? 0 : x;
+    c->y = std::clamp(y, 0.0, 1.0);
+    c->c = std::clamp(curve, 0.0, 1.0);
+  }
 
   updateTrack();
 }
@@ -187,15 +186,13 @@ void StateManager::addPath(double x, double y) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(x >= 0 && y >= 0 && y <= 1);
 
-  proc.suspendProcessing(true);
-
-  paths.emplace_back();
-
-  auto& path = paths.back();
-  path.x = x;
-  path.y = y;
-
-  proc.suspendProcessing(false);
+  {
+    ScopedProcLock lk(proc);
+    paths.emplace_back();
+    auto& path = paths.back();
+    path.x = x;
+    path.y = y;
+  }
 
   updateTrack();
 }
@@ -203,11 +200,10 @@ void StateManager::addPath(double x, double y) {
 void StateManager::removePath(Path* p) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  proc.suspendProcessing(true);
-
-  std::erase_if(paths, [p] (Path& o) { return p == &o; });
-
-  proc.suspendProcessing(false);
+  {
+    ScopedProcLock lk(proc);
+    std::erase_if(paths, [p] (Path& o) { return p == &o; });
+  }
 
   updateTrack();
 }
@@ -215,18 +211,19 @@ void StateManager::removePath(Path* p) {
 void StateManager::movePath(Path* p, f64 x, f64 y, f64 c) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  proc.suspendProcessing(true);
-
-  p->x = x < 0 ? 0 : x;
-  p->y = std::clamp(y, 0.0, 1.0);
-  p->c = std::clamp(c, 0.0, 1.0);
-
-  proc.suspendProcessing(false);
+  {
+    ScopedProcLock lk(proc);
+    p->x = x < 0 ? 0 : x;
+    p->y = std::clamp(y, 0.0, 1.0);
+    p->c = std::clamp(c, 0.0, 1.0);
+  }
 
   updateTrack(); 
 }
 
 void StateManager::removeSelection(Selection selection) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   assert(selection.start >= 0 && selection.end >= 0);
 
   if (std::abs(selection.start - selection.end) > EPSILON) {
@@ -239,59 +236,61 @@ void StateManager::removeSelection(Selection selection) {
 }
 
 void StateManager::setPluginID(const juce::String& id) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   DBG("StateManager::setPluginID");
 
-  proc.suspendProcessing(true);
+  {
+    ScopedProcLock lk(proc);
 
-  pluginID = id;
-  juce::String errorMessage;
+    pluginID = id;
+    juce::String errorMessage;
 
-  if (id != "") {
-    auto description = plugin->knownPluginList.getTypeForIdentifierString(id);
+    if (id != "") {
+      auto description = plugin->knownPluginList.getTypeForIdentifierString(id);
 
-    if (description) {
-      auto instance = plugin->apfm.createPluginInstance(*description, proc.getSampleRate(), proc.getBlockSize(), errorMessage);
-      
-      auto processorParameters = instance->getParameters();
-      u32 numParameters = u32(processorParameters.size());
-      parameters.clear();
-      parameters.reserve(numParameters);
+      if (description) {
+        auto instance = plugin->apfm.createPluginInstance(*description, proc.getSampleRate(), proc.getBlockSize(), errorMessage);
+        
+        auto processorParameters = instance->getParameters();
+        u32 numParameters = u32(processorParameters.size());
+        parameters.clear();
+        parameters.reserve(numParameters);
 
-      for (u32 i = 0; i < numParameters; ++i) {
-        parameters.emplace_back();
-        parameters.back().parameter = processorParameters[i32(i)];
+        for (u32 i = 0; i < numParameters; ++i) {
+          parameters.emplace_back();
+          parameters.back().parameter = processorParameters[i32(i)];
+        }
+
+        engine->setPluginInstance(instance);
+        proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
       }
-
-      engine->setPluginInstance(instance);
-      proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
+    } else {
+      engine->kill();
+      clear();
     }
-  } else {
-    engine->kill();
-    clear();
   }
-
-  proc.suspendProcessing(false);
 }
 
 void StateManager::setZoom(f64 z) {
+  JUCE_ASSERT_MESSAGE_THREAD
+
   zoom = z;
   updateTrack(); 
 }
 
 void StateManager::setEditMode(bool m) {
-  editMode = m;
+  JUCE_ASSERT_MESSAGE_THREAD
 
-  if (debugView) {
-    debugView->resized();
-  }
+  editMode = m;
+  updateDebugView();
 }
 
 void StateManager::setModulateDiscrete(bool m) {
-  modulateDiscrete = m;
+  JUCE_ASSERT_MESSAGE_THREAD
 
-  if (debugView) {
-    debugView->resized();
-  }
+  modulateDiscrete = m;
+  updateDebugView();
 }
 
 void StateManager::setCaptureParameterChanges(bool v) {
@@ -311,6 +310,7 @@ void StateManager::setCaptureParameterChanges(bool v) {
   }
 
   updateParametersView(); 
+  updateDebugView();
 }
 
 void StateManager::setParameterActive(Parameter* p, bool a) {
@@ -366,40 +366,40 @@ void StateManager::updateParametersView() {
 void StateManager::updateAutomation() {
   DBG("StateManager::updateAutomation()");
 
-  proc.suspendProcessing(true);
+  {
+    ScopedProcLock lk(proc);
 
-  automation.clear();
+    automation.clear();
 
-  points.resize(clips.size() + paths.size());
+    points.resize(clips.size() + paths.size());
 
-  u32 n = 0;
-  for (; n < clips.size(); ++n) {
-    points[n].x = clips[n].x; 
-    points[n].y = clips[n].y; 
-    points[n].c = clips[n].c; 
-    points[n].clip = &clips[n];
-    points[n].path = nullptr;
+    u32 n = 0;
+    for (; n < clips.size(); ++n) {
+      points[n].x = clips[n].x; 
+      points[n].y = clips[n].y; 
+      points[n].c = clips[n].c; 
+      points[n].clip = &clips[n];
+      points[n].path = nullptr;
+    }
+    for (u32 i = 0; i < paths.size(); ++i) {
+      points[i + n].x = paths[i].x; 
+      points[i + n].y = paths[i].y; 
+      points[i + n].c = paths[i].c; 
+      points[i + n].clip = nullptr;
+      points[i + n].path = &paths[i];
+    }
+
+    std::sort(points.begin(), points.end(), [] (AutomationPoint& a, AutomationPoint& b) { return a.x < b.x; });
+
+    // TODO(luca): tidy this 
+    for (auto& p : points) {
+      auto c = automation.getCurrentPosition();
+      f64 curve = p.c;
+      f64 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.0 - curve); 
+      f64 cy = (c.y < p.y ? c.y : f64(p.y)) + std::abs(p.y - c.y) * (1.0 - curve);
+      automation.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
+    }
   }
-  for (u32 i = 0; i < paths.size(); ++i) {
-    points[i + n].x = paths[i].x; 
-    points[i + n].y = paths[i].y; 
-    points[i + n].c = paths[i].c; 
-    points[i + n].clip = nullptr;
-    points[i + n].path = &paths[i];
-  }
-
-  std::sort(points.begin(), points.end(), [] (AutomationPoint& a, AutomationPoint& b) { return a.x < b.x; });
-
-  // TODO(luca): tidy this 
-  for (auto& p : points) {
-    auto c = automation.getCurrentPosition();
-    f64 curve = p.c;
-    f64 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.0 - curve); 
-    f64 cy = (c.y < p.y ? c.y : f64(p.y)) + std::abs(p.y - c.y) * (1.0 - curve);
-    automation.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
-  }
-
-  proc.suspendProcessing(false);
 
   if (automationView) {
     automationView->resized();
@@ -413,6 +413,12 @@ void StateManager::updateTrack() {
   if (trackView) {
     trackView->resized();
     trackView->repaint();
+  }
+}
+
+void StateManager::updateDebugView() {
+  if (debugView) {
+    debugView->resized(); 
   }
 }
 

@@ -97,6 +97,7 @@ struct StateManager {
   void updateParametersView();
   void updateAutomation();
   void updateTrack();
+  void updateDebugView();
 
   juce::AudioProcessor& proc;
   Plugin* plugin = nullptr;
