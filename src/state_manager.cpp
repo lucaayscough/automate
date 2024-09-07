@@ -5,6 +5,10 @@
 
 namespace atmt {
 
+static bool isNormalised(f64 v) {
+  return v >= 0.0 && v <= 1.0;
+}
+
 StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {
   rand.setSeedRandomly();
 }
@@ -238,7 +242,7 @@ void StateManager::removeSelection(Selection selection) {
 void StateManager::setPluginID(const juce::String& id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  DBG("StateManager::setPluginID");
+  DBG("StateManager::setPluginID()");
 
   {
     ScopedProcLock lk(proc);

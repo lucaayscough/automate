@@ -91,13 +91,19 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 
         for (u32 i = 0; i < u32(parameters.size()); ++i) {
           if (parameters[i].active) {
-            auto distance  = endParameters[i] - beginParameters[i];
-            auto increment = distance * position; 
-            auto newValue  = beginParameters[i] + increment;
-            assert(newValue >= 0.f && newValue <= 1.f);
-
             if (manager.shouldProcessParameter(&parameters[i])) {
-              parameters[i].parameter->setValue(f32(newValue));
+              assert(isNormalised(beginParameters[i]));
+              assert(isNormalised(endParameters[i]));
+              assert(isNormalised(parameters[i].parameter->getValue()));
+
+              auto distance  = endParameters[i] - beginParameters[i];
+              auto increment = distance * position; 
+              auto newValue  = beginParameters[i] + increment;
+              assert(isNormalised(newValue));
+
+              if (distance > EPSILON) {
+                parameters[i].parameter->setValue(f32(newValue));
+              }
             }
           }
         }
