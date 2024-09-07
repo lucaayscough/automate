@@ -708,9 +708,11 @@ void ParametersView::ParameterView::parameterGestureChanged(i32, bool) {}
 
 ParametersView::Contents::Contents(StateManager& m) : manager(m) {
   for (auto& p : manager.parameters) {
-    auto param = new ParameterView(manager, &p);
-    addAndMakeVisible(param);
-    parameters.add(param);
+    if (p.parameter->isAutomatable()) {
+      auto param = new ParameterView(manager, &p);
+      addAndMakeVisible(param);
+      parameters.add(param);
+    }
   }
   setSize(getWidth(), i32(parameters.size()) * 20);
 }

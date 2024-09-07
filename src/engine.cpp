@@ -157,13 +157,19 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
 void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
   DBG("Engine::audioProcessorParameterChanged()");
 
-  if (!editMode) {
-    juce::MessageManager::callAsync([this] { manager.setEditMode(true); });
-  }
+  auto parameter = &manager.parameters[u32(i)];
 
-  if (captureParameterChanges) {
-    juce::MessageManager::callAsync([i, this] { manager.setParameterActive(&manager.parameters[u32(i)], true); }); 
-  }
+  juce::MessageManager::callAsync([parameter, this] {
+    if (captureParameterChanges) {
+      manager.setParameterActive(parameter, true);
+    }
+
+    if (manager.shouldProcessParameter(parameter)) {
+      if (!editMode) {
+        manager.setEditMode(true);
+      }
+    }
+  });
 }
 
 void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
@@ -171,13 +177,19 @@ void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProce
 void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32 i) {
   DBG("Engine::audioProcessorParameterChangeGestureBegin()");
 
-  if (!editMode) {
-    juce::MessageManager::callAsync([this] { manager.setEditMode(true); });
-  }
+  auto parameter = &manager.parameters[u32(i)];
 
-  if (captureParameterChanges) {
-    juce::MessageManager::callAsync([i, this] { manager.setParameterActive(&manager.parameters[u32(i)], true); }); 
-  }
+  juce::MessageManager::callAsync([parameter, this] {
+    if (captureParameterChanges) {
+      manager.setParameterActive(parameter, true);
+    }
+
+    if (manager.shouldProcessParameter(parameter)) {
+      if (!editMode) {
+        manager.setEditMode(true);
+      }
+    }
+  });
 }
 
 void Engine::audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) {

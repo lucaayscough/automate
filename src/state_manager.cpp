@@ -20,7 +20,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
   juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
   if (lk.lockWasGained()) {
-    clear();
+    setPluginID(tree["pluginID"]);
     
     setZoom(tree["zoom"]);
     setEditMode(tree["editMode"]);
@@ -58,7 +58,6 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     DBG(tree.toXmlString());
 
-    setPluginID(tree["pluginID"]);
     updateTrack(); 
   }
 }
@@ -176,7 +175,8 @@ void StateManager::randomiseParameters() {
 
 bool StateManager::shouldProcessParameter(Parameter* p) {
   // TODO(luca): make active responsible for discrete and bool parameters too
-  if (p->active) {
+
+  if (p->active && p->parameter->isAutomatable()) {
     return p->parameter->isDiscrete() ? modulateDiscrete.load() : true; 
   }
   return false;
@@ -242,6 +242,7 @@ void StateManager::setPluginID(const juce::String& id) {
 
   {
     ScopedProcLock lk(proc);
+    clear();
 
     pluginID = id;
     juce::String errorMessage;
@@ -254,7 +255,6 @@ void StateManager::setPluginID(const juce::String& id) {
         
         auto processorParameters = instance->getParameters();
         u32 numParameters = u32(processorParameters.size());
-        parameters.clear();
         parameters.reserve(numParameters);
 
         for (u32 i = 0; i < numParameters; ++i) {
@@ -267,7 +267,6 @@ void StateManager::setPluginID(const juce::String& id) {
       }
     } else {
       engine->kill();
-      clear();
     }
   }
 }
