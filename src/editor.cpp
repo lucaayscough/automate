@@ -540,7 +540,7 @@ void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetail
   if (cmdKeyPressed) {
     zoomTrack(w.deltaY);
   } else if (shiftKeyPressed) {
-    scroll(w.deltaY);
+    scroll(w.deltaX);
   }
 }
 
