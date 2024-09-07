@@ -28,3 +28,6 @@
 - box that creates x number of randomised presets
 - add on/off button for each parameter
 - have a capture button which will automatically turn on/off plug-in parameters based on which have change
+- searchable parameters list
+- button to enable/disable all parameters
+- click to mvoe playhead
