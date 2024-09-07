@@ -843,93 +843,86 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 
   auto& track = mainView->track;
 
-  if (code == keyCharC) {
-    if (!captureParameterChanges) {
-      manager.setCaptureParameterChanges(true);
-      return true;
-    }
+  if (modifier.isCommandDown()) {
+    switch (code) {
+      case keyNum1: {
+        track.grid.narrow(); 
+        track.repaint();
+        return true;
+      } break;
+      case keyNum2: {
+        track.grid.widen(); 
+        track.repaint();
+        return true;
+      } break;
+      case keyNum3: {
+        track.grid.triplet(); 
+        track.repaint();
+        return true;
+      } break;
+      case keyNum4: {
+        track.grid.toggleSnap(); 
+        track.repaint();
+        return true;
+      } break;
+      case keyCharZ: {
+        if (modifier.isShiftDown()) {
+          // TODO(luca): implement redo
+        } else {
+          // TODO(luca): implement undo
+        }
+        return true;
+      } break;
+    };
   } else {
-    if (captureParameterChanges) {
-      manager.setCaptureParameterChanges(false);
-    }
-
-    if (modifier.isCommandDown()) {
-      switch (code) {
-        case keyNum1: {
-          track.grid.narrow(); 
-          track.repaint();
-          return true;
-        } break;
-        case keyNum2: {
-          track.grid.widen(); 
-          track.repaint();
-          return true;
-        } break;
-        case keyNum3: {
-          track.grid.triplet(); 
-          track.repaint();
-          return true;
-        } break;
-        case keyNum4: {
-          track.grid.toggleSnap(); 
-          track.repaint();
-          return true;
-        } break;
-        case keyCharZ: {
-          if (modifier.isShiftDown()) {
-            // TODO(luca): implement redo
-          } else {
-            // TODO(luca): implement undo
-          }
-          return true;
-        } break;
-      };
-    } else {
-      switch (code) {
-        case keyDelete: {
-          Selection selection = track.automationLane.selection;
-          selection.start /= zoom;
-          selection.end /= zoom;
-          manager.removeSelection(selection);
-          return true;
-        } break;
-        case keyPlus: {
-          track.zoomTrack(1);
-          return true;
-        } break;
-        case keyEquals: {
-          track.zoomTrack(1);
-          return true;
-        } break;
-        case keyMin: {
-          track.zoomTrack(-1);
-          return true;
-        } break;
-        case keyCharE: {
-          manager.setEditMode(!editMode);
-          return true;
-        } break;
-        case keyCharD: {
-          manager.setModulateDiscrete(!modulateDiscrete);
-          return true;
-        } break;
-        case keyCharR: {
-          manager.randomiseParameters();
-          return true;
-        } break;
-        case keyCharV: {
-          if (mainView) {
-            mainView->toggleParametersView();
-          }
-          return true;
-        } break;
-        case keyCharK: {
-          manager.setPluginID({}); 
-          return true;
-        } break;
-      };
-    } 
-  }
+    switch (code) {
+      case keyDelete: {
+        Selection selection = track.automationLane.selection;
+        selection.start /= zoom;
+        selection.end /= zoom;
+        manager.removeSelection(selection);
+        return true;
+      } break;
+      case keyPlus: {
+        track.zoomTrack(1);
+        return true;
+      } break;
+      case keyEquals: {
+        track.zoomTrack(1);
+        return true;
+      } break;
+      case keyMin: {
+        track.zoomTrack(-1);
+        return true;
+      } break;
+      case keyCharE: {
+        manager.setEditMode(!editMode);
+        return true;
+      } break;
+      case keyCharD: {
+        manager.setModulateDiscrete(!modulateDiscrete);
+        return true;
+      } break;
+      case keyCharR: {
+        manager.randomiseParameters();
+        return true;
+      } break;
+      case keyCharV: {
+        if (mainView) {
+          mainView->toggleParametersView();
+        }
+        return true;
+      } break;
+      case keyCharK: {
+        manager.setPluginID({}); 
+        return true;
+      } break;
+      case keyCharC: {
+        manager.setCaptureParameterChanges(!captureParameterChanges); 
+        return true;
+      } break;
+    };
+  } 
 
   DBG("Key code: " + juce::String(code));
 
