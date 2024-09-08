@@ -34,3 +34,4 @@
 - maybe random should sample from [-1,1] and offset the parameter rather than directly set to [0,1]
 - add spread slider
 - add parameter release
+- add plugin state binary dump
