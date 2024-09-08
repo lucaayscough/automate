@@ -41,12 +41,8 @@ struct Plugin : juce::AudioProcessor {
   UIBridge uiBridge;
   Engine engine { manager, uiBridge }; 
 
-  // TODO(luca): some of these may not be needed and need appropriate dirs for these files
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
-  juce::PropertiesFile::Options optionsFile;
-  juce::File deadMansPedalFile                    { "~/Desktop/dmpf.txt" };
-  juce::PropertiesFile propertiesFile             { { "~/Desktop/properties.txt" }, optionsFile};
 };
 
 } // namespace atmt
