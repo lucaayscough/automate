@@ -31,3 +31,6 @@
 - searchable parameters list
 - button to enable/disable all parameters
 - click to mvoe playhead
+- maybe random should sample from [-1,1] and offset the parameter rather than directly set to [0,1]
+- add spread slider
+- add parameter release
