@@ -609,7 +609,12 @@ void PluginListView::Contents::paint(juce::Graphics& g) {
 }
 
 void PluginListView::Contents::resized() {
-  setSize(getWidth(), buttonHeight * plugins.size());
+  // TODO(luca): this is obvs stupid
+  i32 height = buttonHeight * plugins.size();
+  if (height < 350) {
+    height = 350;
+  }
+  setSize(getWidth(), height);
   auto r = getLocalBounds();
   for (auto button : plugins) {
     button->setBounds(r.removeFromTop(buttonHeight));
