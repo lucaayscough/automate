@@ -2,6 +2,7 @@
 #include "plugin.hpp"
 #include "editor.hpp"
 #include <assert.h>
+#include "scoped_timer.hpp"
 
 namespace atmt {
 
@@ -34,9 +35,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
     for (auto c : clipsTree) {
       clips.emplace_back();
       auto& clip = clips.back();
-      auto name = c["name"].toString();
 
-      clip.name = name;
       clip.x = c["x"];
       clip.y = c["y"];
       clip.c = c["c"];
@@ -85,7 +84,6 @@ juce::ValueTree StateManager::getState() {
       clip.setProperty("x", c.x, nullptr)
           .setProperty("y", c.y, nullptr)
           .setProperty("c", c.c, nullptr)
-          .setProperty("name", c.name, nullptr)
           .setProperty("parameters", { c.parameters.data(), c.parameters.size() * sizeof(f32) }, nullptr);
       clipsTree.appendChild(clip, nullptr);
     }
@@ -122,8 +120,6 @@ void StateManager::addClip(f64 x, f64 y) {
     clips.emplace_back();
     auto& c = clips.back();
 
-    // TODO(luca):
-    c.name = "";//p->name;
     c.x = x;
     c.y = y;
 
@@ -131,6 +127,7 @@ void StateManager::addClip(f64 x, f64 y) {
 
     for (auto& parameter : parameters) {
       c.parameters.push_back(parameter.parameter->getValue());
+      assert(isNormalised(c.parameters.back()));
     }
   }
 

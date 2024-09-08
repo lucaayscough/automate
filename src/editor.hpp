@@ -55,7 +55,7 @@ struct PathView : juce::Component {
   static constexpr i32 posOffset = size / 2;
 };
 
-struct ClipView : juce::Component, juce::SettableTooltipClient {
+struct ClipView : juce::Component {
   ClipView(StateManager&, Grid&, Clip*);
   void paint(juce::Graphics&) override;
   void mouseDown(const juce::MouseEvent&) override;

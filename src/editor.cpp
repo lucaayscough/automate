@@ -145,9 +145,7 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
   manager.removePath(path);
 }
 
-ClipView::ClipView(StateManager& m, Grid& g, Clip* c) : manager(m), grid(g), clip(c) {
-  setTooltip(clip->name);
-}
+ClipView::ClipView(StateManager& m, Grid& g, Clip* c) : manager(m), grid(g), clip(c) {}
 
 void ClipView::paint(juce::Graphics& g) {
   g.setColour(juce::Colours::red);
@@ -930,10 +928,12 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 }
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
-  auto& track = mainView->track;
-  track.automationLane.optKeyPressed = k.isAltDown();
-  track.shiftKeyPressed = k.isShiftDown();
-  track.cmdKeyPressed = k.isCommandDown();
+  if (mainView) {
+    auto& track = mainView->track;
+    track.automationLane.optKeyPressed = k.isAltDown();
+    track.shiftKeyPressed = k.isShiftDown();
+    track.cmdKeyPressed = k.isCommandDown();
+  }
 }
 
 } // namespace atmt

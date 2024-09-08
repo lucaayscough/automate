@@ -1,4 +1,5 @@
 #include "engine.hpp"
+#include "scoped_timer.hpp"
 
 namespace atmt {
 
@@ -124,11 +125,11 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
         auto& parameters      = manager.parameters;
 
         for (u32 i = 0; i < parameters.size(); ++i) {
+
           if (parameters[i].active) {
             if (manager.shouldProcessParameter(&parameters[i])) {
               assert(isNormalised(beginParameters[i]));
               assert(isNormalised(endParameters[i]));
-              assert(isNormalised(parameters[i].parameter->getValue()));
 
               auto distance  = endParameters[i] - beginParameters[i];
               auto increment = distance * position; 

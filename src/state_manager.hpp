@@ -34,7 +34,6 @@ struct Path {
 
 struct Clip {
   std::vector<f32> parameters; 
-  juce::String name;
   f64 x = 0;
   f64 y = 0;
   f64 c = 0.5;
