@@ -162,32 +162,22 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
 
 void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
   DBG("Engine::audioProcessorParameterChanged()");
-
-  auto parameter = &manager.parameters[u32(i)];
-
-  juce::MessageManager::callAsync([parameter, this] {
-    if (captureParameterChanges) {
-      manager.setParameterActive(parameter, true);
-    }
-
-    if (manager.shouldProcessParameter(parameter)) {
-      if (!editMode) {
-        manager.setEditMode(true);
-      }
-    }
-  });
+  handleParameterChange(&manager.parameters[u32(i)]);
 }
 
 void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
 
 void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32 i) {
   DBG("Engine::audioProcessorParameterChangeGestureBegin()");
+  handleParameterChange(&manager.parameters[u32(i)]);
+}
 
-  auto parameter = &manager.parameters[u32(i)];
-
+void Engine::handleParameterChange(Parameter* parameter) {
   juce::MessageManager::callAsync([parameter, this] {
     if (captureParameterChanges) {
       manager.setParameterActive(parameter, true);
+    } else if (releaseParameterChanges) {
+      manager.setParameterActive(parameter, false);
     }
 
     if (manager.shouldProcessParameter(parameter)) {

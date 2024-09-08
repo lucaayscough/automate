@@ -11,6 +11,7 @@ f64 zoom = 100;
 std::atomic<bool> editMode = false;
 std::atomic<bool> modulateDiscrete = false;
 std::atomic<bool> captureParameterChanges = false;
+std::atomic<bool> releaseParameterChanges = false;
 std::atomic<f32>  randomSpread = 2;
 
 static std::random_device randDevice;
@@ -310,24 +311,19 @@ void StateManager::setModulateDiscrete(bool m) {
   updateDebugView();
 }
 
-void StateManager::setCaptureParameterChanges(bool v) {
+void StateManager::setAllParametersActive(bool v) {
   JUCE_ASSERT_MESSAGE_THREAD
   
-  DBG("StateManager::setCaptureParameterChanges()");
-
-  captureParameterChanges = v;
+  DBG("StateManager::setParametersActive()");
 
   {
     ScopedProcLock lk(proc);
-    if (v) {
-      for (auto& p : parameters) {
-        p.active = false;
-      }
+    for (auto& p : parameters) {
+      p.active = v;
     }
   }
 
   updateParametersView(); 
-  updateDebugView();
 }
 
 void StateManager::setParameterActive(Parameter* p, bool a) {
