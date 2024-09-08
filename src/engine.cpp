@@ -71,7 +71,39 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
       auto time = double(uiBridge.playheadPosition);
       auto lerpPos = getYFromX(manager.automation, time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
-      auto clipPair = getClipPair(time);
+
+      ClipPair clipPair;
+
+      {
+        f64 closest = u32(-1);
+
+        auto& clips = manager.clips;
+
+        for (u32 i = 0; i < clips.size(); ++i) {
+          if (time >= clips[i].x) {
+            if (time - clips[i].x < closest) {
+              clipPair.a = &clips[i];  
+              closest = time - clips[i].x;
+            }
+          }
+        }
+
+        closest = u32(-1);
+        
+        for (u32 i = 0; i < clips.size(); ++i) {
+          if (time <= clips[i].x) {
+            if (clips[i].x - time < closest) {
+              clipPair.b = &clips[i];  
+              closest = time - clips[i].x;
+            }
+          }
+        }
+
+        if (!clipPair.a && clipPair.b) {
+          clipPair.a = clipPair.b;
+          clipPair.b = nullptr;
+        }
+      }
 
       if (clipPair.a && !clipPair.b) {
         auto& presetParameters = clipPair.a->parameters;
@@ -79,7 +111,9 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 
         for (u32 i = 0; i < parameters.size(); ++i) {
           if (manager.shouldProcessParameter(&parameters[i])) {
-            parameters[i].parameter->setValue(presetParameters[i]);
+            if (std::abs(parameters[i].parameter->getValue() - presetParameters[i]) > EPSILON) {
+              parameters[i].parameter->setValue(presetParameters[i]);
+            }
           }
         }
       } else if (clipPair.a && clipPair.b) {
@@ -89,7 +123,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
         auto& endParameters   = clipPair.b->parameters;
         auto& parameters      = manager.parameters;
 
-        for (u32 i = 0; i < u32(parameters.size()); ++i) {
+        for (u32 i = 0; i < parameters.size(); ++i) {
           if (parameters[i].active) {
             if (manager.shouldProcessParameter(&parameters[i])) {
               assert(isNormalised(beginParameters[i]));
@@ -101,7 +135,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
               auto newValue  = beginParameters[i] + increment;
               assert(isNormalised(newValue));
 
-              if (distance > EPSILON) {
+              if (std::abs(distance) > EPSILON) {
                 parameters[i].parameter->setValue(f32(newValue));
               }
             }
@@ -116,41 +150,6 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 
     instance->processBlock(buffer, midiBuffer);
   }
-}
-
-ClipPair Engine::getClipPair(double time) {
-  ClipPair clipPair;
-
-  f64 closest = u32(-1);
-
-  auto& clips = manager.clips;
-
-  for (u32 i = 0; i < clips.size(); ++i) {
-    if (time >= clips[i].x) {
-      if (time - clips[i].x < closest) {
-        clipPair.a = &clips[i];  
-        closest = time - clips[i].x;
-      }
-    }
-  }
-
-  closest = u32(-1);
-  
-  for (u32 i = 0; i < clips.size(); ++i) {
-    if (time <= clips[i].x) {
-      if (clips[i].x - time < closest) {
-        clipPair.b = &clips[i];  
-        closest = time - clips[i].x;
-      }
-    }
-  }
-
-  if (!clipPair.a && clipPair.b) {
-    clipPair.a = clipPair.b;
-    clipPair.b = nullptr;
-  }
-
-  return clipPair;
 }
 
 void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {
