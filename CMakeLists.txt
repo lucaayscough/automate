@@ -5,6 +5,7 @@ set(PLUGIN_VERSION           0.1.0)
 set(PLUGIN_MANUFACTURER_CODE luay)
 set(PLUGIN_CODE              Auto)
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
 
 ################################################################################
 
@@ -18,7 +19,7 @@ project(${PLUGIN_NAME} VERSION ${PLUGIN_VERSION} LANGUAGES CXX)
 add_subdirectory(extern/JUCE)
 
 juce_add_plugin(${PLUGIN_NAME}
-  COMPANY_NAME "Luca Ayscough"
+  COMPANY_NAME "Chroma Audio"
   BUNDLE_ID com.lucaayscough.automate
   PLUGIN_MANUFACTURER_CODE ${PLUGIN_MANUFACTURER_CODE}
   PLUGIN_CODE ${PLUGIN_CODE}
