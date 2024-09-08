@@ -6,13 +6,29 @@
 
 namespace atmt {
 
-static bool isNormalised(f64 v) {
+juce::String pluginID = "";
+f64 zoom = 100;
+std::atomic<bool> editMode = false;
+std::atomic<bool> modulateDiscrete = false;
+std::atomic<bool> captureParameterChanges = false;
+std::atomic<f32>  randomSpread = 2;
+
+static std::random_device randDevice;
+static std::mt19937 randGen { randDevice() };
+static std::normal_distribution<f32> rand_ { 0.0, 1.0 };
+
+inline bool isNormalised(f64 v) {
   return v >= 0.0 && v <= 1.0;
 }
 
-StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {
-  rand.setSeedRandomly();
+inline f32 random() {
+  f32 v = rand_(randGen) / randomSpread; // NOTE(luca): parameter that tightens random distribution
+  v = std::clamp(v, -1.f, 1.f);
+  v = (v * 0.5f) + 0.5f;
+  return v;
 }
+
+StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {}
 
 void StateManager::init() {
   plugin = static_cast<Plugin*>(&proc); 
@@ -163,12 +179,13 @@ void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
 void StateManager::randomiseParameters() {
   JUCE_ASSERT_MESSAGE_THREAD
 
+  setEditMode(true);
+
   {
     ScopedProcLock lk(proc);
-    setEditMode(true);
     for (auto& p : parameters) {
       if (shouldProcessParameter(&p)) {
-        p.parameter->setValue(rand.nextFloat());
+        p.parameter->setValue(random());
       }
     }
   }

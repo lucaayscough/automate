@@ -40,8 +40,6 @@ struct Engine : juce::AudioProcessorListener {
   juce::ChangeBroadcaster killInstanceBroadcaster;
 
   std::unique_ptr<juce::AudioPluginInstance> instance; 
-
-  juce::Random rand;
 };
 
 } // namespace atmt

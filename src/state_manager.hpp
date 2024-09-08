@@ -5,14 +5,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <span>
 #include "types.hpp"
+#include <random>
 
 namespace atmt {
-
-juce::String pluginID = "";
-f64 zoom = 100;
-std::atomic<bool> editMode = false;
-std::atomic<bool> modulateDiscrete = false;
-std::atomic<bool> captureParameterChanges = false;
 
 struct ScopedProcLock {
   ScopedProcLock(juce::AudioProcessor& p) : proc(p) {
@@ -113,8 +108,6 @@ struct StateManager {
   std::vector<Parameter> parameters;
 
   juce::Path automation;
-
-  juce::Random rand;
 };
 
 } // namespace atmt 
