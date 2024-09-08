@@ -186,6 +186,7 @@ struct PluginListView : juce::Viewport {
   Contents c;
 };
 
+// TODO(luca): remove this
 struct DefaultView : juce::Component {
   DefaultView(StateManager&, juce::KnownPluginList&, juce::AudioPluginFormatManager&);
   void resized() override;
@@ -259,10 +260,11 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   UIBridge& uiBridge { proc.uiBridge };
   Engine& engine { proc.engine };
 
+  // TODO(luca): remove this
   juce::TooltipWindow tooltipWindow { this, 0 };
 
-  int width  = 350;
-  int height = 350;
+  static constexpr int width  = 350;
+  static constexpr int height = 350;
 
   int debugToolsHeight = 30;
 

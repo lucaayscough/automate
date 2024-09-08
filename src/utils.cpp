@@ -16,12 +16,16 @@ void FilePath::init() {
 
 void loadKnownPluginList(juce::KnownPluginList& kpl) {
   auto xml = juce::XmlDocument::parse(FilePath::knownPluginList); 
-  kpl.recreateFromXml(*xml.get());
+  if (xml) {
+    kpl.recreateFromXml(*xml.get());
+  }
 }
 
 void saveKnownPluginList(juce::KnownPluginList& kpl) {
   auto xml = kpl.createXml();
-  xml->writeTo(FilePath::knownPluginList);
+  if (xml) {
+    xml->writeTo(FilePath::knownPluginList);
+  }
 }
 
 double secondsToPpq(double bpm, double seconds) {
