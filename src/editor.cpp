@@ -572,7 +572,6 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   addAndMakeVisible(printStateButton);
   addAndMakeVisible(editModeButton);
   addAndMakeVisible(modulateDiscreteButton);
-  addAndMakeVisible(captureParameterChangesButton);
 
   auto plugin = static_cast<Plugin*>(&proc);
   assert(plugin);
@@ -580,7 +579,6 @@ DebugTools::DebugTools(StateManager& m) : manager(m) {
   printStateButton.onClick = [this] { manager.getState(); };
   editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
   modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
-  captureParameterChangesButton.onClick = [this] { manager.setCaptureParameterChanges(!captureParameterChanges); };
 }
 
 DebugTools::~DebugTools() {
@@ -593,11 +591,9 @@ void DebugTools::resized() {
   printStateButton.setBounds(r.removeFromLeft(width));
   editModeButton.setBounds(r.removeFromLeft(width));
   modulateDiscreteButton.setBounds(r.removeFromLeft(width));
-  captureParameterChangesButton.setBounds(r.removeFromLeft(width));
 
   editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
   modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
-  captureParameterChangesButton.setToggleState(captureParameterChanges, juce::NotificationType::dontSendNotification);
 }
 
 PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
@@ -831,7 +827,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyEquals = 61;
   static constexpr i32 keyMin = 45;
 
-  static constexpr i32 keyCharC = 67;
   static constexpr i32 keyCharD = 68;
   static constexpr i32 keyCharE = 69;
   static constexpr i32 keyCharK = 75;
@@ -861,6 +856,14 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       case keyNum4: {
         track.grid.toggleSnap(); 
         track.repaint();
+        return true;
+      } break;
+      case keyCharD: {
+        manager.setAllParametersActive(false);
+        return true;
+      } break;
+      case keyCharE: {
+        manager.setAllParametersActive(true);
         return true;
       } break;
       case keyCharZ: {
@@ -915,10 +918,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         manager.setPluginID({}); 
         return true;
       } break;
-      case keyCharC: {
-        manager.setCaptureParameterChanges(!captureParameterChanges); 
-        return true;
-      } break;
     };
   } 
 
@@ -928,6 +927,17 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 }
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
+  captureParameterChanges = false;
+  releaseParameterChanges = false;
+  
+  if (k.isCommandDown() && k.isShiftDown()) {
+    DBG("Releasing parameters");
+    releaseParameterChanges = true;
+  } else if (k.isCommandDown()) {
+    DBG("Capturing parameters");
+    captureParameterChanges = true; 
+  }
+
   if (mainView) {
     auto& track = mainView->track;
     track.automationLane.optKeyPressed = k.isAltDown();

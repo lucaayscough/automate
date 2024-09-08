@@ -163,7 +163,6 @@ struct DebugTools : juce::Component {
   juce::TextButton printStateButton { "Print State" };
   juce::ToggleButton editModeButton { "Edit Mode" };
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
-  juce::ToggleButton captureParameterChangesButton { "Capture Parameters" };
 };
 
 struct PluginListView : juce::Viewport {

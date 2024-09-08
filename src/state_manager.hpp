@@ -81,7 +81,7 @@ struct StateManager {
   void setEditMode(bool);
   void setModulateDiscrete(bool);
 
-  void setCaptureParameterChanges(bool);
+  void setAllParametersActive(bool);
   void setParameterActive(Parameter*, bool);
 
   void clear();

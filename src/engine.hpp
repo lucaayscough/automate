@@ -27,6 +27,7 @@ struct Engine : juce::AudioProcessorListener {
   void audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) override;
   void audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32) override;
   void audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, i32) override;
+  void handleParameterChange(Parameter*);
 
   bool hasInstance();
   juce::AudioProcessorEditor* getEditor();
