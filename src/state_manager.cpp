@@ -6,13 +6,13 @@
 
 namespace atmt {
 
-juce::String pluginID = "";
-f64 zoom = 100;
-std::atomic<bool> editMode = false;
-std::atomic<bool> modulateDiscrete = false;
-std::atomic<bool> captureParameterChanges = false;
-std::atomic<bool> releaseParameterChanges = false;
-std::atomic<f32>  randomSpread = 2;
+static juce::String pluginID = "";
+static f64 zoom = 100;
+static std::atomic<bool> editMode = false;
+static std::atomic<bool> modulateDiscrete = false;
+static std::atomic<bool> captureParameterChanges = false;
+static std::atomic<bool> releaseParameterChanges = false;
+static std::atomic<f32>  randomSpread = 2;
 
 static std::random_device randDevice;
 static std::mt19937 randGen { randDevice() };
