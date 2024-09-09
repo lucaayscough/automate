@@ -183,6 +183,7 @@ struct DefaultView : juce::Viewport {
 
   DefaultView(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
   void resized();
+  Contents c;
 };
 
 struct ParametersView : juce::Viewport {
@@ -262,7 +263,7 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   DebugTools debugTools { manager };
 
   std::unique_ptr<MainView> mainView;
-  DefaultView defaultView { manager, proc.apfm, proc.knownPluginList };
+  DefaultView defaultView { manager, proc.knownPluginList, proc.apfm };
 
   ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
   ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };

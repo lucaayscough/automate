@@ -36,7 +36,7 @@ struct Engine : juce::AudioProcessorListener {
   UIBridge& uiBridge;
   juce::AudioProcessor& proc { manager.proc };
   
-  // TODO(luca): decide if we should keep these
+  // TODO(luca): get rid of these 
   juce::ChangeBroadcaster createInstanceBroadcaster;
   juce::ChangeBroadcaster killInstanceBroadcaster;
 

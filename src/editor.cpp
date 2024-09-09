@@ -596,7 +596,7 @@ void DebugTools::resized() {
   modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
 }
 
-PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
+DefaultView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
   : manager(m), knownPluginList(kpl), formatManager(fm) {
   for (auto& t : knownPluginList.getTypes()) {
     addPlugin(t);
@@ -604,11 +604,11 @@ PluginListView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManag
   resized();
 }
 
-void PluginListView::Contents::paint(juce::Graphics& g) {
+void DefaultView::Contents::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::green);
 }
 
-void PluginListView::Contents::resized() {
+void DefaultView::Contents::resized() {
   // TODO(luca): this is obvs stupid
   i32 height = buttonHeight * plugins.size();
   if (height < 350) {
@@ -621,7 +621,7 @@ void PluginListView::Contents::resized() {
   }
 }
 
-void PluginListView::Contents::addPlugin(juce::PluginDescription& pd) {
+void DefaultView::Contents::addPlugin(juce::PluginDescription& pd) {
   auto button = new juce::TextButton(pd.pluginFormatName + " - " + pd.name);
   auto id = pd.createIdentifierString();
   addAndMakeVisible(button);
@@ -629,11 +629,11 @@ void PluginListView::Contents::addPlugin(juce::PluginDescription& pd) {
   plugins.add(button);
 }
 
-bool PluginListView::Contents::isInterestedInFileDrag(const juce::StringArray&){
+bool DefaultView::Contents::isInterestedInFileDrag(const juce::StringArray&){
   return true; 
 }
 
-void PluginListView::Contents::filesDropped(const juce::StringArray& files, i32, i32) {
+void DefaultView::Contents::filesDropped(const juce::StringArray& files, i32, i32) {
   juce::OwnedArray<juce::PluginDescription> types;
   knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
   for (auto t : types) {
@@ -642,21 +642,17 @@ void PluginListView::Contents::filesDropped(const juce::StringArray& files, i32,
   resized();
 }
 
-PluginListView::PluginListView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) : c(m, fm, kpl) {
+DefaultView::DefaultView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) {
   setScrollBarsShown(true, false);
-  setViewedComponent(&c, false);
-}
-
-void PluginListView::resized() {
-  c.setSize(getWidth(), c.getHeight()); 
-}
-
-DefaultView::DefaultView(StateManager& m, juce::KnownPluginList& kpl, juce::AudioPluginFormatManager& fm) : list(m, fm, kpl) {
-  addAndMakeVisible(list);
+  setViewedComponent(new Contents(m, fm, kpl), true);
 }
 
 void DefaultView::resized() {
-  list.setBounds(getLocalBounds());
+  auto c = getViewedComponent();
+  assert(c);
+  if (c) {
+    c->setSize(getWidth(), c->getHeight()); 
+  }
 }
 
 ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : manager(m), parameter(p) {
