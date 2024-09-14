@@ -4,7 +4,20 @@
 #include "plugin.hpp"
 #include "ui_bridge.hpp"
 
+#define DONT_NOTIFY juce::NotificationType::dontSendNotification
+
 namespace atmt {
+
+struct Colours {
+  static const juce::Colour eerieBlack;
+  static const juce::Colour jet;
+  static const juce::Colour frenchGray;
+  static const juce::Colour isabelline;
+};
+
+struct Fonts {
+  static const juce::FontOptions sofiaProRegular;
+};
 
 struct Grid {
   struct Beat {
@@ -165,24 +178,73 @@ struct DebugTools : juce::Component {
   juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
 };
 
-struct DefaultView : juce::Viewport {
-  struct Contents : juce::Component, juce::FileDragAndDropTarget {
-    Contents(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
-    void paint(juce::Graphics&) override;
-    void resized() override;
-    void addPlugin(juce::PluginDescription&);
-    bool isInterestedInFileDrag(const juce::StringArray&)	override;
-    void filesDropped(const juce::StringArray&, i32, i32) override;
+struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
+  static constexpr i32 width  = 600;
+  static constexpr i32 height = 600;
+  static constexpr i32 titleHeight = 76;
+  static constexpr i32 titleFontHeight = 28;
+  static constexpr i32 buttonHeight = 25;
+  static constexpr i32 buttonFontHeight = 14;
+  static constexpr i32 panelPadding = 20;
+
+  struct PluginsPanel : juce::Component {
+    struct Button {   
+      juce::PluginDescription description;
+      juce::Rectangle<i32> r {};
+      bool visible = false;
+      juce::String format = "";
+      static constexpr i32 namePadding = 80;
+    };
+
+    PluginsPanel(StateManager&);
+
+    void paint(juce::Graphics&);
+    void mouseMove(const juce::MouseEvent&);
+    void mouseDown(const juce::MouseEvent&);
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&);
+    void resized();
+    void update(juce::Array<juce::PluginDescription>);
+    void updateManufacturerFilter(const juce::String&);
 
     StateManager& manager;
-    juce::KnownPluginList& knownPluginList;
-    juce::AudioPluginFormatManager& formatManager;
-    juce::OwnedArray<juce::TextButton> plugins;
-    static constexpr i32 buttonHeight = 25;
+    juce::Rectangle<i32> titleBounds;
+    std::vector<Button> plugins;
+    juce::String filter;
+    u32 activeButton = 0;
+  };
+
+  struct ManufacturersPanel : juce::Component {
+    struct Button {
+      juce::String name;
+      juce::Rectangle<i32> r;
+    };
+
+    ManufacturersPanel(PluginsPanel&);
+
+    void paint(juce::Graphics& g);
+    void mouseMove(const juce::MouseEvent&);
+    void mouseDown(const juce::MouseEvent&);
+    void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&);
+    void resized();
+    void update(juce::Array<juce::PluginDescription>);
+
+    PluginsPanel& pluginsPanel;
+    juce::Rectangle<i32> titleBounds;
+    std::vector<Button> manufacturers;
+    u32 activeButton = 0;
   };
 
   DefaultView(StateManager&, juce::AudioPluginFormatManager&, juce::KnownPluginList&);
-  void resized();
+  void resized() override;
+  bool isInterestedInFileDrag(const juce::StringArray&)	override;
+  void filesDropped(const juce::StringArray&, i32, i32) override;
+
+  StateManager& manager;
+  juce::KnownPluginList& knownPluginList;
+  juce::AudioPluginFormatManager& formatManager;
+
+  PluginsPanel pluginsPanel { manager };
+  ManufacturersPanel manufacturersPanel { pluginsPanel};
 };
 
 struct ParametersView : juce::Viewport {
@@ -252,14 +314,9 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   UIBridge& uiBridge { proc.uiBridge };
   Engine& engine { proc.engine };
 
-  static constexpr int width  = 350;
-  static constexpr int height = 350;
-
-  int debugToolsHeight = 30;
-
   bool useMainView = false;
 
-  DebugTools debugTools { manager };
+  //DebugTools debugTools { manager };
 
   std::unique_ptr<MainView> mainView;
   DefaultView defaultView { manager, proc.apfm, proc.knownPluginList };
