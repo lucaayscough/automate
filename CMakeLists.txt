@@ -2,7 +2,7 @@
 
 set(PLUGIN_NAME              Automate)
 set(PLUGIN_VERSION           0.1.0)
-set(PLUGIN_MANUFACTURER_CODE luay)
+set(PLUGIN_MANUFACTURER_CODE chrm)
 set(PLUGIN_CODE              Auto)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
@@ -20,7 +20,7 @@ add_subdirectory(extern/JUCE)
 
 juce_add_plugin(${PLUGIN_NAME}
   COMPANY_NAME "Chroma Audio"
-  BUNDLE_ID com.lucaayscough.automate
+  BUNDLE_ID com.chromaaudio.automate
   PLUGIN_MANUFACTURER_CODE ${PLUGIN_MANUFACTURER_CODE}
   PLUGIN_CODE ${PLUGIN_CODE}
   FORMATS ${FORMATS}
@@ -33,12 +33,14 @@ juce_add_plugin(${PLUGIN_NAME}
   NEEDS_MIDI_INPUT TRUE
   NEEDS_MIDI_OUTPUT TRUE 
   IS_MIDI_EFFECT FALSE
-  )
+)
+
 juce_generate_juce_header(${PLUGIN_NAME})
 
-# NOTE(robin): Anything that uses JUCE, compile as a single translation unit.
-# Anything else that has a more sane compilation model, we'll compile as a
-# static lib and link in later
+juce_add_binary_data(Assets SOURCES
+  assets/sofia_pro_regular.otf
+)
+
 target_sources(${PLUGIN_NAME} PRIVATE src/juce_build.cpp)
 
 target_compile_definitions(${PLUGIN_NAME} PUBLIC
@@ -49,6 +51,7 @@ target_compile_definitions(${PLUGIN_NAME} PUBLIC
   JUCE_PLUGINHOST_AU=1)
 
 target_link_libraries(${PLUGIN_NAME} PRIVATE
+  Assets
   juce::juce_audio_utils
   juce::juce_audio_devices
   juce::juce_recommended_config_flags # Sets stuff like optimisation level

@@ -1,7 +1,15 @@
 #include "plugin.hpp"
 #include "editor.hpp"
+#include <BinaryData.h>
 
 namespace atmt {
+
+const juce::Colour Colours::eerieBlack { 28, 28, 31 };
+const juce::Colour Colours::jet { 43, 45, 49 };
+const juce::Colour Colours::frenchGray { 182, 186, 192 };
+const juce::Colour Colours::isabelline { 239, 233, 231 };
+
+const juce::FontOptions Fonts::sofiaProRegular { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_regular_otf, BinaryData::sofia_pro_regular_otfSize) };
 
 bool Grid::reset(f64 mw, TimeSignature _ts) {
   if (std::abs(zoom - zoom_) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
@@ -550,22 +558,6 @@ void Track::mouseDoubleClick(const juce::MouseEvent& e) {
   }
 }
 
-Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
-  addAndMakeVisible(debugTools);
-  addAndMakeVisible(defaultView);
-  
-  useMainView = engine.hasInstance();
-
-  if (useMainView) {
-    showMainView();
-  } else {
-    showDefaultView();
-  }
-
-  setWantsKeyboardFocus(true);
-  setResizable(false, false);
-}
-
 DebugTools::DebugTools(StateManager& m) : manager(m) {
   manager.debugView = this; 
 
@@ -592,67 +584,238 @@ void DebugTools::resized() {
   editModeButton.setBounds(r.removeFromLeft(width));
   modulateDiscreteButton.setBounds(r.removeFromLeft(width));
 
-  editModeButton.setToggleState(editMode, juce::NotificationType::dontSendNotification);
-  modulateDiscreteButton.setToggleState(modulateDiscrete, juce::NotificationType::dontSendNotification);
+  editModeButton.setToggleState(editMode, DONT_NOTIFY);
+  modulateDiscreteButton.setToggleState(modulateDiscrete, DONT_NOTIFY);
 }
 
-DefaultView::Contents::Contents(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl)
-  : manager(m), knownPluginList(kpl), formatManager(fm) {
-  for (auto& t : knownPluginList.getTypes()) {
-    addPlugin(t);
+DefaultView::PluginsPanel::PluginsPanel(StateManager& m) : manager(m) {}
+
+void DefaultView::PluginsPanel::paint(juce::Graphics& g) {
+  g.fillAll(Colours::jet);
+
+  {
+    g.setColour(Colours::isabelline);
+    g.setFont(Fonts::sofiaProRegular.withHeight(titleFontHeight));
+    g.drawText("Plug-ins", titleBounds, juce::Justification::left);
   }
-  resized();
-}
+  
+  g.setFont(Fonts::sofiaProRegular.withHeight(DefaultView::buttonFontHeight));
 
-void DefaultView::Contents::paint(juce::Graphics& g) {
-  g.fillAll(juce::Colours::green);
-}
+  for (u32 i = 0; i < plugins.size(); ++i) {
+    const auto& p = plugins[i];
 
-void DefaultView::Contents::resized() {
-  // TODO(luca): this is obvs stupid
-  i32 height = buttonHeight * plugins.size();
-  if (height < 350) {
-    height = 350;
+    if (p.visible) {
+      if (p.r.contains(getMouseXYRelative()) || i == activeButton) {
+        g.setColour(Colours::frenchGray);
+        g.fillRect(p.r);
+        g.setColour(Colours::eerieBlack);
+        g.drawText(p.format, p.r, juce::Justification::left);
+        g.drawText(p.description.name, p.r.withX(Button::namePadding), juce::Justification::left);
+      } else {
+        g.setColour(Colours::isabelline);
+        g.drawText(p.format, p.r, juce::Justification::left);
+        g.drawText(p.description.name, p.r.withX(Button::namePadding), juce::Justification::left);
+      }
+    }
   }
-  setSize(getWidth(), height);
+}
+
+void DefaultView::PluginsPanel::mouseMove(const juce::MouseEvent& e) {
+  auto p = e.position.toInt();
+  auto it = std::find_if(plugins.begin(), plugins.end(), [p] (const auto& p_) { return p_.r.contains(p); });
+
+  if (it != plugins.end()) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor); 
+  } else {
+    setMouseCursor(juce::MouseCursor::NormalCursor); 
+  }
+
+  repaint();
+}
+
+void DefaultView::PluginsPanel::mouseDown(const juce::MouseEvent& e) {
+  for (u32 i = 0; i < plugins.size(); ++i) {
+    const auto& p = plugins[i];
+
+    if (p.visible && p.r.contains(e.position.toInt())) {
+      manager.setPluginID(p.description.createIdentifierString());
+      break;
+    }
+  }
+}
+
+void DefaultView::PluginsPanel::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
+  i32 v = getY() + i32(100.f * w.deltaY);
+  v = std::clamp(v, - getHeight() + DefaultView::height, 0);
+  setTopLeftPosition(getX(), v); 
+}
+
+void DefaultView::PluginsPanel::resized() {
   auto r = getLocalBounds();
-  for (auto button : plugins) {
-    button->setBounds(r.removeFromTop(buttonHeight));
+  r.removeFromLeft(DefaultView::panelPadding);
+  r.removeFromRight(DefaultView::panelPadding);
+  titleBounds = r.removeFromTop(DefaultView::titleHeight);
+
+  for (auto& p : plugins) {
+    if (p.visible) {
+      p.r = r.removeFromTop(DefaultView::buttonHeight);
+    }
   }
 }
 
-void DefaultView::Contents::addPlugin(juce::PluginDescription& pd) {
-  auto button = new juce::TextButton(pd.pluginFormatName + " - " + pd.name);
-  auto id = pd.createIdentifierString();
-  addAndMakeVisible(button);
-  button->onClick = [id, this] { manager.setPluginID(id); };
-  plugins.add(button);
-}
+void DefaultView::PluginsPanel::update(juce::Array<juce::PluginDescription> descriptions) {
+  plugins.clear();
 
-bool DefaultView::Contents::isInterestedInFileDrag(const juce::StringArray&){
-  return true; 
-}
-
-void DefaultView::Contents::filesDropped(const juce::StringArray& files, i32, i32) {
-  juce::OwnedArray<juce::PluginDescription> types;
-  knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
-  for (auto t : types) {
-    addPlugin(*t);
+  for (const auto& t : descriptions) {
+    plugins.push_back(Button { t }); 
+    
+    auto& p = plugins.back();
+    p.format = p.description.pluginFormatName == "AudioUnit" ? "AU" : p.description.pluginFormatName;
   }
+
+  updateManufacturerFilter(filter);
+}
+
+void DefaultView::PluginsPanel::updateManufacturerFilter(const juce::String& m) {
+  filter = m; 
+
+  i32 count = 0;
+  for (auto& p : plugins) {
+    if (p.description.manufacturerName == filter) {
+      ++count;
+      p.visible = true;
+    } else {
+      p.visible = false;
+    }
+  }
+
+  i32 newHeight = DefaultView::buttonHeight * count + DefaultView::titleHeight;
+  setSize(DefaultView::width / 2, newHeight < height ? height : newHeight);
+  resized();
+  repaint();
+}
+
+DefaultView::ManufacturersPanel::ManufacturersPanel(PluginsPanel& p) : pluginsPanel(p) {}
+
+void DefaultView::ManufacturersPanel::paint(juce::Graphics& g) {
+  g.fillAll(Colours::eerieBlack);
+
+  {
+    g.setColour(Colours::isabelline);
+    g.setFont(Fonts::sofiaProRegular.withHeight(titleFontHeight));
+    g.drawText("Manufacturers", titleBounds, juce::Justification::left);
+  }
+  
+  g.setFont(Fonts::sofiaProRegular.withHeight(DefaultView::buttonFontHeight));
+  
+  for (u32 i = 0; i < manufacturers.size(); ++i) {
+    const auto& m = manufacturers[i];
+
+    if (m.r.contains(getMouseXYRelative()) || i == activeButton) {
+      g.setColour(Colours::frenchGray);
+      g.fillRect(m.r);
+      g.setColour(Colours::eerieBlack);
+      g.drawText(m.name, m.r, juce::Justification::left);
+    } else {
+      g.setColour(Colours::isabelline);
+      g.drawText(m.name, m.r, juce::Justification::left);
+    }
+  }
+}
+
+void DefaultView::ManufacturersPanel::mouseMove(const juce::MouseEvent& e) {
+  auto p = e.position.toInt();
+  auto it = std::find_if(manufacturers.begin(), manufacturers.end(), [p] (const auto& m) { return m.r.contains(p); });
+
+  if (it != manufacturers.end()) {
+    setMouseCursor(juce::MouseCursor::PointingHandCursor); 
+  } else {
+    setMouseCursor(juce::MouseCursor::NormalCursor); 
+  }
+
+  repaint();
+}
+
+void DefaultView::ManufacturersPanel::mouseDown(const juce::MouseEvent& e) {
+  for (u32 i = 0; i < manufacturers.size(); ++i) {
+    if (manufacturers[i].r.contains(e.position.toInt())) {
+      activeButton = i;
+      pluginsPanel.updateManufacturerFilter(manufacturers[i].name);
+      break;
+    }
+  }
+}
+
+void DefaultView::ManufacturersPanel::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
+  i32 v = getY() + i32(100.f * w.deltaY);
+  v = std::clamp(v, - getHeight() + DefaultView::height, 0);
+  setTopLeftPosition(getX(), v); 
+}
+
+void DefaultView::ManufacturersPanel::resized() {
+  auto r = getLocalBounds();
+  r.removeFromLeft(DefaultView::panelPadding);
+  r.removeFromRight(DefaultView::panelPadding);
+
+  titleBounds = r.removeFromTop(DefaultView::titleHeight);
+
+  for (auto& m : manufacturers) {
+    m.r = r.removeFromTop(DefaultView::buttonHeight);
+  }
+}
+
+void DefaultView::ManufacturersPanel::update(juce::Array<juce::PluginDescription> descriptions) {
+  juce::StringArray manufacturerNames;
+
+  for (const auto& t : descriptions) {
+    manufacturerNames.add(t.manufacturerName); 
+  }
+
+  manufacturerNames.removeDuplicates(false);
+  manufacturerNames.sortNatural();
+
+  manufacturers.clear();
+  activeButton = 0;
+
+  for (const auto& n : manufacturerNames) {
+    manufacturers.push_back(Button { n, {} });
+  }
+
+  if (!manufacturers.empty()) {
+    pluginsPanel.updateManufacturerFilter(manufacturers.front().name);
+  }
+
+  i32 newHeight = DefaultView::buttonHeight * i32(manufacturers.size()) + DefaultView::titleHeight;
+  setSize(DefaultView::width / 2, newHeight < height ? height : newHeight);
   resized();
 }
 
-DefaultView::DefaultView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) {
-  setScrollBarsShown(true, false);
-  setViewedComponent(new Contents(m, fm, kpl), true);
+DefaultView::DefaultView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) : manager(m), knownPluginList(kpl), formatManager(fm) {
+  addAndMakeVisible(manufacturersPanel);
+  addAndMakeVisible(pluginsPanel);
+
+  setSize(width, height);
 }
 
 void DefaultView::resized() {
-  auto c = getViewedComponent();
-  assert(c);
-  if (c) {
-    c->setSize(getWidth(), c->getHeight()); 
-  }
+  auto r = getLocalBounds();
+  auto l = r.removeFromLeft(r.getWidth() / 2);
+
+  manufacturersPanel.setTopLeftPosition(l.getX(), l.getY()); 
+  pluginsPanel.setTopLeftPosition(r.getX(), r.getY()); 
+
+  manufacturersPanel.update(knownPluginList.getTypes());
+  pluginsPanel.update(knownPluginList.getTypes());
+}
+
+bool DefaultView::isInterestedInFileDrag(const juce::StringArray&){
+  return true; 
+}
+
+void DefaultView::filesDropped(const juce::StringArray& files, i32, i32) {
+  juce::OwnedArray<juce::PluginDescription> types;
+  knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
+  resized();
 }
 
 ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : manager(m), parameter(p) {
@@ -661,7 +824,7 @@ ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : ma
 
   parameter->parameter->addListener(this);
 
-  name.setText(parameter->parameter->getName(150), juce::NotificationType::dontSendNotification);
+  name.setText(parameter->parameter->getName(150), DONT_NOTIFY);
 
   slider.setRange(0, 1);
   slider.setValue(parameter->parameter->getValue());
@@ -671,7 +834,7 @@ ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : ma
   addAndMakeVisible(activeToggle);
 
   slider.onValueChange = [this] { parameter->parameter->setValue(f32(slider.getValue())); };
-  activeToggle.setToggleState(parameter->active, juce::NotificationType::dontSendNotification);
+  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
 
   activeToggle.onClick = [this] { manager.setParameterActive(parameter, !parameter->active); };
 }
@@ -692,7 +855,7 @@ void ParametersView::ParameterView::resized() {
 }
 
 void ParametersView::ParameterView::update() {
-  activeToggle.setToggleState(parameter->active, juce::NotificationType::dontSendNotification);
+  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
 }
 
 void ParametersView::ParameterView::parameterValueChanged(i32, f32 v) {
@@ -763,13 +926,27 @@ void MainView::childBoundsChanged(juce::Component*) {
   setSize(instance->getWidth(), instance->getHeight() + Track::height);
 }
 
+Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
+  addAndMakeVisible(defaultView);
+  
+  useMainView = engine.hasInstance();
+
+  if (useMainView) {
+    showMainView();
+  } else {
+    showDefaultView();
+  }
+
+  setWantsKeyboardFocus(true);
+  setResizable(false, false);
+}
+
 void Editor::paint(juce::Graphics& g) {
   g.fillAll(juce::Colours::black);
 }
 
 void Editor::resized() {
   auto r = getLocalBounds();
-  debugTools.setBounds(r.removeFromTop(debugToolsHeight));
   if (useMainView) {
     mainView->setTopLeftPosition(r.getX(), r.getY());
   } else {
@@ -784,13 +961,13 @@ void Editor::showMainView() {
     addAndMakeVisible(mainView.get());
   }
   defaultView.setVisible(false);
-  setSize(mainView->getWidth(), mainView->getHeight() + debugToolsHeight);
+  setSize(mainView->getWidth(), mainView->getHeight());
 }
 
 void Editor::showDefaultView() {
   jassert(!useMainView && !mainView);
   defaultView.setVisible(true);
-  setSize(width, height);
+  setSize(DefaultView::width, DefaultView::height);
 }
 
 void Editor::createInstanceChangeCallback() {

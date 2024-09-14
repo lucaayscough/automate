@@ -271,18 +271,20 @@ void StateManager::setPluginID(const juce::String& id) {
 
       if (description) {
         auto instance = plugin->apfm.createPluginInstance(*description, proc.getSampleRate(), proc.getBlockSize(), errorMessage);
-        
-        auto processorParameters = instance->getParameters();
-        u32 numParameters = u32(processorParameters.size());
-        parameters.reserve(numParameters);
 
-        for (u32 i = 0; i < numParameters; ++i) {
-          parameters.emplace_back();
-          parameters.back().parameter = processorParameters[i32(i)];
+        if (instance) {
+          auto processorParameters = instance->getParameters();
+          u32 numParameters = u32(processorParameters.size());
+          parameters.reserve(numParameters);
+
+          for (u32 i = 0; i < numParameters; ++i) {
+            parameters.emplace_back();
+            parameters.back().parameter = processorParameters[i32(i)];
+          }
+
+          engine->setPluginInstance(instance);
+          proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
         }
-
-        engine->setPluginInstance(instance);
-        proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
       }
     } else {
       engine->kill();
