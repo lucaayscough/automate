@@ -13,10 +13,33 @@ struct Colours {
   static const juce::Colour jet;
   static const juce::Colour frenchGray;
   static const juce::Colour isabelline;
+  static const juce::Colour glaucous;
+  static const juce::Colour shamrockGreen;
+  static const juce::Colour auburn;
 };
 
 struct Fonts {
   static const juce::FontOptions sofiaProRegular;
+  static const juce::FontOptions sofiaProMedium;
+};
+
+struct Style {
+  static constexpr f32 lineThickness = 1.5f; 
+  static constexpr f32 lineThicknessHighlighted = 2.25f;
+};
+
+static const juce::URL supportURL { "https://patreon.com/lucaayscough" };
+
+struct Button : juce::Button {
+  enum struct Type { trigger, toggle };
+
+  Button(const juce::String&, Type);
+  void paintButton(juce::Graphics&, bool, bool) override;
+  void resized() override;
+
+  juce::Rectangle<f32> rectBounds;
+  juce::Rectangle<f32> textBounds;
+  const juce::Font font { Fonts::sofiaProRegular.withHeight(14) };
 };
 
 struct Grid {
@@ -166,16 +189,39 @@ struct Track : juce::Component, juce::Timer {
   f64 viewportDeltaX = 0;
 };
 
-struct DebugTools : juce::Component {
-  DebugTools(StateManager&);
-  ~DebugTools() override;
+struct ToolBar : juce::Component {
+  struct InfoButton : juce::Button {
+    InfoButton();
+    void paintButton(juce::Graphics&, bool, bool) override;
+    void resized() override;
+
+    juce::Rectangle<f32> ellipseBounds;
+    juce::Rectangle<f32> iBounds;
+    const juce::Font font { Fonts::sofiaProMedium.withHeight(24) };
+  };
+
+  struct KillButton : juce::Button {
+    KillButton();
+    void paintButton(juce::Graphics&, bool, bool) override;
+  };
+
+  ToolBar(StateManager&);
+  ~ToolBar() override;
   void resized() override;
+  void paint(juce::Graphics&) override;
 
   StateManager& manager;
   juce::AudioProcessor& proc { manager.proc };
-  juce::TextButton printStateButton { "Print State" };
-  juce::ToggleButton editModeButton { "Edit Mode" };
-  juce::ToggleButton modulateDiscreteButton { "Modulate Discrete" };
+
+  InfoButton infoButton;
+  Button editModeButton { "Edit Mode", Button::Type::toggle };
+  Button modulateDiscreteButton { "Discrete Mode", Button::Type::toggle };
+  Button supportLinkButton { "Support", Button::Type::trigger };
+  KillButton killButton;
+  static constexpr i32 height = 60;
+  static constexpr i32 buttonWidth = 125;
+  static constexpr i32 padding = 10;
+  static constexpr i32 buttonPadding = 16;
 };
 
 struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
@@ -210,7 +256,6 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
     juce::Rectangle<i32> titleBounds;
     std::vector<Button> plugins;
     juce::String filter;
-    u32 activeButton = 0;
   };
 
   struct ManufacturersPanel : juce::Component {
@@ -292,6 +337,7 @@ struct MainView : juce::Component {
   Track track { manager, uiBridge };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView { manager };
+  ToolBar toolBar { manager };
 };
 
 struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
@@ -315,8 +361,6 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   Engine& engine { proc.engine };
 
   bool useMainView = false;
-
-  //DebugTools debugTools { manager };
 
   std::unique_ptr<MainView> mainView;
   DefaultView defaultView { manager, proc.apfm, proc.knownPluginList };

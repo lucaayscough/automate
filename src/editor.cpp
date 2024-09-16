@@ -8,8 +8,39 @@ const juce::Colour Colours::eerieBlack { 28, 28, 31 };
 const juce::Colour Colours::jet { 43, 45, 49 };
 const juce::Colour Colours::frenchGray { 182, 186, 192 };
 const juce::Colour Colours::isabelline { 239, 233, 231 };
+const juce::Colour Colours::glaucous { 118, 126, 206 };
+const juce::Colour Colours::shamrockGreen { 45, 154, 84};
+const juce::Colour Colours::auburn { 166, 48, 49 };
 
 const juce::FontOptions Fonts::sofiaProRegular { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_regular_otf, BinaryData::sofia_pro_regular_otfSize) };
+const juce::FontOptions Fonts::sofiaProMedium { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_medium_otf, BinaryData::sofia_pro_medium_otfSize) };
+
+
+Button::Button(const juce::String& s, Type t) : juce::Button(s) {
+  if (t == Type::toggle) {
+    setClickingTogglesState(true);
+  }
+
+  setTriggeredOnMouseDown(true);
+}
+
+void Button::paintButton(juce::Graphics& g, bool highlighted, bool) {
+  if (getToggleState()) {
+    g.setColour(Colours::shamrockGreen);
+  } else {
+    g.setColour(Colours::glaucous);
+  }
+
+  g.setFont(font);
+  g.drawText(getButtonText(), textBounds, juce::Justification::centred);
+  g.drawRoundedRectangle(rectBounds, rectBounds.getHeight() / 2.f, highlighted ? Style::lineThicknessHighlighted : Style::lineThickness);
+}
+
+void Button::resized() {
+  rectBounds = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
+  f32 yTranslation = rectBounds.getHeight() * 0.025f;
+  textBounds = rectBounds.translated(0, yTranslation);
+}
 
 bool Grid::reset(f64 mw, TimeSignature _ts) {
   if (std::abs(zoom - zoom_) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
@@ -558,34 +589,82 @@ void Track::mouseDoubleClick(const juce::MouseEvent& e) {
   }
 }
 
-DebugTools::DebugTools(StateManager& m) : manager(m) {
-  manager.debugView = this; 
-
-  addAndMakeVisible(printStateButton);
-  addAndMakeVisible(editModeButton);
-  addAndMakeVisible(modulateDiscreteButton);
-
-  auto plugin = static_cast<Plugin*>(&proc);
-  assert(plugin);
-
-  printStateButton.onClick = [this] { manager.getState(); };
-  editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
-  modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
+ToolBar::InfoButton::InfoButton() : juce::Button({}) {
+  setTriggeredOnMouseDown(true);
 }
 
-DebugTools::~DebugTools() {
+void ToolBar::InfoButton::paintButton(juce::Graphics& g, bool highlighted, bool) {
+  g.setColour(Colours::shamrockGreen);
+
+  if (highlighted) {
+    g.drawEllipse(ellipseBounds, Style::lineThicknessHighlighted);
+  } else {
+    g.drawEllipse(ellipseBounds, Style::lineThickness);
+  }
+
+  g.setFont(font);
+  g.drawText("i", iBounds, juce::Justification::centred);
+}
+
+void ToolBar::InfoButton::resized() {
+  ellipseBounds = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
+  f32 yTranslation = ellipseBounds.getHeight() * 0.05f;
+  iBounds = ellipseBounds.translated(0, yTranslation); 
+}
+
+ToolBar::KillButton::KillButton() : juce::Button({}) {
+  setTriggeredOnMouseDown(true);
+}
+
+void ToolBar::KillButton::paintButton(juce::Graphics& g, bool highlighted, bool) {
+  auto r = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted * 2, Style::lineThicknessHighlighted * 2);
+  g.setColour(Colours::auburn);
+
+  f32 thickness = highlighted ? Style::lineThicknessHighlighted * 2: Style::lineThickness * 2;
+
+  g.drawLine(r.getX(), r.getY(), r.getX() + r.getWidth(), r.getY() + r.getHeight(), thickness);
+  g.drawLine(r.getX() + r.getWidth(), r.getY(), r.getX(), r.getY() + r.getHeight(), thickness);
+}
+
+ToolBar::ToolBar(StateManager& m) : manager(m) {
+  manager.debugView = this; 
+
+  addAndMakeVisible(infoButton);
+  addAndMakeVisible(editModeButton);
+  addAndMakeVisible(modulateDiscreteButton);
+  addAndMakeVisible(supportLinkButton);
+  addAndMakeVisible(killButton);
+
+  infoButton.onClick = {};
+  editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
+  modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
+  supportLinkButton.onClick = [] { supportURL.launchInDefaultBrowser(); };
+  killButton.onClick = [this] { manager.setPluginID({}); };
+}
+
+ToolBar::~ToolBar() {
   manager.debugView = nullptr;
 }
 
-void DebugTools::resized() {
-  auto r = getLocalBounds();
-  auto width = getWidth() / getNumChildComponents();
-  printStateButton.setBounds(r.removeFromLeft(width));
-  editModeButton.setBounds(r.removeFromLeft(width));
-  modulateDiscreteButton.setBounds(r.removeFromLeft(width));
+void ToolBar::resized() {
+  auto r = getLocalBounds().reduced(padding, padding);
+  i32 middleWidth = buttonWidth * 3 + buttonPadding * 2;
+  auto middle = r.reduced((r.getWidth() - middleWidth) / 2, 0);
+
+  infoButton.setBounds(r.removeFromLeft(r.getHeight()));
+  editModeButton.setBounds(middle.removeFromLeft(buttonWidth));
+  middle.removeFromLeft(buttonPadding);
+  modulateDiscreteButton.setBounds(middle.removeFromLeft(buttonWidth));
+  middle.removeFromLeft(buttonPadding);
+  supportLinkButton.setBounds(middle.removeFromLeft(buttonWidth));
+  killButton.setBounds(r.removeFromRight(r.getHeight()));
 
   editModeButton.setToggleState(editMode, DONT_NOTIFY);
   modulateDiscreteButton.setToggleState(modulateDiscrete, DONT_NOTIFY);
+}
+
+void ToolBar::paint(juce::Graphics& g) {
+  g.fillAll(Colours::eerieBlack);
 }
 
 DefaultView::PluginsPanel::PluginsPanel(StateManager& m) : manager(m) {}
@@ -605,7 +684,7 @@ void DefaultView::PluginsPanel::paint(juce::Graphics& g) {
     const auto& p = plugins[i];
 
     if (p.visible) {
-      if (p.r.contains(getMouseXYRelative()) || i == activeButton) {
+      if (p.r.contains(getMouseXYRelative())) {
         g.setColour(Colours::frenchGray);
         g.fillRect(p.r);
         g.setColour(Colours::eerieBlack);
@@ -768,17 +847,30 @@ void DefaultView::ManufacturersPanel::update(juce::Array<juce::PluginDescription
   juce::StringArray manufacturerNames;
 
   for (const auto& t : descriptions) {
-    manufacturerNames.add(t.manufacturerName); 
+    manufacturerNames.add(t.manufacturerName);
   }
 
   manufacturerNames.removeDuplicates(false);
   manufacturerNames.sortNatural();
 
+  juce::String currentManufacturer;
+
+  if (activeButton < manufacturers.size()) {
+    currentManufacturer = manufacturers[activeButton].name;
+  }
+
   manufacturers.clear();
-  activeButton = 0;
 
   for (const auto& n : manufacturerNames) {
     manufacturers.push_back(Button { n, {} });
+  }
+  
+  activeButton = 0;
+  for (u32 i = 0; i < manufacturers.size(); ++i) {
+    if (manufacturers[i].name == currentManufacturer) {
+      activeButton = i;
+      break;
+    }
   }
 
   if (!manufacturers.empty()) {
@@ -903,7 +995,8 @@ void ParametersView::updateParameters() {
 }
 
 MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) : manager(m), uiBridge(b), instance(i) {
-  jassert(i);
+  assert(i);
+  addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
   addChildComponent(parametersView);
@@ -912,6 +1005,7 @@ MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) 
 
 void MainView::resized() {
   auto r = getLocalBounds();
+  toolBar.setBounds(r.removeFromTop(ToolBar::height));
   track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
   instance->setBounds(r.removeFromTop(instance->getHeight()));
   parametersView.setBounds(instance->getBounds());
@@ -923,7 +1017,7 @@ void MainView::toggleParametersView() {
 }
 
 void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth(), instance->getHeight() + Track::height);
+  setSize(instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
