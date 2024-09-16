@@ -39,6 +39,7 @@ juce_generate_juce_header(${PLUGIN_NAME})
 
 juce_add_binary_data(Assets SOURCES
   assets/sofia_pro_regular.otf
+  assets/sofia_pro_medium.otf
 )
 
 target_sources(${PLUGIN_NAME} PRIVATE src/juce_build.cpp)
