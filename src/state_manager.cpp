@@ -43,6 +43,11 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
   if (lk.lockWasGained()) {
     setPluginID(tree["pluginID"]);
+
+    if (engine->hasInstance()) {
+      auto mb = tree["pluginData"].getBinaryData();
+      engine->instance->setStateInformation(mb->getData(), mb->getSize());
+    }
     
     setZoom(tree["zoom"]);
     setEditMode(tree["editMode"]);
@@ -90,10 +95,17 @@ juce::ValueTree StateManager::getState() {
   if (lk.lockWasGained()) {
     juce::ValueTree tree("tree");
 
+    juce::MemoryBlock mb;
+
+    if (engine->hasInstance()) {
+      engine->instance->getStateInformation(mb);
+    }
+
     tree.setProperty("zoom", zoom, nullptr)
         .setProperty("editMode", editMode.load(), nullptr)
         .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
-        .setProperty("pluginID", pluginID, nullptr);
+        .setProperty("pluginID", pluginID, nullptr)
+        .setProperty("pluginData", mb, nullptr);
 
     juce::ValueTree clipsTree("clips");
     for (auto& c : clips) {
