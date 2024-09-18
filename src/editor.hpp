@@ -3,6 +3,7 @@
 #include "change_attachment.hpp"
 #include "plugin.hpp"
 #include "ui_bridge.hpp"
+#include <numbers>
 
 #define DONT_NOTIFY juce::NotificationType::dontSendNotification
 
@@ -28,6 +29,10 @@ struct Style {
   static constexpr f32 lineThicknessHighlighted = 2.25f;
 };
 
+struct Constants {
+  static constexpr i32 kScrollSpeed = 500;
+};
+
 static const juce::URL supportURL { "https://patreon.com/lucaayscough" };
 
 struct Button : juce::Button {
@@ -40,6 +45,20 @@ struct Button : juce::Button {
   juce::Rectangle<f32> rectBounds;
   juce::Rectangle<f32> textBounds;
   const juce::Font font { Fonts::sofiaProRegular.withHeight(14) };
+};
+
+struct Dial : juce::Slider {
+  Dial();
+  void paint(juce::Graphics& g) override;
+  void resized() override;
+  void mouseDown(const juce::MouseEvent& e) override;
+  void mouseUp(const juce::MouseEvent& e) override;
+
+  static constexpr f32 pi = f32(std::numbers::pi);
+  static constexpr f32 tau = 2 * pi;
+  static constexpr f32 offset = pi + pi * 0.25f;
+  static constexpr f32 dotSize = 5;
+  static constexpr f32 dotOffset = dotSize * 0.5f;
 };
 
 struct Grid {
@@ -184,7 +203,6 @@ struct Track : juce::Component, juce::Timer {
 
   bool shiftKeyPressed = false;
   bool cmdKeyPressed = false;
-  static constexpr i32 kScrollSpeed = 500;
   static constexpr i32 kZoomSpeed = 2;
   f64 viewportDeltaX = 0;
 };
@@ -208,7 +226,7 @@ struct ToolBar : juce::Component {
   ToolBar(StateManager&);
   ~ToolBar() override;
   void resized() override;
-  void paint(juce::Graphics&) override;
+  void paint(juce::Graphics& g) override;
 
   StateManager& manager;
   juce::AudioProcessor& proc { manager.proc };
@@ -292,43 +310,69 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
   ManufacturersPanel manufacturersPanel { pluginsPanel};
 };
 
-struct ParametersView : juce::Viewport {
+struct ParametersView : juce::Component {
   struct ParameterView : juce::Component, juce::AudioProcessorParameter::Listener {
+    struct Button : juce::ToggleButton {
+      Button() {
+        setTriggeredOnMouseDown(true);
+      }
+
+      void paintButton(juce::Graphics& g, bool highlighted, bool) {
+        g.setColour(highlighted ? Colours::isabelline : Colours::frenchGray);
+        g.fillRoundedRectangle(getLocalBounds().toFloat(), 2);
+        g.setColour(Colours::eerieBlack);
+        g.setFont(Fonts::sofiaProMedium.withHeight(9));
+
+        if (getToggleState()) {
+          g.drawText("ON", getLocalBounds(), juce::Justification::centred);
+        } else {
+          g.drawText("OFF", getLocalBounds(), juce::Justification::centred);
+        }
+      }
+    };
+
     ParameterView(StateManager&, Parameter*);
     ~ParameterView() override;
-    void paint(juce::Graphics&) override;
     void resized() override;
+    void paint(juce::Graphics& g) override;
     void update();
     void parameterValueChanged(i32, f32) override;
     void parameterGestureChanged(i32, bool) override;
 
     StateManager& manager;
     Parameter* parameter = nullptr;
-    juce::Slider slider;
-    juce::Label name;
-    juce::ToggleButton activeToggle;
-  };
 
-  struct Contents : juce::Component {
-    Contents(StateManager&);
-    void resized() override;
+    Dial dial;
+    juce::Rectangle<i32> nameBounds;
+    Button activeToggle;
 
-    StateManager& manager;
-    juce::OwnedArray<ParameterView> parameters;
+    static constexpr i32 dialSize = 60;
+    static constexpr i32 nameHeight = 20;
+    static constexpr i32 buttonSize = 20;
+    static constexpr i32 padding = 8;
+    static constexpr i32 height = dialSize + nameHeight + buttonSize + 3 * padding;
   };
 
   ParametersView(StateManager&);
   ~ParametersView() override;
   void resized() override;
+  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void updateParameters();
 
   StateManager& manager;
-  Contents c;
+  juce::OwnedArray<ParameterView> parameters;
+  static constexpr i32 padding = 10;
+  i32 viewportHeight = 0;
 };
 
 struct MainView : juce::Component {
   MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*);
   void resized() override;
+
+  void paint(juce::Graphics& g) override {
+    g.fillAll(Colours::eerieBlack); 
+  }
+
   void toggleParametersView();
   void childBoundsChanged(juce::Component*) override;
 
