@@ -17,6 +17,8 @@ struct Colours {
   static const juce::Colour glaucous;
   static const juce::Colour shamrockGreen;
   static const juce::Colour auburn;
+  static const juce::Colour outerSpace;
+  static const juce::Colour atomicTangerine;
 };
 
 struct Fonts {
@@ -162,6 +164,8 @@ struct AutomationLane : juce::Component {
 
   GestureType activeGesture = GestureType::none;
   Selection selection;
+
+  static constexpr f32 lineThickness = 2;
 };
 
 struct Track : juce::Component, juce::Timer {
@@ -205,6 +209,11 @@ struct Track : juce::Component, juce::Timer {
   bool cmdKeyPressed = false;
   static constexpr i32 kZoomSpeed = 2;
   f64 viewportDeltaX = 0;
+  const juce::Font font { Fonts::sofiaProRegular.withHeight(12) };
+
+  static constexpr i32 beatTextWidth = 40;
+  static constexpr i32 beatTextHeight = 20;
+  static constexpr i32 beatTextOffset = 4;
 };
 
 struct ToolBar : juce::Component {
