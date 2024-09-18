@@ -11,6 +11,8 @@ const juce::Colour Colours::isabelline { 239, 233, 231 };
 const juce::Colour Colours::glaucous { 118, 126, 206 };
 const juce::Colour Colours::shamrockGreen { 45, 154, 84};
 const juce::Colour Colours::auburn { 166, 48, 49 };
+const juce::Colour Colours::outerSpace { 66, 70, 76 };
+const juce::Colour Colours::atomicTangerine { 251, 146, 75 };
 
 const juce::FontOptions Fonts::sofiaProRegular { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_regular_otf, BinaryData::sofia_pro_regular_otfSize) };
 const juce::FontOptions Fonts::sofiaProMedium { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_medium_otf, BinaryData::sofia_pro_medium_otfSize) };
@@ -204,9 +206,9 @@ PathView::PathView(StateManager& m, Grid& g, Path* p) : manager(m), grid(g), pat
 
 void PathView::paint(juce::Graphics& g) {
   if (isMouseOverOrDragging()) {
-    g.setColour(juce::Colours::red);
+    g.setColour(Colours::auburn);
   } else {
-    g.setColour(juce::Colours::orange);
+    g.setColour(Colours::atomicTangerine);
   }
   g.fillEllipse(getLocalBounds().toFloat());
 }
@@ -227,7 +229,7 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
 ClipView::ClipView(StateManager& m, Grid& g, Clip* c) : manager(m), grid(g), clip(c) {}
 
 void ClipView::paint(juce::Graphics& g) {
-  g.setColour(juce::Colours::red);
+  g.setColour(Colours::auburn);
   g.fillEllipse(getLocalBounds().toFloat());
 }
 
@@ -264,8 +266,8 @@ void AutomationLane::paint(juce::Graphics& g) {
 
   { // NOTE(luca): draw selection
     auto r = getLocalBounds();
-    g.setColour(juce::Colours::aliceblue);
-    g.setOpacity(0.5);
+    g.setColour(Colours::frenchGray);
+    g.setOpacity(0.2f);
     g.fillRect(i32(selection.start < selection.end ? selection.start : selection.end), r.getY(), i32(std::abs(selection.end - selection.start)), r.getHeight());
     g.setOpacity(1);
   }
@@ -284,9 +286,9 @@ void AutomationLane::paint(juce::Graphics& g) {
       end = !it.next();
 
       if (xHighlightedSegment > x1 && xHighlightedSegment < it.x2) {
-        g.setColour(juce::Colours::red);
+        g.setColour(Colours::auburn);
       } else {
-        g.setColour(juce::Colours::orange);
+        g.setColour(Colours::atomicTangerine);
       }
 
       if (!end) {
@@ -299,7 +301,7 @@ void AutomationLane::paint(juce::Graphics& g) {
           tmp.startNewSubPath(x1, y1);
           tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
         }
-        g.strokePath(tmp, juce::PathStrokeType { 2.f });
+        g.strokePath(tmp, juce::PathStrokeType { lineThickness });
       }
     } while (!end);
   }
@@ -308,7 +310,7 @@ void AutomationLane::paint(juce::Graphics& g) {
     auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };
     auto it = std::find_if(paths.begin(), paths.end(), cond);
     if (it == paths.end()) {
-      g.setColour(juce::Colours::orange);
+      g.setColour(Colours::atomicTangerine);
       g.fillEllipse(hoverBounds);
     }
   }
@@ -333,7 +335,8 @@ void AutomationLane::resized() {
   }
 
   automation = manager.automation;
-  automation.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight()));
+  automation.applyTransform(juce::AffineTransform::scale(f32(zoom), getHeight() - lineThickness));
+  automation.applyTransform(juce::AffineTransform::translation(0, lineThickness / 2));
 }
 
 auto AutomationLane::getAutomationPoint(juce::Point<f32> p) {
@@ -484,32 +487,33 @@ void Track::paint(juce::Graphics& g) {
   //DBG("Track::paint()");
 
   auto r = getLocalBounds();
-  g.fillAll(juce::Colours::grey);
+  g.fillAll(Colours::jet);
 
-  g.setColour(juce::Colours::coral);
+  g.setColour(Colours::eerieBlack);
   g.fillRect(b.timeline);
 
-  g.setColour(juce::Colours::aqua);
+  g.setColour(Colours::eerieBlack);
   g.fillRect(b.presetLaneTop);
   g.fillRect(b.presetLaneBottom);
 
   { // NOTE(luca): beats
-    g.setFont(10);
-    g.setColour(juce::Colours::black);
+    g.setFont(font);
+    g.setColour(Colours::frenchGray);
     for (auto& beat : grid.beats) {
       auto beatText = juce::String(beat.bar);
       if (beat.beat > 1) {
         beatText << "." + juce::String(beat.beat);
       }
-      g.drawText(beatText, i32(beat.x), r.getY(), 40, 20, juce::Justification::left);
+      g.drawText(beatText, i32(beat.x + beatTextOffset), r.getY(), beatTextWidth, beatTextHeight, juce::Justification::left);
     }
-    g.setColour(juce::Colours::darkgrey);
-    for (u32 i = 0; i < grid.lines.size(); ++i) {
+
+    g.setColour(Colours::outerSpace);
+    for (u32 i = 1; i < grid.lines.size(); ++i) {
       g.fillRect(f32(grid.lines[i]), f32(r.getY()), 0.75f, f32(getHeight()));
     }
   }
 
-  g.setColour(juce::Colours::black);
+  g.setColour(Colours::eerieBlack);
   g.fillRect(i32(playheadPosition), r.getY(), 2, getHeight());
 }
 
@@ -1074,7 +1078,7 @@ MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) 
   addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
-  setSize(instance->getWidth(), instance->getHeight() + Track::height);
+  setSize(instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
 }
 
 void MainView::resized() {

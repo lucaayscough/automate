@@ -46,7 +46,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     if (engine->hasInstance()) {
       auto mb = tree["pluginData"].getBinaryData();
-      engine->instance->setStateInformation(mb->getData(), mb->getSize());
+      engine->instance->setStateInformation(mb->getData(), i32(mb->getSize()));
     }
     
     setZoom(tree["zoom"]);
