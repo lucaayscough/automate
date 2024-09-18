@@ -15,7 +15,6 @@ const juce::Colour Colours::auburn { 166, 48, 49 };
 const juce::FontOptions Fonts::sofiaProRegular { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_regular_otf, BinaryData::sofia_pro_regular_otfSize) };
 const juce::FontOptions Fonts::sofiaProMedium { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_medium_otf, BinaryData::sofia_pro_medium_otfSize) };
 
-
 Button::Button(const juce::String& s, Type t) : juce::Button(s) {
   if (t == Type::toggle) {
     setClickingTogglesState(true);
@@ -40,6 +39,47 @@ void Button::resized() {
   rectBounds = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
   f32 yTranslation = rectBounds.getHeight() * 0.025f;
   textBounds = rectBounds.translated(0, yTranslation);
+}
+
+Dial::Dial() {
+  setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
+  setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
+  setScrollWheelEnabled(false);
+}
+
+void Dial::paint(juce::Graphics& g) {
+  auto r = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
+  g.setColour(Colours::glaucous);
+  g.drawEllipse(r, Style::lineThicknessHighlighted);
+
+  { // NOTE(luca) draw dot 
+    f32 v = f32(getValue() * 0.75);
+    f32 period = v * tau;
+
+    f32 d = r.getWidth() * 0.5f;
+    f32 centreOffset = (r.getWidth() - d) * 0.5f;
+
+    f32 x = (std::cos(period - offset) + 1.f) * 0.5f * d + centreOffset + r.getX() - dotOffset;
+    f32 y = (std::sin(period - offset) + 1.f) * 0.5f * d + centreOffset + r.getY() - dotOffset;
+    
+    g.fillEllipse(x, y, dotSize, dotSize);
+  }
+}
+
+void Dial::resized() {
+  assert(getWidth() ==  getHeight());
+}
+
+void Dial::mouseDown(const juce::MouseEvent& e) {
+  setMouseCursor(juce::MouseCursor::NoCursor);
+  juce::Slider::mouseDown(e);
+}
+
+void Dial::mouseUp(const juce::MouseEvent& e) {
+  setMouseCursor(juce::MouseCursor::NormalCursor);
+  juce::Slider::mouseUp(e);
+  auto& desktop = juce::Desktop::getInstance();
+  desktop.setMousePosition(localPointToGlobal(getLocalBounds().getCentre()));
 }
 
 bool Grid::reset(f64 mw, TimeSignature _ts) {
@@ -568,7 +608,7 @@ void Track::zoomTrack(f64 amount) {
 }
 
 void Track::scroll(f64 amount) {
-  viewportDeltaX += amount * kScrollSpeed;
+  viewportDeltaX += amount * Constants::kScrollSpeed;
   viewportDeltaX = std::clamp(viewportDeltaX, f64(-(getWidth() - getParentWidth())), 0.0);
   setTopLeftPosition(i32(viewportDeltaX), getY());
 }
@@ -916,16 +956,14 @@ ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : ma
 
   parameter->parameter->addListener(this);
 
-  name.setText(parameter->parameter->getName(150), DONT_NOTIFY);
+  dial.setRange(0, 1);
+  dial.setValue(parameter->parameter->getValue());
+  dial.setDoubleClickReturnValue(true, parameter->parameter->getDefaultValue());
 
-  slider.setRange(0, 1);
-  slider.setValue(parameter->parameter->getValue());
-
-  addAndMakeVisible(name);
-  addAndMakeVisible(slider);
+  addAndMakeVisible(dial);
   addAndMakeVisible(activeToggle);
 
-  slider.onValueChange = [this] { parameter->parameter->setValue(f32(slider.getValue())); };
+  dial.onValueChange = [this] { parameter->parameter->setValue(f32(dial.getValue())); };
   activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
 
   activeToggle.onClick = [this] { manager.setParameterActive(parameter, !parameter->active); };
@@ -935,15 +973,18 @@ ParametersView::ParameterView::~ParameterView() {
   parameter->parameter->removeListener(this);
 }
 
-void ParametersView::ParameterView::paint(juce::Graphics& g) {
-  g.fillAll(juce::Colours::green);
+void ParametersView::ParameterView::resized() {
+  auto r = getLocalBounds().reduced(padding, padding);
+  activeToggle.setBounds(r.removeFromTop(buttonSize).removeFromLeft(buttonSize));
+  dial.setBounds(r.removeFromTop(dialSize).withSizeKeepingCentre(dialSize, dialSize));
+  r.removeFromTop(padding);
+  nameBounds = r.removeFromTop(nameHeight);
 }
 
-void ParametersView::ParameterView::resized() {
-  auto r = getLocalBounds();
-  activeToggle.setBounds(r.removeFromLeft(50));
-  name.setBounds(r.removeFromLeft(160));
-  slider.setBounds(r);
+void ParametersView::ParameterView::paint(juce::Graphics& g) {
+  g.setColour(Colours::isabelline); 
+  g.setFont(Fonts::sofiaProRegular.withHeight(10));
+  g.drawText(parameter->parameter->getName(1024), nameBounds, juce::Justification::centred);
 }
 
 void ParametersView::ParameterView::update() {
@@ -951,12 +992,15 @@ void ParametersView::ParameterView::update() {
 }
 
 void ParametersView::ParameterView::parameterValueChanged(i32, f32 v) {
-  juce::MessageManager::callAsync([v, this] { slider.setValue(v); repaint(); });
+  juce::MessageManager::callAsync([v, this] { dial.setValue(v); repaint(); });
 }
  
 void ParametersView::ParameterView::parameterGestureChanged(i32, bool) {}
 
-ParametersView::Contents::Contents(StateManager& m) : manager(m) {
+ParametersView::ParametersView(StateManager& m) : manager(m) {
+  DBG("ParametersView::ParametersView()");
+  manager.parametersView = this;
+
   for (auto& p : manager.parameters) {
     if (p.parameter->isAutomatable()) {
       auto param = new ParameterView(manager, &p);
@@ -964,20 +1008,6 @@ ParametersView::Contents::Contents(StateManager& m) : manager(m) {
       parameters.add(param);
     }
   }
-  setSize(getWidth(), i32(parameters.size()) * 20);
-}
-
-void ParametersView::Contents::resized() {
-  auto r = getLocalBounds();
-  for (auto p : parameters) {
-    p->setBounds(r.removeFromTop(20)); 
-  }
-}
-
-ParametersView::ParametersView(StateManager& m) : manager(m), c(m) {
-  DBG("ParametersView::ParametersView()");
-  setViewedComponent(&c, false);
-  manager.parametersView = this;
 }
 
 ParametersView::~ParametersView() {
@@ -985,21 +1015,65 @@ ParametersView::~ParametersView() {
 }
 
 void ParametersView::resized() {
-  c.setSize(getWidth(), c.getHeight());
+  // TODO(luca): clean this up
+  auto r = getLocalBounds();
+  r.removeFromTop(padding);
+  r.removeFromLeft(padding);
+  r.removeFromRight(padding);
+
+  i32 numPerRow = r.getWidth() / ParameterView::height;
+  i32 numRows = parameters.size() / numPerRow;
+
+  if ( parameters.size() % numPerRow != 0) {
+    ++numRows; 
+  }
+
+  i32 remainder = r.getWidth() - numPerRow * ParameterView::height;
+  i32 offset = remainder / numPerRow;
+
+  setSize(getWidth(), numRows * ParameterView::height);
+
+  r = getLocalBounds();
+  r.removeFromTop(padding);
+  r.removeFromLeft(padding);
+  r.removeFromRight(padding);
+
+  i32 count = 0;
+  juce::Rectangle<i32> row;
+
+  for (auto p : parameters) {
+    if (count % numPerRow == 0) {
+      row = r.removeFromTop(ParameterView::height);    
+    }
+    p->setBounds(row.removeFromLeft(ParameterView::height + offset)); 
+    ++count;
+  }
+}
+
+void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
+  i32 y = getY() + i32(Constants::kScrollSpeed * w.deltaY);
+
+  if (y > ToolBar::height) {
+    y = ToolBar::height;
+  } else if (y < - (getHeight() - viewportHeight - ToolBar::height)) {
+    y = - (getHeight() - viewportHeight - ToolBar::height);
+  }
+
+  setTopLeftPosition(getX(), y);
 }
 
 void ParametersView::updateParameters() {
-  for (auto& p : c.parameters) {
+  for (auto& p : parameters) {
     p->update();
   }
 }
 
 MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) : manager(m), uiBridge(b), instance(i) {
   assert(i);
+  addChildComponent(parametersView);
   addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
-  addChildComponent(parametersView);
   setSize(instance->getWidth(), instance->getHeight() + Track::height);
 }
 
@@ -1007,8 +1081,13 @@ void MainView::resized() {
   auto r = getLocalBounds();
   toolBar.setBounds(r.removeFromTop(ToolBar::height));
   track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
-  instance->setBounds(r.removeFromTop(instance->getHeight()));
-  parametersView.setBounds(instance->getBounds());
+
+  auto i = r.removeFromTop(instance->getHeight()); 
+  instance->setBounds(i);
+
+  parametersView.setTopLeftPosition(i.getX(), i.getY());
+  parametersView.setSize(i.getWidth(), parametersView.getHeight());
+  parametersView.viewportHeight = i.getHeight();
 }
 
 void MainView::toggleParametersView() {
@@ -1036,7 +1115,7 @@ Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
 }
 
 void Editor::paint(juce::Graphics& g) {
-  g.fillAll(juce::Colours::black);
+  g.fillAll(Colours::eerieBlack);
 }
 
 void Editor::resized() {
