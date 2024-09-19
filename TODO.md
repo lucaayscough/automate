@@ -3,7 +3,6 @@
 ## Plugins view 
 
 - customised plug-in loader/scanner
-- add manufacturer panel 
 
 ## Track
 
@@ -22,11 +21,10 @@
 ## UI
 
 - design ui
+- add build info
+- add help/info panel
 
 ## Features
 
 - maybe random should sample from [-1,1] and offset the parameter rather than directly set to [0,1]
 - add spread slider
-- add plugin state binary dump
-- add build info
-- add help/info panel

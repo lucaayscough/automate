@@ -813,6 +813,7 @@ void DefaultView::PluginsPanel::updateManufacturerFilter(const juce::String& m) 
   }
 
   i32 newHeight = DefaultView::buttonHeight * count + DefaultView::titleHeight;
+  setTopLeftPosition(getX(), 0);
   setSize(DefaultView::width / 2, newHeight < height ? height : newHeight);
   resized();
   repaint();
