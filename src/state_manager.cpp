@@ -7,7 +7,7 @@
 namespace atmt {
 
 static juce::String pluginID = "";
-static f64 zoom = 100;
+static f32 zoom = 100;
 static std::atomic<bool> editMode = false;
 static std::atomic<bool> modulateDiscrete = false;
 static std::atomic<bool> captureParameterChanges = false;
@@ -18,7 +18,7 @@ static std::random_device randDevice;
 static std::mt19937 randGen { randDevice() };
 static std::normal_distribution<f32> rand_ { 0.0, 1.0 };
 
-inline bool isNormalised(f64 v) {
+inline bool isNormalised(f32 v) {
   return v >= 0.0 && v <= 1.0;
 }
 
@@ -136,7 +136,7 @@ juce::ValueTree StateManager::getState() {
   return {};
 }
 
-void StateManager::addClip(f64 x, f64 y) {
+void StateManager::addClip(f32 x, f32 y) {
   JUCE_ASSERT_MESSAGE_THREAD
   DBG("StateManager::addClip()");
 
@@ -175,15 +175,15 @@ void StateManager::removeClip(Clip* c) {
   updateTrack();
 }
 
-void StateManager::moveClip(Clip* c, f64 x, f64 y, f64 curve) {
+void StateManager::moveClip(Clip* c, f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(c);
 
   {
     ScopedProcLock lk(proc);
     c->x = x < 0 ? 0 : x;
-    c->y = std::clamp(y, 0.0, 1.0);
-    c->c = std::clamp(curve, 0.0, 1.0);
+    c->y = std::clamp(y, 0.f, 1.f);
+    c->c = std::clamp(curve, 0.f, 1.f);
   }
 
   updateTrack();
@@ -213,7 +213,7 @@ bool StateManager::shouldProcessParameter(Parameter* p) {
   return false;
 }
 
-void StateManager::addPath(double x, double y) {
+void StateManager::addPath(f32 x, f32 y) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(x >= 0 && y >= 0 && y <= 1);
 
@@ -239,14 +239,14 @@ void StateManager::removePath(Path* p) {
   updateTrack();
 }
 
-void StateManager::movePath(Path* p, f64 x, f64 y, f64 c) {
+void StateManager::movePath(Path* p, f32 x, f32 y, f32 c) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   {
     ScopedProcLock lk(proc);
     p->x = x < 0 ? 0 : x;
-    p->y = std::clamp(y, 0.0, 1.0);
-    p->c = std::clamp(c, 0.0, 1.0);
+    p->y = std::clamp(y, 0.f, 1.f);
+    p->c = std::clamp(c, 0.f, 1.f);
   }
 
   updateTrack(); 
@@ -304,7 +304,7 @@ void StateManager::setPluginID(const juce::String& id) {
   }
 }
 
-void StateManager::setZoom(f64 z) {
+void StateManager::setZoom(f32 z) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   zoom = z;
@@ -369,7 +369,7 @@ void StateManager::clear() {
   updateTrack();
 }
 
-auto StateManager::findAutomationPoint(f64 x) {
+auto StateManager::findAutomationPoint(f32 x) {
   for (auto it = points.begin(); it != points.end(); ++it) {
     if (it != points.begin()) {
       auto& a = *std::prev(it);
@@ -421,9 +421,9 @@ void StateManager::updateAutomation() {
     // TODO(luca): tidy this 
     for (auto& p : points) {
       auto c = automation.getCurrentPosition();
-      f64 curve = p.c;
-      f64 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.0 - curve); 
-      f64 cy = (c.y < p.y ? c.y : f64(p.y)) + std::abs(p.y - c.y) * (1.0 - curve);
+      f32 curve = p.c;
+      f32 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.f - curve); 
+      f32 cy = (c.y < p.y ? c.y : f32(p.y)) + std::abs(p.y - c.y) * (1.f - curve);
       automation.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
     }
   }

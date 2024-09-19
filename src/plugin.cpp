@@ -23,7 +23,7 @@ Plugin::~Plugin() {
 void Plugin::prepareToPlay(double sampleRate, int blockSize) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(sampleRate > 0 && blockSize > 0);
-  engine.prepare(sampleRate, blockSize);
+  engine.prepare(f32(sampleRate), blockSize);
 }
 
 void Plugin::releaseResources() {}
@@ -45,15 +45,15 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
       auto ppq = position->getPpqPosition();
       auto sec = position->getTimeInSeconds();
       if (ppq.hasValue()) {
-        uiBridge.playheadPosition.store(*ppq);
+        uiBridge.playheadPosition.store(f32(*ppq));
       } else {
         // TODO(luca): we need a way of converting seconds to ppq
-        uiBridge.playheadPosition.store(*sec);
+        uiBridge.playheadPosition.store(f32(*sec));
       }
 
       auto bpm = position->getBpm();
       if (bpm.hasValue()) {
-        uiBridge.bpm = *bpm; 
+        uiBridge.bpm = f32(*bpm);
       }
 
       auto timeSignature = position->getTimeSignature();
