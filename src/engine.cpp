@@ -18,7 +18,7 @@ void Engine::kill() {
   proc.suspendProcessing(false);
 }
 
-void Engine::prepare(double sampleRate, int blockSize) {
+void Engine::prepare(f32 sampleRate, i32 blockSize) {
   if (instance) {
     instance->prepareToPlay(sampleRate, blockSize);
     instance->addListener(this);
@@ -69,14 +69,14 @@ void Engine::prepare(double sampleRate, int blockSize) {
 void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
     if (!editMode) {
-      auto time = double(uiBridge.playheadPosition);
-      auto lerpPos = getYFromX(manager.automation, time);
+      f32 time = uiBridge.playheadPosition;
+      f32 lerpPos = getYFromX(manager.automation, time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
 
       ClipPair clipPair;
 
       {
-        f64 closest = u32(-1);
+        f32 closest = u32(-1);
 
         auto& clips = manager.clips;
 
@@ -118,7 +118,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
           }
         }
       } else if (clipPair.a && clipPair.b) {
-        f64 position = bool(clipPair.a->y) ? 1.0 - lerpPos : lerpPos;
+        f32 position = bool(clipPair.a->y) ? 1.f - lerpPos : lerpPos;
 
         auto& beginParameters = clipPair.a->parameters;
         auto& endParameters   = clipPair.b->parameters;
@@ -131,9 +131,9 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
               assert(isNormalised(beginParameters[i]));
               assert(isNormalised(endParameters[i]));
 
-              auto distance  = endParameters[i] - beginParameters[i];
-              auto increment = distance * position; 
-              auto newValue  = beginParameters[i] + increment;
+              f32 distance  = endParameters[i] - beginParameters[i];
+              f32 increment = distance * position; 
+              f32 newValue  = beginParameters[i] + increment;
               assert(isNormalised(newValue));
 
               if (std::abs(distance) > EPSILON) {

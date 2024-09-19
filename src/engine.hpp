@@ -18,7 +18,7 @@ struct Engine : juce::AudioProcessorListener {
   ~Engine() override;
 
   void kill();
-  void prepare(f64, i32);
+  void prepare(f32, i32);
   void process(juce::AudioBuffer<f32>&, juce::MidiBuffer&);
 
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>&);

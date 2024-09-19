@@ -67,7 +67,7 @@ struct Grid {
   struct Beat {
     u32 bar = 1;
     u32 beat = 1;
-    f64 x = 0;
+    f32 x = 0;
   };
 
   struct TimeSignature {
@@ -75,9 +75,9 @@ struct Grid {
     u32 denominator = 4;
   };
 
-  bool reset(f64, TimeSignature);
+  bool reset(f32, TimeSignature);
   void reset();
-  f64 snap(f64);
+  f32 snap(f32);
 
   void narrow();
   void widen();
@@ -85,17 +85,17 @@ struct Grid {
   void toggleSnap();
 
   TimeSignature ts;
-  f64 maxWidth = 0;
+  f32 maxWidth = 0;
 
-  static constexpr f64 intervalMin = 40;
-  f64 snapInterval = 0;
+  static constexpr f32 intervalMin = 40;
+  f32 snapInterval = 0;
   bool tripletMode = false;
   i32 gridWidth = 0;
   bool snapOn = true;
-  f64 zoom_ = 0;
+  f32 zoom_ = 0;
 
   std::vector<Beat> beats;
-  std::vector<f64> lines;
+  std::vector<f32> lines;
 };
 
 struct PathView : juce::Component {
@@ -126,7 +126,7 @@ struct ClipView : juce::Component {
   static constexpr i32 trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
-  f64 mouseDownOffset = 0;
+  f32 mouseDownOffset = 0;
 };
 
 struct AutomationLane : juce::Component {
@@ -138,7 +138,7 @@ struct AutomationLane : juce::Component {
   void resized() override;
   
   auto getAutomationPoint(juce::Point<f32>);
-  f64 getDistanceFromPoint(juce::Point<f32>);
+  f32 getDistanceFromPoint(juce::Point<f32>);
 
   void mouseMove(const juce::MouseEvent&) override;
   void mouseDown(const juce::MouseEvent&) override;
@@ -153,14 +153,14 @@ struct AutomationLane : juce::Component {
   juce::OwnedArray<PathView> paths;
 
   juce::Rectangle<f32> hoverBounds;
-  f64 xHighlightedSegment = -1;
+  f32 xHighlightedSegment = -1;
   static constexpr i32 mouseIntersectDistance = 5;
   static constexpr i32 mouseOverDistance = 15;
   bool optKeyPressed = false;
   juce::Point<i32> lastMouseDragOffset;
 
-  f64 kDragIncrement = 50;
-  f64 bendMouseDistanceProportion = 0;
+  f32 kDragIncrement = 50;
+  f32 bendMouseDistanceProportion = 0;
 
   GestureType activeGesture = GestureType::none;
   Selection selection;
@@ -179,8 +179,8 @@ struct Track : juce::Component, juce::Timer {
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
-  void zoomTrack(f64);
-  void scroll(f64);
+  void zoomTrack(f32);
+  void scroll(f32);
 
   StateManager& manager;
   UIBridge& uiBridge;
@@ -189,12 +189,12 @@ struct Track : juce::Component, juce::Timer {
   juce::OwnedArray<ClipView> clips;
 
   AutomationLane automationLane { manager, grid };
-  static constexpr f64 zoomDeltaScale = 5;
-  f64 playheadPosition = 0;
+  static constexpr f32 zoomDeltaScale = 5;
+  f32 playheadPosition = 0;
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
-  static constexpr i32 height = 200;
+  static constexpr i32 height = 300;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
@@ -208,7 +208,7 @@ struct Track : juce::Component, juce::Timer {
   bool shiftKeyPressed = false;
   bool cmdKeyPressed = false;
   static constexpr i32 kZoomSpeed = 2;
-  f64 viewportDeltaX = 0;
+  f32 viewportDeltaX = 0;
   const juce::Font font { Fonts::sofiaProRegular.withHeight(12) };
 
   static constexpr i32 beatTextWidth = 40;

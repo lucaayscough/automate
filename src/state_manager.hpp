@@ -22,22 +22,22 @@ struct ScopedProcLock {
 };
 
 struct Path {
-  f64 x = 0;
-  f64 y = 0;
-  f64 c = 0.5;
+  f32 x = 0;
+  f32 y = 0;
+  f32 c = 0.5;
 };
 
 struct Clip {
   std::vector<f32> parameters; 
-  f64 x = 0;
-  f64 y = 0;
-  f64 c = 0.5;
+  f32 x = 0;
+  f32 y = 0;
+  f32 c = 0.5;
 };
 
 struct AutomationPoint {
-  f64 x = 0;
-  f64 y = 0;
-  f64 c = 0.5;
+  f32 x = 0;
+  f32 y = 0;
+  f32 c = 0.5;
   Clip* clip = nullptr;
   Path* path = nullptr;
 };
@@ -48,8 +48,8 @@ struct Parameter {
 };
 
 struct Selection {
-  f64 start = 0;
-  f64 end = 0;
+  f32 start = 0;
+  f32 end = 0;
 };
 
 struct Plugin;
@@ -64,20 +64,20 @@ struct StateManager {
   void replace(const juce::ValueTree&);
   juce::ValueTree getState();
 
-  void addClip(f64, f64);
+  void addClip(f32, f32);
   void removeClip(Clip* c);
-  void moveClip(Clip*, f64, f64, f64);
+  void moveClip(Clip*, f32, f32, f32);
 
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);
 
-  void addPath(f64, f64);
+  void addPath(f32, f32);
   void removePath(Path*);
-  void movePath(Path*, f64, f64, f64);
+  void movePath(Path*, f32, f32, f32);
   void removeSelection(Selection selection);
 
   void setPluginID(const juce::String&);
-  void setZoom(f64);
+  void setZoom(f32);
   void setEditMode(bool);
   void setModulateDiscrete(bool);
 
@@ -86,7 +86,7 @@ struct StateManager {
 
   void clear();
 
-  auto findAutomationPoint(f64);
+  auto findAutomationPoint(f32);
 
   void updateParametersView();
   void updateAutomation();

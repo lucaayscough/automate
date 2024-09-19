@@ -84,7 +84,7 @@ void Dial::mouseUp(const juce::MouseEvent& e) {
   desktop.setMousePosition(localPointToGlobal(getLocalBounds().getCentre()));
 }
 
-bool Grid::reset(f64 mw, TimeSignature _ts) {
+bool Grid::reset(f32 mw, TimeSignature _ts) {
   if (std::abs(zoom - zoom_) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
     maxWidth = mw;
     ts = _ts;
@@ -104,7 +104,7 @@ void Grid::reset() {
   u32 barCount = 0;
   u32 beatCount = 0;
 
-  f64 pxInterval = zoom / (ts.denominator / 4.0);
+  f32 pxInterval = zoom / (ts.denominator / 4.f);
   u32 beatInterval = 1;
   u32 barInterval = ts.numerator;
 
@@ -120,16 +120,16 @@ void Grid::reset() {
 
   pxInterval *= beatInterval;
 
-  f64 pxTripletInterval = pxInterval * 2 / 3;
-  f64 x = 0;
-  f64 tx = 0;
+  f32 pxTripletInterval = pxInterval * 2 / 3;
+  f32 x = 0;
+  f32 tx = 0;
   u32 numSubIntervals = u32(std::abs(gridWidth)) * 2;
   
-  f64 subInterval = 0;
+  f32 subInterval = 0;
   if (gridWidth < 0) {
-    subInterval = tripletMode ? pxTripletInterval : pxInterval / f64(numSubIntervals);
+    subInterval = tripletMode ? pxTripletInterval : pxInterval / f32(numSubIntervals);
   } else if (gridWidth > 0) {
-    subInterval = tripletMode ? pxTripletInterval : pxInterval / (1.0 / f64(numSubIntervals));
+    subInterval = tripletMode ? pxTripletInterval : pxInterval / (1.f / f32(numSubIntervals));
   } else {
     subInterval = tripletMode ? pxTripletInterval : pxInterval; 
   }
@@ -142,7 +142,7 @@ void Grid::reset() {
 
     if (gridWidth < 0) {
       for (u32 i = 0; i < numSubIntervals; ++i) {
-        lines.push_back((tripletMode ? tx : x) + f64(i) * subInterval);
+        lines.push_back((tripletMode ? tx : x) + f32(i) * subInterval);
       }
       lines.push_back(tripletMode ? tx : x);
     } else if (gridWidth > 0) {
@@ -169,10 +169,10 @@ void Grid::reset() {
   snapInterval = subInterval;
 }
 
-f64 Grid::snap(f64 time) {
+f32 Grid::snap(f32 time) {
   if (snapOn) {
     i32 div = i32(time / snapInterval);
-    f64 left  = div * snapInterval;
+    f32 left  = div * snapInterval;
     return time - left < snapInterval / 2 ? left : left + snapInterval;
   } else {
     return time;
@@ -216,9 +216,9 @@ void PathView::paint(juce::Graphics& g) {
 void PathView::mouseDrag(const juce::MouseEvent& e) {
   // TODO(luca): simplify this
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  auto newX = f64(grid.snap(parentLocalPoint.x) / zoom);
-  auto newY = f64(parentLocalPoint.y / getParentComponent()->getHeight());
-  newY = std::clamp(newY, 0.0, 1.0);
+  auto newX = f32(grid.snap(parentLocalPoint.x) / zoom);
+  auto newY = f32(parentLocalPoint.y / getParentComponent()->getHeight());
+  newY = std::clamp(newY, 0.f, 1.f);
   manager.movePath(path, newX >= 0 ? newX : 0, newY, path->c);
 }
 
@@ -248,8 +248,8 @@ void ClipView::mouseUp(const juce::MouseEvent&) {
 
 void ClipView::mouseDrag(const juce::MouseEvent& e) {
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  f64 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
-  f64 x = grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom;
+  f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
+  f32 x = grid.snap(parentLocalPoint.x - mouseDownOffset) / zoom;
   manager.moveClip(clip, x, y, clip->c);
 }
 
@@ -345,7 +345,7 @@ auto AutomationLane::getAutomationPoint(juce::Point<f32> p) {
   return np;
 }
 
-f64 AutomationLane::getDistanceFromPoint(juce::Point<f32> p) {
+f32 AutomationLane::getDistanceFromPoint(juce::Point<f32> p) {
   return p.getDistanceFrom(getAutomationPoint(p));
 }
 
@@ -392,7 +392,11 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else {
     activeGesture = GestureType::select;
-    selection = { grid.snap(e.position.x), grid.snap(e.position.x) };
+
+    f32 start = grid.snap(e.position.x);
+    f32 end = grid.snap(e.position.x); 
+
+    selection = { start < 0 ? 0 : start, end < 0 ? 0 : end };
   }
 }
 
@@ -417,9 +421,9 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     assert(p->clip || p->path);
 
     auto offset = e.getOffsetFromDragStart();
-    auto y = f64(lastMouseDragOffset.y - offset.y);
+    auto y = f32(lastMouseDragOffset.y - offset.y);
     auto increment = y / kDragIncrement;
-    auto newValue = std::clamp(p->c + increment, 0.0, 1.0);
+    auto newValue = std::clamp(p->c + increment, 0.f, 1.f);
     assert(newValue >= 0 && newValue <= 1);
 
     if (p->clip) {
@@ -434,9 +438,9 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     assert(p->clip || p->path);
 
     auto offset = e.getOffsetFromDragStart();
-    auto y = f64(lastMouseDragOffset.y - offset.y);
+    auto y = f32(lastMouseDragOffset.y - offset.y);
     auto increment = y / kDragIncrement;
-    auto newValue = std::clamp(p->y - increment, 0.0, 1.0);
+    auto newValue = std::clamp(p->y - increment, 0.f, 1.f);
 
     if (p->path) {
       manager.movePath(p->path, p->x, newValue, p->c);
@@ -445,14 +449,15 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     if (p != manager.points.begin()) {
       auto prev = std::prev(p);
       if (prev->path) {
-        newValue = std::clamp(prev->y - increment, 0.0, 1.0);
+        newValue = std::clamp(prev->y - increment, 0.f, 1.f);
         manager.movePath(prev->path, prev->x, newValue, prev->c);
       }
     }
 
     lastMouseDragOffset = offset;
   } else if (activeGesture == GestureType::select) {
-    selection.end = grid.snap(e.position.x);
+    f32 end = grid.snap(e.position.x); 
+    selection.end = end < 0 ? 0 : end;
     repaint();
   } else {
     // TODO(luca): occurs when a path has just been added
@@ -572,7 +577,7 @@ void Track::resetGrid() {
 }
 
 i32 Track::getTrackWidth() {
-  f64 width = 0;
+  f32 width = 0;
 
   for (auto& c : manager.clips) {
     if (c.x > width) {
@@ -590,19 +595,19 @@ i32 Track::getTrackWidth() {
   return width > getParentWidth() ? int(width) : getParentWidth();
 }
 
-void Track::zoomTrack(f64 amount) {
+void Track::zoomTrack(f32 amount) {
   //DBG("Track::zoomTrack()");
-  f64 mouseX = getMouseXYRelative().x;
-  f64 z0 = zoom;
-  f64 z1 = z0 + (amount * kZoomSpeed * (z0 / zoomDeltaScale)); 
-  f64 x0 = -viewportDeltaX;
-  f64 x1 = mouseX;
-  f64 d = x1 - x0;
-  f64 p = x1 / z0;
-  f64 X1 = p * z1;
-  f64 X0 = X1 - d;
+  f32 mouseX = getMouseXYRelative().x;
+  f32 z0 = zoom;
+  f32 z1 = z0 + (amount * kZoomSpeed * (z0 / zoomDeltaScale)); 
+  f32 x0 = -viewportDeltaX;
+  f32 x1 = mouseX;
+  f32 d = x1 - x0;
+  f32 p = x1 / z0;
+  f32 X1 = p * z1;
+  f32 X0 = X1 - d;
   viewportDeltaX = -X0;
-  viewportDeltaX = std::clamp(-X0, f64(-(getTrackWidth() - getParentWidth())), 0.0);
+  viewportDeltaX = std::clamp(-X0, f32(-(getTrackWidth() - getParentWidth())), 0.f);
   manager.setZoom(z1 <= 0 ? EPSILON : z1);
   setBounds(i32(viewportDeltaX), getY(), getTrackWidth(), getHeight());
   jassert(std::abs(viewportDeltaX) + getParentWidth() <= getTrackWidth());
@@ -611,9 +616,9 @@ void Track::zoomTrack(f64 amount) {
   repaint();
 }
 
-void Track::scroll(f64 amount) {
+void Track::scroll(f32 amount) {
   viewportDeltaX += amount * Constants::kScrollSpeed;
-  viewportDeltaX = std::clamp(viewportDeltaX, f64(-(getWidth() - getParentWidth())), 0.0);
+  viewportDeltaX = std::clamp(viewportDeltaX, f32(-(getWidth() - getParentWidth())), 0.f);
   setTopLeftPosition(i32(viewportDeltaX), getY());
 }
 
