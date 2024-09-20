@@ -50,7 +50,7 @@ struct Button : juce::Button {
 };
 
 struct Dial : juce::Slider {
-  Dial();
+  Dial(const Parameter*);
   void paint(juce::Graphics& g) override;
   void resized() override;
   void mouseDown(const juce::MouseEvent& e) override;
@@ -61,6 +61,8 @@ struct Dial : juce::Slider {
   static constexpr f32 offset = pi + pi * 0.25f;
   static constexpr f32 dotSize = 5;
   static constexpr f32 dotOffset = dotSize * 0.5f;
+
+  juce::Colour colour;
 };
 
 struct Grid {
@@ -351,7 +353,7 @@ struct ParametersView : juce::Component {
     StateManager& manager;
     Parameter* parameter = nullptr;
 
-    Dial dial;
+    Dial dial { parameter };
     juce::Rectangle<i32> nameBounds;
     Button activeToggle;
 

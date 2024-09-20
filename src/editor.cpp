@@ -43,15 +43,26 @@ void Button::resized() {
   textBounds = rectBounds.translated(0, yTranslation);
 }
 
-Dial::Dial() {
+Dial::Dial(const Parameter* parameter) {
   setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
   setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
   setScrollWheelEnabled(false);
+
+  setRange(0, 1);
+  setValue(parameter->parameter->getValue());
+  setDoubleClickReturnValue(true, parameter->parameter->getDefaultValue());
+  onValueChange = [parameter, this] { parameter->parameter->setValue(f32(getValue())); };
+
+  if (parameter->active) {
+    colour = Colours::shamrockGreen;
+  } else {
+    colour = Colours::auburn;
+  }
 }
 
 void Dial::paint(juce::Graphics& g) {
   auto r = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
-  g.setColour(Colours::glaucous);
+  g.setColour(colour);
   g.drawEllipse(r, Style::lineThicknessHighlighted);
 
   { // NOTE(luca) draw dot 
@@ -966,16 +977,10 @@ ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : ma
 
   parameter->parameter->addListener(this);
 
-  dial.setRange(0, 1);
-  dial.setValue(parameter->parameter->getValue());
-  dial.setDoubleClickReturnValue(true, parameter->parameter->getDefaultValue());
-
   addAndMakeVisible(dial);
   addAndMakeVisible(activeToggle);
 
-  dial.onValueChange = [this] { parameter->parameter->setValue(f32(dial.getValue())); };
   activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
-
   activeToggle.onClick = [this] { manager.setParameterActive(parameter, !parameter->active); };
 }
 
@@ -998,7 +1003,17 @@ void ParametersView::ParameterView::paint(juce::Graphics& g) {
 }
 
 void ParametersView::ParameterView::update() {
-  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
+  bool active = parameter->active;
+
+  activeToggle.setToggleState(active, DONT_NOTIFY);
+
+  if (active) {
+    dial.colour = Colours::shamrockGreen;
+  } else {
+    dial.colour = Colours::auburn;
+  }
+
+  repaint();
 }
 
 void ParametersView::ParameterView::parameterValueChanged(i32, f32 v) {
