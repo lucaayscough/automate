@@ -62,7 +62,7 @@ struct Dial : juce::Slider {
   static constexpr f32 dotSize = 5;
   static constexpr f32 dotOffset = dotSize * 0.5f;
 
-  juce::Colour colour;
+  const Parameter* parameter;
 };
 
 struct Grid {

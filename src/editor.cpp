@@ -43,7 +43,7 @@ void Button::resized() {
   textBounds = rectBounds.translated(0, yTranslation);
 }
 
-Dial::Dial(const Parameter* parameter) {
+Dial::Dial(const Parameter* p) : parameter(p) {
   setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
   setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
   setScrollWheelEnabled(false);
@@ -51,18 +51,18 @@ Dial::Dial(const Parameter* parameter) {
   setRange(0, 1);
   setValue(parameter->parameter->getValue());
   setDoubleClickReturnValue(true, parameter->parameter->getDefaultValue());
-  onValueChange = [parameter, this] { parameter->parameter->setValue(f32(getValue())); };
-
-  if (parameter->active) {
-    colour = Colours::shamrockGreen;
-  } else {
-    colour = Colours::auburn;
-  }
+  onValueChange = [this] { parameter->parameter->setValue(f32(getValue())); };
 }
 
 void Dial::paint(juce::Graphics& g) {
   auto r = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
-  g.setColour(colour);
+
+  if (parameter->active) {
+    g.setColour(Colours::shamrockGreen);
+  } else {
+    g.setColour(Colours::auburn);
+  }
+
   g.drawEllipse(r, Style::lineThicknessHighlighted);
 
   { // NOTE(luca) draw dot 
@@ -1003,16 +1003,7 @@ void ParametersView::ParameterView::paint(juce::Graphics& g) {
 }
 
 void ParametersView::ParameterView::update() {
-  bool active = parameter->active;
-
-  activeToggle.setToggleState(active, DONT_NOTIFY);
-
-  if (active) {
-    dial.colour = Colours::shamrockGreen;
-  } else {
-    dial.colour = Colours::auburn;
-  }
-
+  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
   repaint();
 }
 
