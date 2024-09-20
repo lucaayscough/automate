@@ -624,12 +624,17 @@ void Track::zoomTrack(f32 amount) {
   f32 X1 = p * z1;
   f32 X0 = X1 - d;
 
-  viewportDeltaX = -X0;
-  viewportDeltaX = std::clamp(-X0, f32(-(getTrackWidth() - getParentWidth())), 0.f);
   manager.setZoom(z1 <= 0 ? EPSILON : z1);
-  setBounds(i32(viewportDeltaX), getY(), getTrackWidth(), getHeight());
 
-  assert(std::abs(viewportDeltaX) + getParentWidth() <= getTrackWidth());
+  f32 trackWidth = getTrackWidth();
+  f32 parentWidth = getParentWidth();
+
+  viewportDeltaX = std::clamp(-X0, -(trackWidth - parentWidth), 0.f);
+
+  setBounds(i32(viewportDeltaX), getY(), i32(trackWidth), getHeight());
+
+  assert(viewportDeltaX <= 0);
+  assert(trackWidth + viewportDeltaX >= parentWidth);
 
   oldSelection.start *= zoom;
   oldSelection.end *= zoom;
