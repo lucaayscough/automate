@@ -457,15 +457,13 @@ void StateManager::updateAutomation() {
       points[i + n].path = &paths[i];
     }
 
-    std::sort(points.begin(), points.end(), [] (AutomationPoint& a, AutomationPoint& b) { return a.x < b.x; });
+    std::sort(points.begin(), points.end(), [] (const AutomationPoint& a, const AutomationPoint& b) { return a.x < b.x; });
 
-    // TODO(luca): tidy this 
-    for (auto& p : points) {
-      auto c = automation.getCurrentPosition();
-      f32 curve = p.c;
-      f32 cx = c.x + (p.x - c.x) * (c.y < p.y ? curve : 1.f - curve); 
-      f32 cy = (c.y < p.y ? c.y : f32(p.y)) + std::abs(p.y - c.y) * (1.f - curve);
-      automation.quadraticTo(f32(cx), f32(cy), f32(p.x), f32(p.y));
+    for (auto& p2 : points) {
+      auto p1 = automation.getCurrentPosition();
+      f32 cx = p1.x + (p2.x - p1.x) * (p1.y < p2.y ? p2.c : 1.f - p2.c); 
+      f32 cy = (p1.y < p2.y ? p1.y : p2.y) + std::abs(p2.y - p1.y) * (1.f - p2.c);
+      automation.quadraticTo(cx, cy, p2.x, p2.y);
     }
   }
 
