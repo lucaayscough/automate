@@ -233,7 +233,7 @@ void StateManager::removePath(Path* p) {
 
   {
     ScopedProcLock lk(proc);
-    std::erase_if(paths, [p] (Path& o) { return p == &o; });
+    std::erase_if(paths, [p] (const Path& o) { return p == &o; });
   }
 
   updateTrack();
@@ -255,12 +255,19 @@ void StateManager::movePath(Path* p, f32 x, f32 y, f32 c) {
 void StateManager::removeSelection(Selection selection) {
   JUCE_ASSERT_MESSAGE_THREAD
 
+  DBG("StateManager::removeSelection()");
+
   assert(selection.start >= 0 && selection.end >= 0);
+
+  if (selection.start > selection.end) {
+    std::swap(selection.start, selection.end);
+  }
 
   if (std::abs(selection.start - selection.end) > EPSILON) {
     ScopedProcLock lk(proc);
-    std::erase_if(clips, [selection] (Clip& c) { return c.x >= selection.start && c.x <= selection.end; }); 
-    std::erase_if(paths, [selection] (Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
+
+    std::erase_if(clips, [selection] (const Clip& c) { return c.x >= selection.start && c.x <= selection.end; }); 
+    std::erase_if(paths, [selection] (const Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
   }
 
   updateTrack();
