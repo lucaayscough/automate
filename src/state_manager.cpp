@@ -6,6 +6,7 @@
 
 namespace atmt {
 
+// TODO(luca): remove globals
 static juce::String pluginID = "";
 static f32 zoom = 100;
 static std::atomic<bool> editMode = false;
@@ -81,6 +82,30 @@ void StateManager::replace(const juce::ValueTree& tree) {
       path.c = p["c"];
     }
 
+    if (engine->hasInstance()) {
+      auto parametersTree = tree.getChild(2);
+
+      u32 i = 0;
+      for (auto v : parametersTree) {
+        juce::String name = v["name"];
+
+        if (name != parameters[i].parameter->getName(1024)) {
+          assert(false);
+
+          for (u32 j = 0; j < parameters.size(); ++j) {
+            if (name == parameters[j].parameter->getName(1024)) {
+              parameters[j].active = v["active"];
+              break; 
+            }
+          }
+        } else {
+          parameters[i].active = v["active"];
+        }
+
+        ++i;
+      }
+    }
+
     DBG(tree.toXmlString());
 
     updateTrack(); 
@@ -118,7 +143,7 @@ juce::ValueTree StateManager::getState() {
     }
 
     juce::ValueTree pathsTree("paths");
-    for (auto& p : paths) {
+    for (const auto& p : paths) {
       juce::ValueTree path("path");
       path.setProperty("x", p.x, nullptr)
           .setProperty("y", p.y, nullptr)
@@ -126,8 +151,17 @@ juce::ValueTree StateManager::getState() {
       pathsTree.appendChild(path, nullptr);
     }
 
+    juce::ValueTree parametersTree("parameters");
+    for (const auto& p : parameters) {
+      juce::ValueTree parameter("parameter");
+      parameter.setProperty("name", p.parameter->getName(1024), nullptr)
+               .setProperty("active", p.active, nullptr);
+      parametersTree.appendChild(parameter, nullptr);
+    }
+
     tree.appendChild(clipsTree, nullptr);
     tree.appendChild(pathsTree, nullptr);
+    tree.appendChild(parametersTree, nullptr);
 
     DBG(tree.toXmlString());
     return tree;
