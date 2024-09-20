@@ -29,6 +29,7 @@ struct Fonts {
 struct Style {
   static constexpr f32 lineThickness = 1.5f; 
   static constexpr f32 lineThicknessHighlighted = 2.25f;
+  static constexpr i32 minWidth = 600;
 };
 
 struct Constants {
@@ -63,6 +64,42 @@ struct Dial : juce::Slider {
   static constexpr f32 dotOffset = dotSize * 0.5f;
 
   const Parameter* parameter;
+};
+
+struct InfoView : juce::Component {
+  struct Command {
+    const char* name;      
+    const char* binding;
+  };
+
+  static constexpr i32 numCommands = 17;
+  static constexpr i32 commandHeight = 24;
+  static constexpr Command commands[numCommands] =
+  {  
+    { "Enable all parameters",      "Command + E" },
+    { "Disable all parameters",     "Command + D" },
+    { "Capture parameter",          "Command + Click" },
+    { "Release parameter",          "Command + Shift + Click " },
+    { "Randomise parameters",       "R" },
+    { "Kill instance",              "K" },
+    { "Toggle parameters view",     "V" },
+    { "Narrow grid",                "Command + 1" },
+    { "Widen grid",                 "Command + 2" },
+    { "Toggle triplet grid",        "Command + 3" },
+    { "Zoom in",                    "Command + Scroll / +" },
+    { "Zoom out",                   "Command + Scroll / -" },
+    { "Scroll",                     "Shift + Scroll" },
+    { "Create clip",                "Double click on clip lane" },
+    { "Delete clip",                "Double click on clip" },
+    { "Delete selection",           "Backspace" },
+    { "Toggle info view",           "I" }
+  };
+
+  void paint(juce::Graphics& g) override;
+  void mouseDown(const juce::MouseEvent&) override;
+
+  std::function<void()> mainViewUpdateCallback;
+  const juce::Font font { Fonts::sofiaProRegular.withHeight(16) };
 };
 
 struct Grid {
@@ -379,16 +416,14 @@ struct ParametersView : juce::Component {
 struct MainView : juce::Component {
   MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*);
   void resized() override;
-
-  void paint(juce::Graphics& g) override {
-    g.fillAll(Colours::eerieBlack); 
-  }
-
+  void paint(juce::Graphics& g) override;
   void toggleParametersView();
+  void toggleInfoView();
   void childBoundsChanged(juce::Component*) override;
 
   StateManager& manager;
   UIBridge& uiBridge;
+  InfoView infoView;
   Track track { manager, uiBridge };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView { manager };

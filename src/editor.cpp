@@ -27,8 +27,7 @@ Button::Button(const juce::String& s, Type t) : juce::Button(s) {
 
 void Button::paintButton(juce::Graphics& g, bool highlighted, bool) {
   if (getToggleState()) {
-    g.setColour(Colours::shamrockGreen);
-  } else {
+    g.setColour(Colours::shamrockGreen); } else {
     g.setColour(Colours::glaucous);
   }
 
@@ -93,6 +92,25 @@ void Dial::mouseUp(const juce::MouseEvent& e) {
   juce::Slider::mouseUp(e);
   auto& desktop = juce::Desktop::getInstance();
   desktop.setMousePosition(localPointToGlobal(getLocalBounds().getCentre()));
+}
+
+void InfoView::paint(juce::Graphics& g) {
+  auto r = getLocalBounds().withSizeKeepingCentre(Style::minWidth, numCommands * commandHeight);
+  auto left = r.removeFromLeft(r.getWidth() / 2);
+  auto right = r;
+
+  g.fillAll(Colours::eerieBlack);
+  g.setFont(font);
+  g.setColour(Colours::isabelline);
+
+  for (u32 i = 0; i < numCommands; ++i) {
+    g.drawText(commands[i].name, left.removeFromTop(commandHeight), juce::Justification::left);
+    g.drawText(commands[i].binding, right.removeFromTop(commandHeight), juce::Justification::right);
+  }
+}
+
+void InfoView::mouseDown(const juce::MouseEvent&) {
+  mainViewUpdateCallback();
 }
 
 bool Grid::reset(f32 mw, TimeSignature _ts) {
@@ -714,7 +732,6 @@ ToolBar::ToolBar(StateManager& m) : manager(m) {
   addAndMakeVisible(supportLinkButton);
   addAndMakeVisible(killButton);
 
-  infoButton.onClick = {};
   editModeButton.onClick = [this] { manager.setEditMode(!editMode); };
   modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!modulateDiscrete); };
   supportLinkButton.onClick = [] { supportURL.launchInDefaultBrowser(); };
@@ -1109,16 +1126,27 @@ MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) 
   addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
   addAndMakeVisible(instance.get());
-  setSize(instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+  addChildComponent(infoView);
+
+  infoView.mainViewUpdateCallback = [this] { toggleInfoView(); };
+  toolBar.infoButton.onClick = [this] { toggleInfoView(); };
+
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+}
+
+void MainView::paint(juce::Graphics& g) {
+  g.fillAll(Colours::eerieBlack); 
 }
 
 void MainView::resized() {
   auto r = getLocalBounds();
+
+  infoView.setBounds(r);
   toolBar.setBounds(r.removeFromTop(ToolBar::height));
   track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
 
   auto i = r.removeFromTop(instance->getHeight()); 
-  instance->setBounds(i);
+  instance->setBounds(i.withSizeKeepingCentre(instance->getWidth(), i.getHeight()));
 
   parametersView.setTopLeftPosition(i.getX(), i.getY());
   parametersView.setSize(i.getWidth(), parametersView.getHeight());
@@ -1126,12 +1154,22 @@ void MainView::resized() {
 }
 
 void MainView::toggleParametersView() {
-  instance->setVisible(!instance->isVisible()); 
-  parametersView.setVisible(!parametersView.isVisible()); 
+  if (!infoView.isVisible()) {
+    instance->setVisible(!instance->isVisible()); 
+    parametersView.setVisible(!parametersView.isVisible()); 
+  }
+}
+
+void MainView::toggleInfoView() {
+  infoView.setVisible(!infoView.isVisible());
+
+  if (!parametersView.isVisible()) {
+    instance->setVisible(!instance->isVisible());
+  }
 }
 
 void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
@@ -1215,6 +1253,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 
   static constexpr i32 keyCharD = 68;
   static constexpr i32 keyCharE = 69;
+  static constexpr i32 keyCharI = 73;
   static constexpr i32 keyCharK = 75;
   static constexpr i32 keyCharR = 82;
   static constexpr i32 keyCharV = 86;
@@ -1302,6 +1341,12 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       } break;
       case keyCharK: {
         manager.setPluginID({}); 
+        return true;
+      } break;
+      case keyCharI: {
+        if (mainView) {
+          mainView->toggleInfoView();
+        }
         return true;
       } break;
     };
