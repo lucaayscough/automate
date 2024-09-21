@@ -22,7 +22,6 @@
 
 - design ui
 - add build info
-- add help/info panel
 
 ## Features
 

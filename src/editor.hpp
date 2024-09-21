@@ -233,7 +233,7 @@ struct Track : juce::Component, juce::Timer {
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
-  static constexpr i32 height = 300;
+  static constexpr i32 height = 250;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
