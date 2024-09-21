@@ -95,7 +95,7 @@ void Dial::mouseUp(const juce::MouseEvent& e) {
 }
 
 void InfoView::paint(juce::Graphics& g) {
-  auto r = getLocalBounds().withSizeKeepingCentre(Style::minWidth, numCommands * commandHeight);
+  auto r = getLocalBounds().withSizeKeepingCentre(i32(Style::minWidth * 0.75f), numCommands * commandHeight);
   auto left = r.removeFromLeft(r.getWidth() / 2);
   auto right = r;
 
