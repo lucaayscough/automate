@@ -150,7 +150,7 @@ struct PathView : juce::Component {
   u32 id = 0;
   f32 zoom = 1;
 
-  static constexpr i32 size = 10;
+  static constexpr i32 size = 20;
   static constexpr i32 posOffset = size / 2;
 };
 

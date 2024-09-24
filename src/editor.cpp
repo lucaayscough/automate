@@ -241,7 +241,7 @@ void PathView::paint(juce::Graphics& g) {
   } else {
     g.setColour(Colours::atomicTangerine);
   }
-  g.fillEllipse(getLocalBounds().toFloat());
+  g.fillEllipse(getLocalBounds().toFloat().withSizeKeepingCentre(size / 2, size / 2));
 }
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
