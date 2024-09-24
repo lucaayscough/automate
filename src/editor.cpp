@@ -537,6 +537,8 @@ void AutomationLane::update(const std::vector<Path>& paths, juce::Path& a, f32 z
       view->setBounds(x, y, PathView::size, PathView::size);
     }
   }
+
+  repaint();
 }
 
 Track::Track(StateManager& m, UIBridge& u) : manager(m), uiBridge(u) {
