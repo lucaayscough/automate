@@ -427,15 +427,23 @@ void StateManager::clear() {
 auto StateManager::findAutomationPoint(f32 x) {
   for (auto it = state.points.begin(); it != state.points.end(); ++it) {
     if (it != state.points.begin()) {
-      auto& a = *std::prev(it);
-      auto& b = *it;
+      const auto& a = *std::prev(it);
+      const auto& b = *it;
 
       if (x >= a.x && x <= b.x) {
         return it;
       }
+    } else if (it != state.points.end()) {
+      const auto& a = *it;
+
+      if (x <= a.x) {
+        return it;
+      }
     }
   }
+
   assert(false);
+
   return state.points.end();
 }
 
