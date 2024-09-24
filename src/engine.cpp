@@ -68,9 +68,9 @@ void Engine::prepare(f32 sampleRate, i32 blockSize) {
 
 void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
-    if (!editMode) {
+    if (!manager.state.editMode) {
       f32 time = uiBridge.playheadPosition;
-      f32 lerpPos = getYFromX(manager.automation, time);
+      f32 lerpPos = getYFromX(manager.state.automation, time);
       jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
 
       ClipPair clipPair;
@@ -78,7 +78,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
       {
         f32 closest = u32(-1);
 
-        auto& clips = manager.clips;
+        auto& clips = manager.state.clips;
 
         for (u32 i = 0; i < clips.size(); ++i) {
           if (time >= clips[i].x) {
@@ -108,7 +108,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 
       if (clipPair.a && !clipPair.b) {
         auto& presetParameters = clipPair.a->parameters;
-        auto& parameters = manager.parameters;
+        auto& parameters = manager.state.parameters;
 
         for (u32 i = 0; i < parameters.size(); ++i) {
           if (manager.shouldProcessParameter(&parameters[i])) {
@@ -122,7 +122,7 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
 
         auto& beginParameters = clipPair.a->parameters;
         auto& endParameters   = clipPair.b->parameters;
-        auto& parameters      = manager.parameters;
+        auto& parameters      = manager.state.parameters;
 
         for (u32 i = 0; i < parameters.size(); ++i) {
 
@@ -162,26 +162,26 @@ void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _inst
 
 void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
   DBG("Engine::audioProcessorParameterChanged()");
-  handleParameterChange(&manager.parameters[u32(i)]);
+  handleParameterChange(&manager.state.parameters[u32(i)]);
 }
 
 void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
 
 void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32 i) {
   DBG("Engine::audioProcessorParameterChangeGestureBegin()");
-  handleParameterChange(&manager.parameters[u32(i)]);
+  handleParameterChange(&manager.state.parameters[u32(i)]);
 }
 
 void Engine::handleParameterChange(Parameter* parameter) {
   juce::MessageManager::callAsync([parameter, this] {
-    if (captureParameterChanges) {
+    if (manager.state.captureParameterChanges) {
       manager.setParameterActive(parameter, true);
-    } else if (releaseParameterChanges) {
+    } else if (manager.state.releaseParameterChanges) {
       manager.setParameterActive(parameter, false);
     }
 
     if (manager.shouldProcessParameter(parameter)) {
-      if (!editMode) {
+      if (!manager.state.editMode) {
         manager.setEditMode(true);
       }
     }
