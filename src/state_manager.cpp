@@ -6,28 +6,24 @@
 
 namespace atmt {
 
-// TODO(luca): remove globals
-static juce::String pluginID = "";
-static f32 zoom = 100;
-static std::atomic<bool> editMode = false;
-static std::atomic<bool> modulateDiscrete = false;
-static std::atomic<bool> captureParameterChanges = false;
-static std::atomic<bool> releaseParameterChanges = false;
-static std::atomic<f32>  randomSpread = 2;
-
 static std::random_device randDevice;
 static std::mt19937 randGen { randDevice() };
 static std::normal_distribution<f32> rand_ { 0.0, 1.0 };
+static std::atomic<u32> uniqueCounter = 0;
 
 inline bool isNormalised(f32 v) {
   return v >= 0.0 && v <= 1.0;
 }
 
-inline f32 random() {
+inline f32 random(f32 randomSpread) {
   f32 v = rand_(randGen) / randomSpread; // NOTE(luca): parameter that tightens random distribution
   v = std::clamp(v, -1.f, 1.f);
   v = (v * 0.5f) + 0.5f;
   return v;
+}
+
+inline u32 nextUniqueID() {
+  return ++uniqueCounter;
 }
 
 StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {}
@@ -56,12 +52,8 @@ void StateManager::replace(const juce::ValueTree& tree) {
     
     auto clipsTree = tree.getChild(0);
     for (auto c : clipsTree) {
-      clips.emplace_back();
-      auto& clip = clips.back();
-
-      clip.x = c["x"];
-      clip.y = c["y"];
-      clip.c = c["c"];
+      addClip(c["x"], c["y"], c["c"]);
+      auto& clip = state.clips.back();
 
       auto mb = c["parameters"].getBinaryData(); 
       auto parameters_ = (f32*)mb->getData();
@@ -73,13 +65,8 @@ void StateManager::replace(const juce::ValueTree& tree) {
     }
 
     auto pathsTree = tree.getChild(1);
-    for (auto p : pathsTree) {
-      paths.emplace_back();
-      auto& path = paths.back();
-
-      path.x = p["x"];
-      path.y = p["y"];
-      path.c = p["c"];
+    for (const auto& p : pathsTree) {
+      addPath(p["x"], p["y"], p["c"]);
     }
 
     if (engine->hasInstance()) {
@@ -89,17 +76,17 @@ void StateManager::replace(const juce::ValueTree& tree) {
       for (auto v : parametersTree) {
         juce::String name = v["name"];
 
-        if (name != parameters[i].parameter->getName(1024)) {
+        if (name != state.parameters[i].parameter->getName(1024)) {
           assert(false);
 
-          for (u32 j = 0; j < parameters.size(); ++j) {
-            if (name == parameters[j].parameter->getName(1024)) {
-              parameters[j].active = v["active"];
+          for (u32 j = 0; j < state.parameters.size(); ++j) {
+            if (name == state.parameters[j].parameter->getName(1024)) {
+              state.parameters[j].active = v["active"];
               break; 
             }
           }
         } else {
-          parameters[i].active = v["active"];
+          state.parameters[i].active = v["active"];
         }
 
         ++i;
@@ -108,7 +95,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     DBG(tree.toXmlString());
 
-    updateTrack(); 
+    updateTrackView(); 
   }
 }
 
@@ -126,14 +113,14 @@ juce::ValueTree StateManager::getState() {
       engine->instance->getStateInformation(mb);
     }
 
-    tree.setProperty("zoom", zoom, nullptr)
-        .setProperty("editMode", editMode.load(), nullptr)
-        .setProperty("modulateDiscrete", modulateDiscrete.load(), nullptr)
-        .setProperty("pluginID", pluginID, nullptr)
+    tree.setProperty("zoom", state.zoom, nullptr)
+        .setProperty("editMode", state.editMode.load(), nullptr)
+        .setProperty("modulateDiscrete", state.modulateDiscrete.load(), nullptr)
+        .setProperty("pluginID", state.pluginID, nullptr)
         .setProperty("pluginData", mb, nullptr);
 
     juce::ValueTree clipsTree("clips");
-    for (auto& c : clips) {
+    for (const auto& c : state.clips) {
       juce::ValueTree clip("clip");
       clip.setProperty("x", c.x, nullptr)
           .setProperty("y", c.y, nullptr)
@@ -143,7 +130,7 @@ juce::ValueTree StateManager::getState() {
     }
 
     juce::ValueTree pathsTree("paths");
-    for (const auto& p : paths) {
+    for (const auto& p : state.paths) {
       juce::ValueTree path("path");
       path.setProperty("x", p.x, nullptr)
           .setProperty("y", p.y, nullptr)
@@ -152,7 +139,7 @@ juce::ValueTree StateManager::getState() {
     }
 
     juce::ValueTree parametersTree("parameters");
-    for (const auto& p : parameters) {
+    for (const auto& p : state.parameters) {
       juce::ValueTree parameter("parameter");
       parameter.setProperty("name", p.parameter->getName(1024), nullptr)
                .setProperty("active", p.active, nullptr);
@@ -170,9 +157,9 @@ juce::ValueTree StateManager::getState() {
   return {};
 }
 
-void StateManager::addClip(f32 x, f32 y) {
+void StateManager::addClip(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  DBG("StateManager::addClip()");
+  scoped_timer t("StateManager::addClip()");
 
   assert(x >= 0 && y >= 0 && y <= 1);
   assert(engine->hasInstance());
@@ -180,47 +167,60 @@ void StateManager::addClip(f32 x, f32 y) {
   {
     ScopedProcLock lk(proc);
 
-    clips.emplace_back();
-    auto& c = clips.back();
+    state.clips.emplace_back();
+    auto& clip = state.clips.back();
 
-    c.x = x;
-    c.y = y;
+    clip.id = nextUniqueID();
+    clip.x = x;
+    clip.y = y;
+    clip.c = curve;
 
-    c.parameters.reserve(parameters.size());
+    clip.parameters.reserve(state.parameters.size());
 
-    for (auto& parameter : parameters) {
-      c.parameters.push_back(parameter.parameter->getValue());
-      assert(isNormalised(c.parameters.back()));
+    for (auto& parameter : state.parameters) {
+      clip.parameters.push_back(parameter.parameter->getValue());
+      assert(isNormalised(clip.parameters.back()));
     }
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
-void StateManager::removeClip(Clip* c) {
+void StateManager::removeClip(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(c);
+  assert(id);
 
   {
     ScopedProcLock lk(proc);
-    std::erase_if(clips, [c] (Clip& o) { return c == &o; });
+    std::erase_if(state.clips, [id] (Clip& clip) { return clip.id == id; });
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
-void StateManager::moveClip(Clip* c, f32 x, f32 y, f32 curve) {
+void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
+  moveClip(id, x / state.zoom, y, curve);
+}
+
+void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(c);
+  assert(id);
 
   {
     ScopedProcLock lk(proc);
-    c->x = x < 0 ? 0 : x;
-    c->y = std::clamp(y, 0.f, 1.f);
-    c->c = std::clamp(curve, 0.f, 1.f);
+
+    auto it = std::find_if(state.clips.begin(), state.clips.end(), [id] (const Clip& clip) { return clip.id == id; });
+
+    if (it != state.clips.end()) {
+      it->x = x < 0 ? 0 : x;
+      it->y = std::clamp(y, 0.f, 1.f);
+      it->c = std::clamp(curve, 0.f, 1.f);
+    } else {
+      assert(false);
+    }
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
 void StateManager::randomiseParameters() {
@@ -230,60 +230,72 @@ void StateManager::randomiseParameters() {
 
   {
     ScopedProcLock lk(proc);
-    for (auto& p : parameters) {
+
+    for (auto& p : state.parameters) {
       if (shouldProcessParameter(&p)) {
-        p.parameter->setValue(random());
+        p.parameter->setValue(random(state.randomSpread));
       }
     }
   }
 }
 
 bool StateManager::shouldProcessParameter(Parameter* p) {
-  // TODO(luca): make active responsible for discrete and bool parameters too
-
   if (p->active && p->parameter->isAutomatable()) {
-    return p->parameter->isDiscrete() ? modulateDiscrete.load() : true; 
+    return p->parameter->isDiscrete() ? state.modulateDiscrete.load() : true; 
   }
   return false;
 }
 
-void StateManager::addPath(f32 x, f32 y) {
+void StateManager::addPath(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(x >= 0 && y >= 0 && y <= 1);
+  assert(x >= 0 && y >= 0 && y <= 1 && curve >= 0 && curve <= 1);
 
   {
     ScopedProcLock lk(proc);
-    paths.emplace_back();
-    auto& path = paths.back();
+    state.paths.emplace_back();
+    auto& path = state.paths.back();
     path.x = x;
     path.y = y;
+    path.c = curve;
+    path.id = nextUniqueID();
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
-void StateManager::removePath(Path* p) {
+void StateManager::removePath(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   {
     ScopedProcLock lk(proc);
-    std::erase_if(paths, [p] (const Path& o) { return p == &o; });
+    std::erase_if(state.paths, [id] (const Path& path) { return path.id == id; });
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
-void StateManager::movePath(Path* p, f32 x, f32 y, f32 c) {
+void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
+  movePath(id, x / state.zoom, y, c);
+}
+
+void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
   JUCE_ASSERT_MESSAGE_THREAD
 
   {
     ScopedProcLock lk(proc);
-    p->x = x < 0 ? 0 : x;
-    p->y = std::clamp(y, 0.f, 1.f);
-    p->c = std::clamp(c, 0.f, 1.f);
+
+    auto it = std::find_if(state.paths.begin(), state.paths.end(), [id] (const Path& path) { return path.id == id; });
+
+    if (it != state.paths.end()) {
+      it->x = x < 0 ? 0 : x;
+      it->y = std::clamp(y, 0.f, 1.f);
+      it->c = std::clamp(c, 0.f, 1.f);
+    } else {
+      assert(false);
+    }
   }
 
-  updateTrack(); 
+  updateTrackView(); 
 }
 
 void StateManager::removeSelection(Selection selection) {
@@ -300,11 +312,11 @@ void StateManager::removeSelection(Selection selection) {
   if (std::abs(selection.start - selection.end) > EPSILON) {
     ScopedProcLock lk(proc);
 
-    std::erase_if(clips, [selection] (const Clip& c) { return c.x >= selection.start && c.x <= selection.end; }); 
-    std::erase_if(paths, [selection] (const Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
+    std::erase_if(state.clips, [selection] (const Clip& c) { return c.x >= selection.start && c.x <= selection.end; }); 
+    std::erase_if(state.paths, [selection] (const Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
 void StateManager::setPluginID(const juce::String& id) {
@@ -316,7 +328,7 @@ void StateManager::setPluginID(const juce::String& id) {
     ScopedProcLock lk(proc);
     clear();
 
-    pluginID = id;
+    state.pluginID = id;
     juce::String errorMessage;
 
     if (id != "") {
@@ -328,11 +340,11 @@ void StateManager::setPluginID(const juce::String& id) {
         if (instance) {
           auto processorParameters = instance->getParameters();
           u32 numParameters = u32(processorParameters.size());
-          parameters.reserve(numParameters);
+          state.parameters.reserve(numParameters);
 
           for (u32 i = 0; i < numParameters; ++i) {
-            parameters.emplace_back();
-            parameters.back().parameter = processorParameters[i32(i)];
+            state.parameters.emplace_back();
+            state.parameters.back().parameter = processorParameters[i32(i)];
           }
 
           engine->setPluginInstance(instance);
@@ -348,21 +360,23 @@ void StateManager::setPluginID(const juce::String& id) {
 void StateManager::setZoom(f32 z) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  zoom = z;
-  updateTrack(); 
+  assert(z > 0);
+
+  state.zoom = z;
+  updateTrackView(); 
 }
 
 void StateManager::setEditMode(bool m) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  editMode = m;
+  state.editMode = m;
   updateDebugView();
 }
 
 void StateManager::setModulateDiscrete(bool m) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  modulateDiscrete = m;
+  state.modulateDiscrete = m;
   updateDebugView();
 }
 
@@ -373,7 +387,7 @@ void StateManager::setAllParametersActive(bool v) {
 
   {
     ScopedProcLock lk(proc);
-    for (auto& p : parameters) {
+    for (auto& p : state.parameters) {
       p.active = v;
     }
   }
@@ -396,23 +410,23 @@ void StateManager::clear() {
   {
     ScopedProcLock lk(proc);
 
-    paths.clear();
-    clips.clear();
-    parameters.clear();
+    state.paths.clear();
+    state.clips.clear();
+    state.parameters.clear();
 
     // TODO(luca): this is temporary hack to avoid the vector reallocating
     // its memory when adding new element invalidating all pointers
-    paths.reserve(1000);
-    clips.reserve(1000);
-    parameters.reserve(1000);
+    state.paths.reserve(1000);
+    state.clips.reserve(1000);
+    state.parameters.reserve(1000);
   }
 
-  updateTrack();
+  updateTrackView();
 }
 
 auto StateManager::findAutomationPoint(f32 x) {
-  for (auto it = points.begin(); it != points.end(); ++it) {
-    if (it != points.begin()) {
+  for (auto it = state.points.begin(); it != state.points.end(); ++it) {
+    if (it != state.points.begin()) {
       auto& a = *std::prev(it);
       auto& b = *it;
 
@@ -422,7 +436,7 @@ auto StateManager::findAutomationPoint(f32 x) {
     }
   }
   assert(false);
-  return points.end();
+  return state.points.end();
 }
 
 void StateManager::updateParametersView() {
@@ -431,13 +445,17 @@ void StateManager::updateParametersView() {
   }
 }
 
-void StateManager::updateAutomation() {
-  DBG("StateManager::updateAutomation()");
+void StateManager::updateAutomationLaneView() {
+  DBG("StateManager::updateAutomationLaneView()");
 
   {
     ScopedProcLock lk(proc);
 
-    automation.clear();
+    state.automation.clear();
+
+    auto& points = state.points;
+    auto& clips = state.clips;
+    auto& paths = state.paths;
 
     points.resize(clips.size() + paths.size());
 
@@ -460,25 +478,23 @@ void StateManager::updateAutomation() {
     std::sort(points.begin(), points.end(), [] (const AutomationPoint& a, const AutomationPoint& b) { return a.x < b.x; });
 
     for (auto& p2 : points) {
-      auto p1 = automation.getCurrentPosition();
+      auto p1 = state.automation.getCurrentPosition();
       f32 cx = p1.x + (p2.x - p1.x) * (p1.y < p2.y ? p2.c : 1.f - p2.c); 
       f32 cy = (p1.y < p2.y ? p1.y : p2.y) + std::abs(p2.y - p1.y) * (1.f - p2.c);
-      automation.quadraticTo(cx, cy, p2.x, p2.y);
+      state.automation.quadraticTo(cx, cy, p2.x, p2.y);
     }
   }
 
-  if (automationView) {
-    automationView->resized();
-    automationView->repaint();
+  if (automationLaneView) {
+    automationLaneView->update(state.paths, state.automation, state.zoom);
   }
 }
 
-void StateManager::updateTrack() {
-  updateAutomation();
+void StateManager::updateTrackView() {
+  updateAutomationLaneView();
 
   if (trackView) {
-    trackView->resized();
-    trackView->repaint();
+    trackView->update(state.clips, state.zoom);
   }
 }
 

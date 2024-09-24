@@ -114,7 +114,7 @@ struct Grid {
     u32 denominator = 4;
   };
 
-  bool reset(f32, TimeSignature);
+  bool reset(f32, f32, TimeSignature);
   void reset();
   f32 snap(f32);
 
@@ -131,37 +131,43 @@ struct Grid {
   bool tripletMode = false;
   i32 gridWidth = 0;
   bool snapOn = true;
-  f32 zoom_ = 0;
+  f32 zoom = 0;
 
   std::vector<Beat> beats;
   std::vector<f32> lines;
 };
 
 struct PathView : juce::Component {
-  PathView(StateManager&, Grid&, Path*);
+  PathView(Grid&);
   void paint(juce::Graphics&) override;
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
-  StateManager& manager;
+  std::function<void(u32, f32, f32)> move;
+  std::function<void(u32)> remove;
+
   Grid& grid;
-  Path* path = nullptr;
+  u32 id = 0;
+  f32 zoom = 1;
 
   static constexpr i32 size = 10;
   static constexpr i32 posOffset = size / 2;
 };
 
 struct ClipView : juce::Component {
-  ClipView(StateManager&, Grid&, Clip*);
+  ClipView(Grid&);
   void paint(juce::Graphics&) override;
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
   void mouseUp(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent&) override;
 
-  StateManager& manager;
+  std::function<void(u32, f32, f32)> move;
+  std::function<void(u32)> remove;
+
+  u32 id = 0;
   Grid& grid;
-  Clip* clip = nullptr;
+
   static constexpr i32 trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
@@ -186,10 +192,14 @@ struct AutomationLane : juce::Component {
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
+  void updateAutomation(juce::Path&);
+  void update(const std::vector<Path>&, juce::Path&, f32 zoom);
+
   StateManager& manager;
   Grid& grid;
   juce::Path automation;
-  juce::OwnedArray<PathView> paths;
+  juce::Path scaledAutomation;
+  juce::OwnedArray<PathView> pathViews;
 
   juce::Rectangle<f32> hoverBounds;
   f32 xHighlightedSegment = -1;
@@ -203,6 +213,8 @@ struct AutomationLane : juce::Component {
 
   GestureType activeGesture = GestureType::none;
   Selection selection;
+
+  f32 zoom = 0;
 
   static constexpr f32 lineThickness = 2;
 };
@@ -221,15 +233,18 @@ struct Track : juce::Component, juce::Timer {
   void zoomTrack(f32);
   void scroll(f32);
 
+  void update(const std::vector<Clip>&, f32);
+
   StateManager& manager;
   UIBridge& uiBridge;
 
   Grid grid;
-  juce::OwnedArray<ClipView> clips;
+  juce::OwnedArray<ClipView> clipViews;
 
   AutomationLane automationLane { manager, grid };
   static constexpr f32 zoomDeltaScale = 5;
   f32 playheadPosition = 0;
+  f32 zoom = 0;
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
@@ -308,8 +323,6 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
       static constexpr i32 namePadding = 80;
     };
 
-    PluginsPanel(StateManager&);
-
     void paint(juce::Graphics&);
     void mouseMove(const juce::MouseEvent&);
     void mouseDown(const juce::MouseEvent&);
@@ -318,7 +331,7 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
     void update(juce::Array<juce::PluginDescription>);
     void updateManufacturerFilter(const juce::String&);
 
-    StateManager& manager;
+    std::function<void(const juce::String&)> setPluginID;
     juce::Rectangle<i32> titleBounds;
     std::vector<Button> plugins;
     juce::String filter;
@@ -354,7 +367,7 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
   juce::KnownPluginList& knownPluginList;
   juce::AudioPluginFormatManager& formatManager;
 
-  PluginsPanel pluginsPanel { manager };
+  PluginsPanel pluginsPanel;
   ManufacturersPanel manufacturersPanel { pluginsPanel};
 };
 

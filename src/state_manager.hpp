@@ -22,16 +22,19 @@ struct ScopedProcLock {
 };
 
 struct Path {
+  u32 id = 0;
   f32 x = 0;
   f32 y = 0;
   f32 c = 0.5;
+  static constexpr f32 defaultCurve = 0.5f;
 };
 
 struct Clip {
-  std::vector<f32> parameters; 
+  u32 id = 0;
   f32 x = 0;
   f32 y = 0;
   f32 c = 0.5;
+  std::vector<f32> parameters; 
 };
 
 struct AutomationPoint {
@@ -52,9 +55,26 @@ struct Selection {
   f32 end = 0;
 };
 
+struct State {
+  juce::String pluginID = "";
+  std::atomic<bool> editMode = false;
+  f32 zoom = 100;
+  std::atomic<bool> modulateDiscrete = false;
+  std::atomic<bool> captureParameterChanges = false;
+  std::atomic<bool> releaseParameterChanges = false;
+  std::atomic<f32>  randomSpread = 2;
+
+  std::vector<Clip> clips;
+  std::vector<Path> paths;
+  std::vector<AutomationPoint> points;
+  std::vector<Parameter> parameters;
+  juce::Path automation;
+};
+
 struct Plugin;
 struct Engine;
 struct Track;
+struct AutomationLane;
 struct ParametersView;
 
 struct StateManager {
@@ -64,16 +84,19 @@ struct StateManager {
   void replace(const juce::ValueTree&);
   juce::ValueTree getState();
 
-  void addClip(f32, f32);
-  void removeClip(Clip* c);
-  void moveClip(Clip*, f32, f32, f32);
+  void addClip(f32, f32, f32);
+  void removeClip(u32 id);
+  void moveClipDenorm(u32, f32, f32, f32);
+  void moveClip(u32, f32, f32, f32);
 
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);
 
-  void addPath(f32, f32);
-  void removePath(Path*);
-  void movePath(Path*, f32, f32, f32);
+  void addPath(f32, f32, f32);
+  void removePath(u32);
+  void movePathDenorm(u32, f32, f32, f32);
+  void movePath(u32, f32, f32, f32);
+
   void removeSelection(Selection selection);
 
   void setPluginID(const juce::String&);
@@ -88,26 +111,41 @@ struct StateManager {
 
   auto findAutomationPoint(f32);
 
+  void updateTrackView();
+  void updateAutomationLaneView();
+
   void updateParametersView();
-  void updateAutomation();
-  void updateTrack();
   void updateDebugView();
+
+  void registerAutomationLaneView(AutomationLane* view) {
+    automationLaneView = view;
+    updateAutomationLaneView();
+  }
+  
+  void deregisterAutomationLaneView() {
+    automationLaneView = nullptr;
+  }
+
+  void registerTrackView(Track* view) {
+    trackView = view;
+    updateTrackView();
+  }
+
+  void deregisterTrackView() {
+    trackView = nullptr;  
+  }
 
   juce::AudioProcessor& proc;
   Plugin* plugin = nullptr;
   Engine* engine = nullptr;
 
   Track* trackView = nullptr;
+  AutomationLane* automationLaneView = nullptr;
+
   ParametersView* parametersView = nullptr;
-  juce::Component* automationView = nullptr;
   juce::Component* debugView = nullptr;
 
-  std::vector<Clip> clips;
-  std::vector<Path> paths;
-  std::vector<AutomationPoint> points;
-  std::vector<Parameter> parameters;
-
-  juce::Path automation;
+  State state;
 };
 
 } // namespace atmt 
