@@ -485,6 +485,10 @@ void StateManager::updateAutomationLaneView() {
 
     std::sort(points.begin(), points.end(), [] (const AutomationPoint& a, const AutomationPoint& b) { return a.x < b.x; });
 
+    if (points.size() > 0) {
+      state.automation.startNewSubPath(0, points[0].y);
+    }
+
     for (auto& p2 : points) {
       auto p1 = state.automation.getCurrentPosition();
       f32 cx = p1.x + (p2.x - p1.x) * (p1.y < p2.y ? p2.c : 1.f - p2.c); 

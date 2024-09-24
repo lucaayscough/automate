@@ -311,13 +311,13 @@ void AutomationLane::paint(juce::Graphics& g) {
     juce::Path::Iterator it(scaledAutomation);
 
     bool end = false;
-    bool start = true;
     juce::Path tmp;
     it.next();
 
+    auto x1 = it.x1;
+    auto y1 = it.y1;
+
     do {
-      auto x1 = it.x2;
-      auto y1 = it.y2;
       end = !it.next();
 
       if (xHighlightedSegment > x1 && xHighlightedSegment < it.x2) {
@@ -328,16 +328,13 @@ void AutomationLane::paint(juce::Graphics& g) {
 
       if (!end) {
         tmp.clear();
-        if (start) {
-          tmp.startNewSubPath(0, it.y2);
-          tmp.lineTo(it.x2, it.y2);
-          start = false;
-        } else {
-          tmp.startNewSubPath(x1, y1);
-          tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
-        }
+        tmp.startNewSubPath(x1, y1);
+        tmp.quadraticTo(it.x1, it.y1, it.x2, it.y2);
         g.strokePath(tmp, juce::PathStrokeType { lineThickness });
       }
+
+      x1 = it.x2;
+      y1 = it.y2;
     } while (!end);
   }
 
