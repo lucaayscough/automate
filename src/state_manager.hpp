@@ -86,16 +86,17 @@ struct StateManager {
 
   void addClip(f32, f32, f32);
   void removeClip(u32 id);
-  void moveClipDenorm(u32, f32, f32, f32);
   void moveClip(u32, f32, f32, f32);
+  void moveClipDenorm(u32, f32, f32, f32);
 
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);
 
   void addPath(f32, f32, f32);
+  void addPathDenorm(f32, f32, f32);
   void removePath(u32);
-  void movePathDenorm(u32, f32, f32, f32);
   void movePath(u32, f32, f32, f32);
+  void movePathDenorm(u32, f32, f32, f32);
 
   void removeSelection(Selection selection);
 
@@ -110,6 +111,7 @@ struct StateManager {
   void clear();
 
   auto findAutomationPoint(f32);
+  auto findAutomationPointDenorm(f32);
 
   void updateTrackView();
   void updateAutomationLaneView();

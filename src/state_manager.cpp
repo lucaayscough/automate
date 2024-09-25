@@ -198,10 +198,6 @@ void StateManager::removeClip(u32 id) {
   updateTrackView();
 }
 
-void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
-  moveClip(id, x / state.zoom, y, curve);
-}
-
 void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(id);
@@ -221,6 +217,10 @@ void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   }
 
   updateTrackView();
+}
+
+void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
+  moveClip(id, x / state.zoom, y, curve);
 }
 
 void StateManager::randomiseParameters() {
@@ -263,6 +263,13 @@ void StateManager::addPath(f32 x, f32 y, f32 curve) {
   updateTrackView();
 }
 
+void StateManager::addPathDenorm(f32 x, f32 y, f32 curve) {
+  JUCE_ASSERT_MESSAGE_THREAD
+  assert(x >= 0 && y >= 0 && y <= 1 && curve >= 0 && curve <= 1);
+
+  addPath(x / state.zoom, y, curve);
+}
+
 void StateManager::removePath(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
@@ -272,10 +279,6 @@ void StateManager::removePath(u32 id) {
   }
 
   updateTrackView();
-}
-
-void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
-  movePath(id, x / state.zoom, y, c);
 }
 
 void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
@@ -296,6 +299,10 @@ void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
   }
 
   updateTrackView(); 
+}
+
+void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
+  movePath(id, x / state.zoom, y, c);
 }
 
 void StateManager::removeSelection(Selection selection) {
@@ -432,7 +439,7 @@ auto StateManager::findAutomationPoint(f32 x) {
 
       if (x >= a.x && x <= b.x) {
         return it;
-      }
+      } 
     } else if (it != state.points.end()) {
       const auto& a = *it;
 
@@ -442,9 +449,19 @@ auto StateManager::findAutomationPoint(f32 x) {
     }
   }
 
+  if (state.points.size() > 0) {
+    auto it = std::prev(state.points.end());
+    assert(it->x <= x);
+    return it;  
+  }
+
   assert(false);
 
   return state.points.end();
+}
+
+auto StateManager::findAutomationPointDenorm(f32 x) {
+  return findAutomationPoint(x / state.zoom);
 }
 
 void StateManager::updateParametersView() {
