@@ -243,7 +243,14 @@ struct Track : juce::Component, juce::Timer {
 
   AutomationLane automationLane { manager, grid };
   static constexpr f32 zoomDeltaScale = 5;
-  f32 playheadPosition = 0;
+
+  struct Playhead {
+    static constexpr f32 width = 1.25f;
+    f32 x =  0;
+  };
+  
+  Playhead playhead;
+
   f32 zoom = 0;
 
   static constexpr i32 timelineHeight = 20;
@@ -252,7 +259,6 @@ struct Track : juce::Component, juce::Timer {
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
-    juce::Rectangle<i32> automation;
     juce::Rectangle<i32> presetLaneTop;
     juce::Rectangle<i32> presetLaneBottom;
   };

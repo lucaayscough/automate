@@ -550,7 +550,7 @@ Track::~Track() {
 }
 
 void Track::paint(juce::Graphics& g) {
-  //DBG("Track::paint()");
+  scoped_timer t("Track::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(Colours::jet);
@@ -579,8 +579,8 @@ void Track::paint(juce::Graphics& g) {
     }
   }
 
-  g.setColour(Colours::eerieBlack);
-  g.fillRect(i32(playheadPosition), r.getY(), 2, getHeight());
+  g.setColour(Colours::isabelline);
+  g.fillRect(playhead.x, f32(b.presetLaneTop.getY()), playhead.width, f32(getHeight() - b.timeline.getHeight()));
 }
 
 void Track::resized() {
@@ -599,12 +599,12 @@ void Track::resetGrid() {
   Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
   auto ph = uiBridge.playheadPosition.load() * zoom;
 
-  if (std::abs(playheadPosition - ph) > EPSILON) {
+  if (std::abs(playhead.x - ph) > EPSILON) {
     auto x = -viewportDeltaX;
-    auto inBoundsOld = playheadPosition > x && playheadPosition < x; 
+    auto inBoundsOld = playhead.x > x && playhead.x < x; 
     auto inBoundsNew = ph > x && ph < (x + getWidth()); 
 
-    playheadPosition = ph;
+    playhead.x = ph;
 
     if (inBoundsOld || inBoundsNew) {
       repaint();
