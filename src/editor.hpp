@@ -180,7 +180,6 @@ struct AutomationLane : juce::Component {
   AutomationLane(StateManager&, Grid&);
   ~AutomationLane() override;
   void paint(juce::Graphics&) override;
-  void resized() override;
   
   auto getAutomationPoint(juce::Point<f32>);
   f32 getDistanceFromPoint(juce::Point<f32>);
@@ -192,13 +191,11 @@ struct AutomationLane : juce::Component {
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
-  void updateAutomation(juce::Path&);
-  void update(const std::vector<Path>&, juce::Path&, f32 zoom);
+  void update(const std::vector<Path>&, juce::Path, f32 zoom);
 
   StateManager& manager;
   Grid& grid;
   juce::Path automation;
-  juce::Path scaledAutomation;
   juce::OwnedArray<PathView> pathViews;
 
   juce::Rectangle<f32> hoverBounds;
@@ -214,8 +211,7 @@ struct AutomationLane : juce::Component {
   GestureType activeGesture = GestureType::none;
   Selection selection;
 
-  f32 zoom = 0;
-
+  static constexpr i32 height = 180;
   static constexpr f32 lineThickness = 2;
 };
 
@@ -255,7 +251,7 @@ struct Track : juce::Component, juce::Timer {
 
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
-  static constexpr i32 height = 250;
+  static constexpr i32 height = timelineHeight + presetLaneHeight * 2 + AutomationLane::height;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
