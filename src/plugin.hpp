@@ -4,7 +4,6 @@
 #include "state_manager.hpp"
 #include "engine.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
-#include "ui_bridge.hpp"
 #include "types.hpp"
 
 namespace atmt {
@@ -38,8 +37,7 @@ struct Plugin : juce::AudioProcessor {
   void setStateInformation(const void* data, int sizeInBytes) override;
 
   StateManager manager { *this };
-  UIBridge uiBridge;
-  Engine engine { manager, uiBridge }; 
+  Engine engine { manager }; 
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;

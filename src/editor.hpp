@@ -2,7 +2,6 @@
 
 #include "change_attachment.hpp"
 #include "plugin.hpp"
-#include "ui_bridge.hpp"
 #include <numbers>
 
 #define DONT_NOTIFY juce::NotificationType::dontSendNotification
@@ -216,7 +215,7 @@ struct AutomationLane : juce::Component {
 };
 
 struct Track : juce::Component, juce::Timer {
-  Track(StateManager&, UIBridge&);
+  Track(StateManager&);
   ~Track() override;
   void paint(juce::Graphics&) override;
   void resized() override;
@@ -232,7 +231,6 @@ struct Track : juce::Component, juce::Timer {
   void update(const std::vector<Clip>&, f32);
 
   StateManager& manager;
-  UIBridge& uiBridge;
 
   Grid grid;
   juce::OwnedArray<ClipView> clipViews;
@@ -252,6 +250,7 @@ struct Track : juce::Component, juce::Timer {
   static constexpr i32 timelineHeight = 20;
   static constexpr i32 presetLaneHeight = 25;
   static constexpr i32 height = timelineHeight + presetLaneHeight * 2 + AutomationLane::height;
+  static constexpr i32 rightPadding = 200;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
@@ -429,7 +428,7 @@ struct ParametersView : juce::Component {
 };
 
 struct MainView : juce::Component {
-  MainView(StateManager&, UIBridge&, juce::AudioProcessorEditor*);
+  MainView(StateManager&, juce::AudioProcessorEditor*);
   void resized() override;
   void paint(juce::Graphics& g) override;
   void toggleParametersView();
@@ -437,9 +436,8 @@ struct MainView : juce::Component {
   void childBoundsChanged(juce::Component*) override;
 
   StateManager& manager;
-  UIBridge& uiBridge;
   InfoView infoView;
-  Track track { manager, uiBridge };
+  Track track { manager };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView { manager };
   ToolBar toolBar { manager };
@@ -462,7 +460,6 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   Plugin& proc;
   StateManager& manager { proc.manager };
-  UIBridge& uiBridge { proc.uiBridge };
   Engine& engine { proc.engine };
 
   bool useMainView = false;

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <assert.h>
 #include <juce_data_structures/juce_data_structures.h>
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <span>
 #include "types.hpp"
+#include <span>
+#include <assert.h>
 #include <random>
 
 namespace atmt {
@@ -64,6 +64,12 @@ struct State {
   std::atomic<bool> releaseParameterChanges = false;
   std::atomic<f32>  randomSpread = 2;
 
+  std::atomic<f32> playheadPosition = 0;
+  std::atomic<f32> bpm = 120;
+  std::atomic<u32> numerator = 4;
+  std::atomic<u32> denominator = 4;
+  std::atomic<bool> requestParameterChange = false;
+
   std::vector<Clip> clips;
   std::vector<Path> paths;
   std::vector<AutomationPoint> points;
@@ -114,14 +120,11 @@ struct StateManager {
   auto findAutomationPointDenorm(f32);
 
   void updateTrackView();
-  void updateAutomationLaneView();
-
   void updateParametersView();
   void updateDebugView();
 
   void registerAutomationLaneView(AutomationLane* view) {
     automationLaneView = view;
-    updateAutomationLaneView();
   }
   
   void deregisterAutomationLaneView() {
@@ -130,11 +133,14 @@ struct StateManager {
 
   void registerTrackView(Track* view) {
     trackView = view;
-    updateTrackView();
   }
 
   void deregisterTrackView() {
     trackView = nullptr;  
+  }
+
+  void registerMainView() {
+    updateTrackView();
   }
 
   juce::AudioProcessor& proc;
