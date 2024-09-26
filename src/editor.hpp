@@ -204,7 +204,7 @@ struct AutomationLane : juce::Component {
   bool optKeyPressed = false;
   juce::Point<i32> lastMouseDragOffset;
 
-  f32 kDragIncrement = 50;
+  f32 kDragIncrement = 100;
   f32 bendMouseDistanceProportion = 0;
 
   GestureType activeGesture = GestureType::none;

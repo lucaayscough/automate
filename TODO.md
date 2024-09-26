@@ -14,7 +14,6 @@
 - fix triplets
 - track zoom/scroll
 - double click on curved path to straiten
-- fix the need create mouseUp event to be able to drag clip that was just created
 
 ## Parameters View
 
