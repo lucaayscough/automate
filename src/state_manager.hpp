@@ -98,8 +98,8 @@ struct StateManager {
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);
 
-  void addPath(f32, f32, f32);
-  void addPathDenorm(f32, f32, f32);
+  u32 addPath(f32, f32, f32);
+  u32 addPathDenorm(f32, f32, f32);
   void removePath(u32);
   void movePath(u32, f32, f32, f32);
   void movePathDenorm(u32, f32, f32, f32);
