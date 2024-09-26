@@ -601,7 +601,7 @@ void Track::paint(juce::Graphics& g) {
   }
 
   g.setColour(Colours::isabelline);
-  g.fillRect(playhead.x, f32(b.presetLaneTop.getY()), playhead.width, f32(getHeight() - b.timeline.getHeight()));
+  g.fillRect(playhead.x, f32(automationLane.getY()), playhead.width, f32(automationLane.getHeight()));
 }
 
 void Track::resized() {
