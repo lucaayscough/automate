@@ -432,6 +432,9 @@ void StateManager::clear() {
 }
 
 auto StateManager::findAutomationPoint(f32 x) {
+  // TODO(luca): move his method to the editor because it has no use outside
+  assert(x >= 0);
+
   for (auto it = state.points.begin(); it != state.points.end(); ++it) {
     if (it != state.points.begin()) {
       const auto& a = *std::prev(it);
@@ -449,13 +452,10 @@ auto StateManager::findAutomationPoint(f32 x) {
     }
   }
 
-  if (state.points.size() > 0) {
-    auto it = std::prev(state.points.end());
+  if (state.points.size() > 0) { auto it = std::prev(state.points.end());
     assert(it->x <= x);
     return it;  
   }
-
-  assert(false);
 
   return state.points.end();
 }
