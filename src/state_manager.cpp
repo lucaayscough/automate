@@ -246,9 +246,11 @@ bool StateManager::shouldProcessParameter(Parameter* p) {
   return false;
 }
 
-void StateManager::addPath(f32 x, f32 y, f32 curve) {
+u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(x >= 0 && y >= 0 && y <= 1 && curve >= 0 && curve <= 1);
+
+  u32 id = nextUniqueID();
 
   {
     ScopedProcLock lk(proc);
@@ -257,17 +259,19 @@ void StateManager::addPath(f32 x, f32 y, f32 curve) {
     path.x = x;
     path.y = y;
     path.c = curve;
-    path.id = nextUniqueID();
+    path.id = id;
   }
 
   updateTrackView();
+
+  return id;
 }
 
-void StateManager::addPathDenorm(f32 x, f32 y, f32 curve) {
+u32 StateManager::addPathDenorm(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(x >= 0 && y >= 0 && y <= 1 && curve >= 0 && curve <= 1);
 
-  addPath(x / state.zoom, y, curve);
+  return addPath(x / state.zoom, y, curve);
 }
 
 void StateManager::removePath(u32 id) {

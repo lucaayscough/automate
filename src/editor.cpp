@@ -394,8 +394,9 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
     activeGesture = GestureType::bend;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else if (d < mouseIntersectDistance) {
-    // TODO(luca): add gesture
-    manager.addPathDenorm(grid.snap(p.x), p.y / getHeight(), Path::defaultCurve);
+    activeGesture = GestureType::addPath;
+    lastPathAddedID = manager.addPathDenorm(grid.snap(p.x), p.y / getHeight(), Path::defaultCurve);
+    hoverBounds = {};
   } else if (d < mouseOverDistance) {
     activeGesture = GestureType::drag;
     setMouseCursor(juce::MouseCursor::NoCursor);
@@ -486,9 +487,17 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     }
 
     repaint();
+  } else if (activeGesture == GestureType::addPath) {
+    assert(lastPathAddedID); 
+
+    for (const auto& path : manager.state.paths) {
+      if (path.id == lastPathAddedID) {
+        manager.movePathDenorm(path.id, grid.snap(e.position.x), e.position.y / getHeight(), path.c);
+      }
+    }
+
   } else {
-    // TODO(luca): occurs when a path has just been added
-    //jassertfalse;
+    assert(false);
   }
 }
 void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {

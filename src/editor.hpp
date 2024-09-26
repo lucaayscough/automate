@@ -174,7 +174,7 @@ struct ClipView : juce::Component {
 };
 
 struct AutomationLane : juce::Component {
-  enum class GestureType { none, bend, drag, select };
+  enum class GestureType { none, bend, drag, select, addPath };
 
   AutomationLane(StateManager&, Grid&);
   ~AutomationLane() override;
@@ -209,6 +209,7 @@ struct AutomationLane : juce::Component {
 
   GestureType activeGesture = GestureType::none;
   Selection selection;
+  u32 lastPathAddedID = 0; 
 
   static constexpr i32 height = 180;
   static constexpr f32 lineThickness = 2;
