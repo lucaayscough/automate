@@ -12,7 +12,6 @@
 - narrowing/zooming snapping still needs a bit more work
 - z/x to zoom in and out of selection
 - fix triplets
-- extend path range to track bounds
 - track zoom/scroll
 - double click on curved path to straiten
 - fix the need create mouseUp event to be able to drag clip that was just created

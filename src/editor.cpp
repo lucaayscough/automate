@@ -432,44 +432,50 @@ void AutomationLane::mouseUp(const juce::MouseEvent&) {
 void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
   if (activeGesture == GestureType::bend) {
     auto p = manager.findAutomationPointDenorm(xHighlightedSegment);
-    assert(p->clip || p->path);
 
-    auto offset = e.getOffsetFromDragStart();
-    auto y = f32(lastMouseDragOffset.y - offset.y);
-    auto increment = y / kDragIncrement;
-    auto newValue = std::clamp(p->c + increment, 0.f, 1.f);
-    assert(newValue >= 0 && newValue <= 1);
+    if (p != manager.state.points.end()){
+      assert(p->clip || p->path);
 
-    if (p->clip) {
-      manager.moveClip(p->clip->id, p->x, p->y, newValue);
-    } else {
-      manager.movePath(p->path->id, p->x, p->y, newValue);
+      auto offset = e.getOffsetFromDragStart();
+      auto y = f32(lastMouseDragOffset.y - offset.y);
+      auto increment = y / kDragIncrement;
+      auto newValue = std::clamp(p->c + increment, 0.f, 1.f);
+      assert(newValue >= 0 && newValue <= 1);
+
+      if (p->clip) {
+        manager.moveClip(p->clip->id, p->x, p->y, newValue);
+      } else {
+        manager.movePath(p->path->id, p->x, p->y, newValue);
+      }
+
+      lastMouseDragOffset = offset;
     }
-
-    lastMouseDragOffset = offset;
   } else if (activeGesture == GestureType::drag) {
     auto p = manager.findAutomationPointDenorm(xHighlightedSegment);
-    assert(p->clip || p->path);
 
-    auto offset = e.getOffsetFromDragStart();
-    auto y = f32(lastMouseDragOffset.y - offset.y);
-    auto increment = y / kDragIncrement;
-    auto newValue = std::clamp(p->y - increment, 0.f, 1.f);
+    if (p != manager.state.points.end()) {
+      assert(p->clip || p->path);
 
-    if (p->path) {
-      manager.movePath(p->path->id, p->x, newValue, p->c);
-    }
+      auto offset = e.getOffsetFromDragStart();
+      auto y = f32(lastMouseDragOffset.y - offset.y);
+      auto increment = y / kDragIncrement;
+      auto newValue = std::clamp(p->y - increment, 0.f, 1.f);
 
-    if (p != manager.state.points.begin() && std::next(p) != manager.state.points.end()) {
-      auto prev = std::prev(p);
-
-      if (prev->path) {
-        newValue = std::clamp(prev->y - increment, 0.f, 1.f);
-        manager.movePath(prev->path->id, prev->x, newValue, prev->c);
+      if (p->path) {
+        manager.movePath(p->path->id, p->x, newValue, p->c);
       }
-    }
 
-    lastMouseDragOffset = offset;
+      if (p != manager.state.points.begin() && std::next(p) != manager.state.points.end()) {
+        auto prev = std::prev(p);
+
+        if (prev->path) {
+          newValue = std::clamp(prev->y - increment, 0.f, 1.f);
+          manager.movePath(prev->path->id, prev->x, newValue, prev->c);
+        }
+      }
+
+      lastMouseDragOffset = offset;
+    }
   } else if (activeGesture == GestureType::select) {
     f32 end = grid.snap(e.position.x); 
     selection.end = end < 0 ? 0 : end;
@@ -485,16 +491,19 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     //jassertfalse;
   }
 }
-
 void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
   if (getDistanceFromPoint(e.position) < mouseOverDistance && optKeyPressed) {
-    //auto p = automation.getClipPathForX(e.position.x / zoom);
-    //jassert(p);
+    auto p = manager.findAutomationPointDenorm(e.position.x);
 
-    //if (p) {
-    //  undoManager->beginNewTransaction();
-    //  p->setCurve(0.5);
-    //}
+    if (p != manager.state.points.end()){
+      assert(p->clip || p->path);
+
+      if (p->path) {
+        manager.movePath(p->path->id, p->path->x, p->path->y, 0.5f);
+      } else {
+        manager.moveClip(p->clip->id, p->clip->x, p->clip->y, 0.5f);
+      }
+    }
   }
 }
 
