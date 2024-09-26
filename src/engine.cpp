@@ -3,7 +3,7 @@
 
 namespace atmt {
 
-Engine::Engine(StateManager& m, UIBridge& b) : manager(m), uiBridge(b) {}
+Engine::Engine(StateManager& m) : manager(m) {}
 
 Engine::~Engine() {
   if (instance) {
@@ -68,10 +68,12 @@ void Engine::prepare(f32 sampleRate, i32 blockSize) {
 
 void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
-    if (!manager.state.editMode) {
-      f32 time = uiBridge.playheadPosition;
+    if (!manager.state.editMode || manager.state.requestParameterChange) {
+      manager.state.requestParameterChange = false;
+
+      f32 time = manager.state.playheadPosition;
       f32 lerpPos = getYFromX(manager.state.automation, time);
-      jassert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
+      assert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
 
       ClipPair clipPair;
 

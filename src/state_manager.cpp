@@ -470,10 +470,12 @@ void StateManager::updateParametersView() {
   }
 }
 
-void StateManager::updateAutomationLaneView() {
-  DBG("StateManager::updateAutomationLaneView()");
+void StateManager::updateTrackView() {
+  if (trackView) {
+    trackView->update(state.clips, state.zoom);
+  }
 
-  {
+  { // TODO(luca): this should be moved somewhere else 
     ScopedProcLock lk(proc);
 
     state.automation.clear();
@@ -516,14 +518,6 @@ void StateManager::updateAutomationLaneView() {
 
   if (automationLaneView) {
     automationLaneView->update(state.paths, state.automation, state.zoom);
-  }
-}
-
-void StateManager::updateTrackView() {
-  updateAutomationLaneView();
-
-  if (trackView) {
-    trackView->update(state.clips, state.zoom);
   }
 }
 

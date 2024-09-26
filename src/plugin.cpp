@@ -29,6 +29,7 @@ void Plugin::prepareToPlay(double sampleRate, int blockSize) {
 void Plugin::releaseResources() {}
 
 void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
+  scoped_timer t("Plugin::processBlock()");
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
@@ -36,30 +37,33 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
 
   auto playhead = getPlayHead();
   if (playhead) {
-    uiBridge.controlPlayhead = playhead->canControlTransport();
-
     // TODO(luca): do time conversion if necessary and ensure that all necessary information
     // including bpm etc is handled in hosts that do not provide them
+
     auto position = playhead->getPosition();
+
     if (position.hasValue()) {
-      auto ppq = position->getPpqPosition();
-      auto sec = position->getTimeInSeconds();
-      if (ppq.hasValue()) {
-        uiBridge.playheadPosition.store(f32(*ppq));
-      } else {
-        // TODO(luca): we need a way of converting seconds to ppq
-        uiBridge.playheadPosition.store(f32(*sec));
+      if (!manager.state.editMode) {
+        auto ppq = position->getPpqPosition();
+        auto sec = position->getTimeInSeconds();
+
+        if (ppq.hasValue()) {
+          manager.state.playheadPosition.store(f32(*ppq));
+        } else if (sec.hasValue()) {
+          // TODO(luca): we need a way of converting seconds to ppq
+          manager.state.playheadPosition.store(f32(*sec));
+        }
       }
 
       auto bpm = position->getBpm();
       if (bpm.hasValue()) {
-        uiBridge.bpm = f32(*bpm);
+        manager.state.bpm = f32(*bpm);
       }
 
       auto timeSignature = position->getTimeSignature();
       if (timeSignature.hasValue()) {
-        uiBridge.numerator = u32(timeSignature->numerator);
-        uiBridge.denominator = u32(timeSignature->denominator);
+        manager.state.numerator = u32(timeSignature->numerator);
+        manager.state.denominator = u32(timeSignature->denominator);
       }
     }
   }

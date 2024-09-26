@@ -385,7 +385,7 @@ void AutomationLane::mouseExit(const juce::MouseEvent&) {
 }
 
 void AutomationLane::mouseDown(const juce::MouseEvent& e) {
-  jassert(activeGesture == GestureType::none);
+  assert(activeGesture == GestureType::none);
 
   auto p = getAutomationPoint(e.position);
   auto d = p.getDistanceFrom(e.position);
@@ -406,6 +406,11 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
     f32 end = grid.snap(e.position.x); 
 
     selection = { start < 0 ? 0 : start, end < 0 ? 0 : end };
+
+    if (manager.state.editMode) {
+      manager.state.playheadPosition = selection.start / manager.state.zoom;
+      manager.state.requestParameterChange = true;
+    }
   }
 }
 
@@ -468,6 +473,12 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
   } else if (activeGesture == GestureType::select) {
     f32 end = grid.snap(e.position.x); 
     selection.end = end < 0 ? 0 : end;
+
+    if (manager.state.editMode) {
+      manager.state.playheadPosition = selection.end / manager.state.zoom;
+      manager.state.requestParameterChange = true;
+    }
+
     repaint();
   } else {
     // TODO(luca): occurs when a path has just been added
@@ -530,7 +541,7 @@ void AutomationLane::update(const std::vector<Path>& paths, juce::Path a, f32 zo
   repaint();
 }
 
-Track::Track(StateManager& m, UIBridge& u) : manager(m), uiBridge(u) {
+Track::Track(StateManager& m) : manager(m) {
   addAndMakeVisible(automationLane);
   startTimerHz(60);
   setSize(getTrackWidth(), height);
@@ -588,13 +599,13 @@ void Track::timerCallback() {
 }
 
 void Track::resetGrid() {
-  Grid::TimeSignature ts { uiBridge.numerator.load(), uiBridge.denominator.load() };
-  auto ph = uiBridge.playheadPosition.load() * zoom;
+  Grid::TimeSignature ts { manager.state.numerator.load(), manager.state.denominator.load() };
+  auto ph = manager.state.playheadPosition.load() * zoom;
 
   if (std::abs(playhead.x - ph) > EPSILON) {
     auto x = -viewportDeltaX;
-    auto inBoundsOld = playhead.x > x && playhead.x < x; 
-    auto inBoundsNew = ph > x && ph < (x + getWidth()); 
+    auto inBoundsOld = playhead.x >= x && playhead.x < x; 
+    auto inBoundsNew = ph >= x && ph < (x + getWidth()); 
 
     playhead.x = ph;
 
@@ -624,16 +635,11 @@ i32 Track::getTrackWidth() {
   }
 
   width *= zoom;
-  return width > getParentWidth() ? int(width) : getParentWidth();
+  return width > getParentWidth() ? int(width + rightPadding) : getParentWidth();
 }
 
 void Track::zoomTrack(f32 amount) {
-  //DBG("Track::zoomTrack()");
-
-  Selection oldSelection = automationLane.selection;
-
-  oldSelection.start /= zoom;
-  oldSelection.end /= zoom;
+  scoped_timer t("Track::zoomTrack()");
 
   f32 mouseX = getMouseXYRelative().x;
   f32 z0 = zoom;
@@ -652,18 +658,12 @@ void Track::zoomTrack(f32 amount) {
 
   viewportDeltaX = std::clamp(-X0, -(trackWidth - parentWidth), 0.f);
 
-  setBounds(i32(viewportDeltaX), getY(), i32(trackWidth), getHeight());
+  setTopLeftPosition(i32(viewportDeltaX), getY());
 
   assert(viewportDeltaX <= 0);
   assert(trackWidth + viewportDeltaX >= parentWidth);
 
-  oldSelection.start *= zoom;
-  oldSelection.end *= zoom;
-
-  automationLane.selection = oldSelection;
-
   resetGrid();
-  resized();
   repaint();
 }
 
@@ -674,6 +674,9 @@ void Track::scroll(f32 amount) {
 }
 
 void Track::update(const std::vector<Clip>& clips, f32 z) {
+  automationLane.selection.start /= zoom * z;
+  automationLane.selection.end /= zoom * z;
+
   zoom = z;
 
   u32 numClips = u32(clips.size());
@@ -706,6 +709,8 @@ void Track::update(const std::vector<Clip>& clips, f32 z) {
        
     view->setBounds(x, y, w, h);
   }
+
+  setSize(getTrackWidth(), getHeight());
 }
 
 void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
@@ -1158,7 +1163,7 @@ void ParametersView::updateParameters() {
   }
 }
 
-MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) : manager(m), uiBridge(b), instance(i) {
+MainView::MainView(StateManager& m, juce::AudioProcessorEditor* i) : manager(m), instance(i) {
   assert(i);
   addChildComponent(parametersView);
   addAndMakeVisible(toolBar);
@@ -1170,6 +1175,8 @@ MainView::MainView(StateManager& m, UIBridge& b, juce::AudioProcessorEditor* i) 
   toolBar.infoButton.onClick = [this] { toggleInfoView(); };
 
   setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+
+  manager.registerMainView();
 }
 
 void MainView::paint(juce::Graphics& g) {
@@ -1241,7 +1248,7 @@ void Editor::resized() {
 void Editor::showMainView() {
   jassert(useMainView);
   if (!mainView) {
-    mainView = std::make_unique<MainView>(manager, uiBridge, engine.getEditor());
+    mainView = std::make_unique<MainView>(manager, engine.getEditor());
     addAndMakeVisible(mainView.get());
   }
   defaultView.setVisible(false);

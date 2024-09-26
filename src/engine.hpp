@@ -4,7 +4,6 @@
 #include "state_manager.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_audio_devices/juce_audio_devices.h>
-#include "ui_bridge.hpp"
 
 namespace atmt {
 
@@ -14,7 +13,7 @@ struct ClipPair {
 };
 
 struct Engine : juce::AudioProcessorListener {
-  Engine(StateManager&, UIBridge&);
+  Engine(StateManager&);
   ~Engine() override;
 
   void kill();
@@ -33,7 +32,6 @@ struct Engine : juce::AudioProcessorListener {
   juce::AudioProcessorEditor* getEditor();
 
   StateManager& manager;
-  UIBridge& uiBridge;
   juce::AudioProcessor& proc { manager.proc };
   
   // TODO(luca): get rid of these 
