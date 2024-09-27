@@ -91,7 +91,9 @@ struct StateManager {
   juce::ValueTree getState();
 
   void addClip(f32, f32, f32);
-  void removeClip(u32 id);
+  void duplicateClip(u32, f32, bool);
+  void duplicateClipDenorm(u32, f32, bool);
+  void removeClip(u32);
   void moveClip(u32, f32, f32, f32);
   void moveClipDenorm(u32, f32, f32, f32);
 

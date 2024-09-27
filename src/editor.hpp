@@ -165,6 +165,7 @@ struct ClipView : juce::Component {
   std::function<void(u32)> remove;
 
   u32 id = 0;
+  bool optKeyPressed = false;
   Grid& grid;
 
   static constexpr i32 trimThreshold = 20;
@@ -215,7 +216,7 @@ struct AutomationLane : juce::Component {
   static constexpr f32 lineThickness = 2;
 };
 
-struct Track : juce::Component, juce::Timer {
+struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::DragAndDropTarget {
   Track(StateManager&);
   ~Track() override;
   void paint(juce::Graphics&) override;
@@ -230,6 +231,10 @@ struct Track : juce::Component, juce::Timer {
   void scroll(f32);
 
   void update(const std::vector<Clip>&, f32);
+
+  using Details = juce::DragAndDropTarget::SourceDetails;
+  bool isInterestedInDragSource(const Details&) override;
+  void itemDropped(const Details&) override;
 
   StateManager& manager;
 

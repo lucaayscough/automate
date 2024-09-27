@@ -270,6 +270,13 @@ void ClipView::paint(juce::Graphics& g) {
 
 void ClipView::mouseDown(const juce::MouseEvent& e) {
   mouseDownOffset = e.position.x;
+
+  auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
+  assert(container);
+
+  if (container && optKeyPressed) {
+    container->startDragging({ i32(id) }, this);
+  }
 }
 
 void ClipView::mouseDoubleClick(const juce::MouseEvent&) {
@@ -282,10 +289,12 @@ void ClipView::mouseUp(const juce::MouseEvent&) {
 }
 
 void ClipView::mouseDrag(const juce::MouseEvent& e) {
-  auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
-  f32 x = grid.snap(parentLocalPoint.x - mouseDownOffset);
-  move(id, x, y);
+  if (!optKeyPressed) {
+    auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
+    f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
+    f32 x = grid.snap(parentLocalPoint.x - mouseDownOffset);
+    move(id, x, y);
+  }
 }
 
 AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {
@@ -744,6 +753,21 @@ void Track::mouseDoubleClick(const juce::MouseEvent& e) {
     manager.addClip(grid.snap(e.position.x) / zoom, 0, Path::defaultCurve);
   } else if (b.presetLaneBottom.contains(e.position.toInt())) {
     manager.addClip(grid.snap(e.position.x) / zoom, 1, Path::defaultCurve);
+  }
+}
+
+bool Track::isInterestedInDragSource(const Details&) {
+  return true;
+}
+
+void Track::itemDropped(const Details& d) {
+  u32 id = u32(i32(d.description));
+  assert(id);
+
+  if (b.presetLaneTop.contains(d.localPosition.toInt())) {
+    manager.duplicateClipDenorm(id, grid.snap(d.localPosition.x), true);
+  } else if (b.presetLaneBottom.contains(d.localPosition.toInt())) {
+    manager.duplicateClipDenorm(id, grid.snap(d.localPosition.x), false);
   }
 }
 
@@ -1435,6 +1459,11 @@ void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
   if (mainView) {
     auto& track = mainView->track;
     track.automationLane.optKeyPressed = k.isAltDown();
+
+    for (auto clip : track.clipViews) {
+      clip->optKeyPressed = k.isAltDown();
+    }
+
     track.shiftKeyPressed = k.isShiftDown();
     track.cmdKeyPressed = k.isCommandDown();
   }

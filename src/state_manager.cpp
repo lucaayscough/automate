@@ -186,6 +186,30 @@ void StateManager::addClip(f32 x, f32 y, f32 curve) {
   updateTrackView();
 }
 
+void StateManager::duplicateClip(u32 id, f32 x, bool top) {
+  for (const auto& clip : state.clips) {
+    if (clip.id == id) {
+      state.clips.push_back(clip);
+      auto& newClip = state.clips.back();
+
+      newClip.id = nextUniqueID();
+      newClip.x = x;
+      newClip.y = f32(!top);
+      newClip.c = 0.5f;
+
+      updateTrackView();
+
+      return;
+    }
+  }
+
+  assert(false);
+}
+
+void StateManager::duplicateClipDenorm(u32 id, f32 x, bool top) {
+  duplicateClip(id, x / state.zoom, top);
+}
+
 void StateManager::removeClip(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(id);
