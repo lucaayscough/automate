@@ -71,9 +71,8 @@ struct InfoView : juce::Component {
     const char* binding;
   };
 
-  static constexpr i32 numCommands = 17;
   static constexpr i32 commandHeight = 24;
-  static constexpr Command commands[numCommands] =
+  static constexpr Command commands[] =
   {  
     { "Enable all parameters",      "Command + E" },
     { "Disable all parameters",     "Command + D" },
@@ -85,14 +84,18 @@ struct InfoView : juce::Component {
     { "Narrow grid",                "Command + 1" },
     { "Widen grid",                 "Command + 2" },
     { "Toggle triplet grid",        "Command + 3" },
+    { "Toggle grid snapping",       "Command + 4" },
     { "Zoom in",                    "Command + Scroll / +" },
     { "Zoom out",                   "Command + Scroll / -" },
     { "Scroll",                     "Shift + Scroll" },
     { "Create clip",                "Double click on clip lane" },
     { "Delete clip",                "Double click on clip" },
+    { "Duplicate clip",             "Alt/Opt + click + drag" },
     { "Delete selection",           "Backspace" },
     { "Toggle info view",           "I" }
   };
+
+  static constexpr i32 numCommands = std::size(commands);
 
   void paint(juce::Graphics& g) override;
   void mouseDown(const juce::MouseEvent&) override;
