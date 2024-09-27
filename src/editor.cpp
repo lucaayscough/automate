@@ -990,6 +990,11 @@ void DefaultView::ManufacturersPanel::paint(juce::Graphics& g) {
       g.drawText(m.name, m.r, juce::Justification::left);
     }
   }
+
+  if (manufacturers.empty()) {
+    g.drawText("Drag and drop a VST3/AU to start", getLocalBounds(), juce::Justification::centred); 
+
+  }
 }
 
 void DefaultView::ManufacturersPanel::mouseMove(const juce::MouseEvent& e) {
@@ -1063,8 +1068,11 @@ void DefaultView::ManufacturersPanel::update(juce::Array<juce::PluginDescription
     }
   }
 
-  if (!manufacturers.empty()) {
+  if (currentManufacturer == "" && !manufacturers.empty()) {
     pluginsPanel.updateManufacturerFilter(manufacturers.front().name);
+    activeButton = 0;
+  } else {
+    pluginsPanel.updateManufacturerFilter(currentManufacturer);
   }
 
   i32 newHeight = DefaultView::buttonHeight * i32(manufacturers.size()) + DefaultView::titleHeight;
