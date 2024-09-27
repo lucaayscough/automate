@@ -13,7 +13,6 @@
 - z/x to zoom in and out of selection
 - fix triplets
 - track zoom/scroll
-- double click on curved path to straiten
 
 ## Parameters View
 

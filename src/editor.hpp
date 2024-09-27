@@ -227,6 +227,7 @@ struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::D
   void timerCallback() override;
   void resetGrid();
   i32 getTrackWidth();
+  void mouseMagnify(const juce::MouseEvent&, f32) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
