@@ -740,10 +740,20 @@ void Track::update(const std::vector<Clip>& clips, f32 z) {
   setSize(getTrackWidth(), getHeight());
 }
 
+void Track::mouseMagnify(const juce::MouseEvent&, f32 scale) {
+  if (scale < 1) {
+    zoomTrack(-0.1f * (1.f / scale));
+  } else {
+    zoomTrack(0.1f * scale);
+  }
+}
+
 void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   if (cmdKeyPressed) {
     zoomTrack(w.deltaY);
   } else if (shiftKeyPressed) {
+    scroll(w.deltaY);
+  } else {
     scroll(w.deltaX);
   }
 }
