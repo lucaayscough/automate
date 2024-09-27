@@ -39,7 +39,9 @@ void StateManager::replace(const juce::ValueTree& tree) {
   juce::MessageManagerLock lk(juce::Thread::getCurrentThread());
 
   if (lk.lockWasGained()) {
-    setPluginID(tree["pluginID"]);
+    if (!setPluginID(tree["pluginID"])) {
+      return;
+    }
 
     if (engine->hasInstance()) {
       auto mb = tree["pluginData"].getBinaryData();
@@ -354,10 +356,10 @@ void StateManager::removeSelection(Selection selection) {
   updateTrackView();
 }
 
-void StateManager::setPluginID(const juce::String& id) {
+bool StateManager::setPluginID(const juce::String& id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  DBG("StateManager::setPluginID()");
+  scoped_timer t("StateManager::setPluginID()");
 
   {
     ScopedProcLock lk(proc);
@@ -385,11 +387,16 @@ void StateManager::setPluginID(const juce::String& id) {
           engine->setPluginInstance(instance);
           proc.prepareToPlay(proc.getSampleRate(), proc.getBlockSize());
         }
+      } else {
+        return false;
       }
     } else {
       engine->kill();
+      return false;
     }
   }
+
+  return true;
 }
 
 void StateManager::setZoom(f32 z) {

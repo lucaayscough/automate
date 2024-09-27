@@ -108,7 +108,7 @@ struct StateManager {
 
   void removeSelection(Selection selection);
 
-  void setPluginID(const juce::String&);
+  bool setPluginID(const juce::String&);
   void setZoom(f32);
   void setEditMode(bool);
   void setModulateDiscrete(bool);

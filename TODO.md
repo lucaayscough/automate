@@ -12,7 +12,6 @@
 - narrowing/zooming snapping still needs a bit more work
 - z/x to zoom in and out of selection
 - fix triplets
-- track zoom/scroll
 
 ## Parameters View
 
