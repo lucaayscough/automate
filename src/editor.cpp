@@ -1353,30 +1353,24 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       case keyNum1: {
         track.grid.narrow(); 
         track.repaint();
-        return true;
       } break;
       case keyNum2: {
         track.grid.widen(); 
         track.repaint();
-        return true;
       } break;
       case keyNum3: {
         track.grid.triplet(); 
         track.repaint();
-        return true;
       } break;
       case keyNum4: {
         track.grid.toggleSnap(); 
         track.repaint();
-        return true;
       } break;
       case keyCharD: {
         manager.setAllParametersActive(false);
-        return true;
       } break;
       case keyCharE: {
         manager.setAllParametersActive(true);
-        return true;
       } break;
       case keyCharZ: {
         if (modifier.isShiftDown()) {
@@ -1384,7 +1378,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         } else {
           // TODO(luca): implement undo
         }
-        return true;
       } break;
     };
   } else {
@@ -1394,54 +1387,44 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         selection.start /= track.zoom;
         selection.end /= track.zoom;
         manager.removeSelection(selection);
-        return true;
       } break;
       case keyPlus: {
         track.zoomTrack(1);
-        return true;
       } break;
       case keyEquals: {
         track.zoomTrack(1);
-        return true;
       } break;
       case keyMin: {
         track.zoomTrack(-1);
-        return true;
       } break;
       case keyCharE: {
         manager.setEditMode(!manager.state.editMode);
-        return true;
       } break;
       case keyCharD: {
         manager.setModulateDiscrete(!manager.state.modulateDiscrete);
-        return true;
       } break;
       case keyCharR: {
         manager.randomiseParameters();
-        return true;
       } break;
       case keyCharV: {
         if (mainView) {
           mainView->toggleParametersView();
         }
-        return true;
       } break;
       case keyCharK: {
         manager.setPluginID({}); 
-        return true;
       } break;
       case keyCharI: {
         if (mainView) {
           mainView->toggleInfoView();
         }
-        return true;
       } break;
     };
   } 
 
   DBG("Key code: " + juce::String(code));
 
-  return false;
+  return true;
 }
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
