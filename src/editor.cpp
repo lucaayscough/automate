@@ -1248,7 +1248,11 @@ void MainView::resized() {
 
   infoView.setBounds(r);
   toolBar.setBounds(r.removeFromTop(ToolBar::height));
+
+  // TODO(luca): find better way of going about setting the track bounds
   track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
+  track.setSize(track.getTrackWidth(), Track::height);
+  manager.updateTrackView();
 
   auto i = r.removeFromTop(instance->getHeight()); 
   instance->setBounds(i.withSizeKeepingCentre(instance->getWidth(), i.getHeight()));
