@@ -2,7 +2,7 @@
 
 set(PLUGIN_NAME              Automate)
 set(PLUGIN_VERSION           0.1.0)
-set(PLUGIN_MANUFACTURER_CODE chrm)
+set(PLUGIN_MANUFACTURER_CODE Chrm)
 set(PLUGIN_CODE              Auto)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
@@ -11,7 +11,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
 
 cmake_minimum_required(VERSION 3.21)
 
-set(FORMATS "VST3;Standalone" CACHE STRING "Plugin formats for JUCE to build. Valid formats: VST AU AUv3 Standalone")
+set(FORMATS "VST3;AU;Standalone" CACHE STRING "Plugin formats for JUCE to build. Valid formats: VST AU AUv3 Standalone")
 message("-- Building formats: ${FORMATS}")
 
 project(${PLUGIN_NAME} VERSION ${PLUGIN_VERSION} LANGUAGES CXX)
