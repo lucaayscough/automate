@@ -29,7 +29,7 @@ void Plugin::prepareToPlay(double sampleRate, int blockSize) {
 void Plugin::releaseResources() {}
 
 void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
-  scoped_timer t("Plugin::processBlock()");
+  //scoped_timer t("Plugin::processBlock()");
   juce::ScopedNoDenormals noDeNormals;
 
   for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
