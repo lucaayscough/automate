@@ -306,7 +306,7 @@ AutomationLane::~AutomationLane() {
 }
 
 void AutomationLane::paint(juce::Graphics& g) {
-  scoped_timer t("AutomationLane::paint()");
+  //scoped_timer t("AutomationLane::paint()");
 
   { // NOTE(luca): draw selection
     auto r = getLocalBounds();
@@ -580,7 +580,7 @@ Track::~Track() {
 }
 
 void Track::paint(juce::Graphics& g) {
-  scoped_timer t("Track::paint()");
+  //scoped_timer t("Track::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(Colours::jet);
@@ -671,6 +671,9 @@ void Track::zoomTrack(f32 amount) {
   f32 mouseX = getMouseXYRelative().x;
   f32 z0 = zoom;
   f32 z1 = z0 + (amount * kZoomSpeed * (z0 / zoomDeltaScale)); 
+
+  z1 = std::clamp(z1, 0.001f, 10000.f);
+
   f32 x0 = -viewportDeltaX;
   f32 x1 = mouseX;
   f32 d = x1 - x0;
@@ -701,8 +704,8 @@ void Track::scroll(f32 amount) {
 }
 
 void Track::update(const std::vector<Clip>& clips, f32 z) {
-  automationLane.selection.start /= zoom * z;
-  automationLane.selection.end /= zoom * z;
+  automationLane.selection.start = (automationLane.selection.start / zoom) * z;
+  automationLane.selection.end = (automationLane.selection.end / zoom) * z;
 
   zoom = z;
 
@@ -752,7 +755,7 @@ void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetail
   if (cmdKeyPressed) {
     zoomTrack(w.deltaY);
   } else if (shiftKeyPressed) {
-    scroll(w.deltaY);
+    scroll(w.deltaX + w.deltaY);
   } else {
     scroll(w.deltaX);
   }
