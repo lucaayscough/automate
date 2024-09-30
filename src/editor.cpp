@@ -631,8 +631,8 @@ void Track::resetGrid() {
 
   if (std::abs(playhead.x - ph) > EPSILON) {
     auto x = -viewportDeltaX;
-    auto inBoundsOld = playhead.x >= x && playhead.x < x; 
-    auto inBoundsNew = ph >= x && ph < (x + getWidth()); 
+    auto inBoundsOld = playhead.x >= x && playhead.x <= (x + getWidth()); 
+    auto inBoundsNew = ph >= x && ph <= (x + getWidth()); 
 
     playhead.x = ph;
 
