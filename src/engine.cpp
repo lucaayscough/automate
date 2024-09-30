@@ -23,46 +23,6 @@ void Engine::prepare(f32 sampleRate, i32 blockSize) {
     instance->prepareToPlay(sampleRate, blockSize);
     instance->addListener(this);
     proc.setLatencySamples(instance->getLatencySamples());
-
-    jassert(proc.getBusCount(true)  >= instance->getBusCount(true));
-    jassert(proc.getBusCount(false) >= instance->getBusCount(false));
-
-    if (proc.checkBusesLayoutSupported(instance->getBusesLayout())) {
-      jassert(proc.setBusesLayout(instance->getBusesLayout()));
-    } else {
-      for (i32 i = 0; i < instance->getBusCount(true); ++i) {
-        jassert(proc.setChannelLayoutOfBus(true, i, instance->getChannelLayoutOfBus(true, i)));  
-      }
-
-      for (i32 i = 0; i < instance->getBusCount(false); ++i) {
-        jassert(proc.setChannelLayoutOfBus(false, i, instance->getChannelLayoutOfBus(false, i)));  
-      }
-    }
-
-    if (instance->getMainBusNumInputChannels() > 0) {
-      // TODO(luca): figure out appropriate protocol for plugins that don't have audio inputs
-      jassert(proc.getMainBusNumInputChannels()  == instance->getMainBusNumInputChannels());
-      jassert(proc.getMainBusNumOutputChannels() == instance->getMainBusNumOutputChannels());
-
-      jassert(proc.getTotalNumInputChannels()  == instance->getTotalNumInputChannels());
-      jassert(proc.getTotalNumOutputChannels() == instance->getTotalNumOutputChannels());
-    }
-
-    jassert(!instance->isUsingDoublePrecision());
-
-    // TODO(luca): deal with precision
-
-    // TODO(luca): check that this is redundant
-    //for (i32 i = 0; i < proc.getBusCount(true); ++i) {
-    //  jassert(proc.setChannelLayoutOfBus(true, i, instance->getChannelLayoutOfBus(true, i)));
-    //}
-
-    //for (i32 i = 0; i < proc.getBusCount(false); ++i) {
-    //  jassert(proc.setChannelLayoutOfBus(false, i, instance->getChannelLayoutOfBus(false, i)));
-    //}
-    
-    // TODO(luca): this stuff will probably not work the way we want it to
-    // https://forum.juce.com/t/what-are-the-chances-of-dynamic-plugin-buses-ever-working/53020
   }
 }
 
