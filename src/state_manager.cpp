@@ -3,6 +3,7 @@
 #include "editor.hpp"
 #include <assert.h>
 #include "scoped_timer.hpp"
+#include "logger.hpp"
 
 namespace atmt {
 
