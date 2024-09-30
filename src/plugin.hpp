@@ -5,6 +5,7 @@
 #include "engine.hpp"
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "types.hpp"
+#include "logger.hpp"
 
 namespace atmt {
 
@@ -38,6 +39,8 @@ struct Plugin : juce::AudioProcessor {
 
   StateManager manager { *this };
   Engine engine { manager }; 
+
+  Logger logger;
 
   juce::AudioPluginFormatManager apfm;
   juce::KnownPluginList knownPluginList;
