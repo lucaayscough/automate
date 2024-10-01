@@ -7,11 +7,6 @@
 
 namespace atmt {
 
-struct ClipPair {
-  Clip* a = nullptr;
-  Clip* b = nullptr;
-};
-
 struct Engine : juce::AudioProcessorListener {
   Engine(StateManager&);
   ~Engine() override;

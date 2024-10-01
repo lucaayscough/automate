@@ -35,17 +35,18 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
       f32 lerpPos = getYFromX(manager.state.automation, time);
       assert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
 
-      ClipPair clipPair;
+      i32 a = -1;
+      i32 b = -1;
+
+      const auto& clips = manager.state.clips;
 
       {
         f32 closest = u32(-1);
 
-        auto& clips = manager.state.clips;
-
         for (u32 i = 0; i < clips.size(); ++i) {
           if (time >= clips[i].x) {
             if (time - clips[i].x < closest) {
-              clipPair.a = &clips[i];  
+              a = i32(i);
               closest = time - clips[i].x;
             }
           }
@@ -54,22 +55,26 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
         closest = u32(-1);
         
         for (u32 i = 0; i < clips.size(); ++i) {
+          if (i32(i) == a) {
+            continue;
+          }
+
           if (time <= clips[i].x) {
             if (clips[i].x - time < closest) {
-              clipPair.b = &clips[i];  
+              b = i32(i);  
               closest = time - clips[i].x;
             }
           }
         }
 
-        if (!clipPair.a && clipPair.b) {
-          clipPair.a = clipPair.b;
-          clipPair.b = nullptr;
+        if (a < 0 && b >= 0) {
+          a = b;
+          b = -1;
         }
       }
 
-      if (clipPair.a && !clipPair.b) {
-        auto& presetParameters = clipPair.a->parameters;
+      if (a >= 0 && b < 0) {
+        auto& presetParameters = clips[u32(a)].parameters;
         auto& parameters = manager.state.parameters;
 
         for (u32 i = 0; i < parameters.size(); ++i) {
@@ -79,26 +84,25 @@ void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffe
             }
           }
         }
-      } else if (clipPair.a && clipPair.b) {
-        f32 position = bool(clipPair.a->y) ? 1.f - lerpPos : lerpPos;
+      } else if (a >= 0 && b >= 0) {
+        f32 position = bool(clips[u32(a)].y) ? 1.f - lerpPos : lerpPos;
 
-        auto& beginParameters = clipPair.a->parameters;
-        auto& endParameters   = clipPair.b->parameters;
+        auto& beginParameters = clips[u32(a)].parameters;
+        auto& endParameters   = clips[u32(b)].parameters;
         auto& parameters      = manager.state.parameters;
 
         for (u32 i = 0; i < parameters.size(); ++i) {
-
           if (parameters[i].active) {
             if (manager.shouldProcessParameter(&parameters[i])) {
               assert(isNormalised(beginParameters[i]));
               assert(isNormalised(endParameters[i]));
 
-              f32 distance  = endParameters[i] - beginParameters[i];
-              f32 increment = distance * position; 
+              f32 increment = (endParameters[i] - beginParameters[i]) * position; 
               f32 newValue  = beginParameters[i] + increment;
+              f32 distance  = std::abs(newValue - parameters[i].parameter->getValue());
               assert(isNormalised(newValue));
 
-              if (std::abs(distance) > EPSILON) {
+              if (distance > EPSILON) {
                 parameters[i].parameter->setValue(f32(newValue));
               }
             }

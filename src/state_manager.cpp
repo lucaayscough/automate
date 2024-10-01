@@ -23,10 +23,6 @@ inline f32 random(f32 randomSpread) {
   return v;
 }
 
-inline u32 nextUniqueID() {
-  return ++uniqueCounter;
-}
-
 StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {}
 
 void StateManager::init() {
@@ -57,14 +53,18 @@ void StateManager::replace(const juce::ValueTree& tree) {
     for (auto c : clipsTree) {
       addClip(c["x"], c["y"], c["c"]);
       auto& clip = state.clips.back();
+      clip.parameters.clear();
 
       auto mb = c["parameters"].getBinaryData(); 
       auto parameters_ = (f32*)mb->getData();
       auto numParameters = mb->getSize() / sizeof(f32);
       clip.parameters.reserve(numParameters); 
+
       for (u32 i = 0; i < numParameters; ++i) {
         clip.parameters.emplace_back(parameters_[i]); 
       }
+
+      assert(clip.parameters.size() == numParameters);
     }
 
     auto pathsTree = tree.getChild(1);
@@ -198,6 +198,10 @@ void StateManager::duplicateClip(u32 id, f32 x, bool top) {
   newClip.y = f32(!top);
   newClip.c = 0.5f;
 
+  if (state.editMode) {
+    state.requestParameterChange = true;
+  }
+
   updateTrackView();
 }
 
@@ -218,6 +222,10 @@ void StateManager::removeClip(u32 id) {
     clips.erase(clips.begin() + id);
   }
 
+  if (state.editMode) {
+    state.requestParameterChange = true;
+  }
+
   updateTrackView();
 }
 
@@ -232,6 +240,10 @@ void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
     clips[id].x = x < 0 ? 0 : x;
     clips[id].y = std::clamp(y, 0.f, 1.f);
     clips[id].c = std::clamp(curve, 0.f, 1.f);
+  }
+
+  if (state.editMode) {
+    state.requestParameterChange = true;
   }
 
   updateTrackView();
@@ -279,6 +291,10 @@ u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
     path.c = curve;
   }
 
+  if (state.editMode) {
+    state.requestParameterChange = true;
+  }
+
   updateTrackView();
 
   return u32(state.paths.size() - 1);
@@ -301,6 +317,10 @@ void StateManager::removePath(u32 id) {
     paths.erase(paths.begin() + id);
   }
 
+  if (state.editMode) {
+    state.requestParameterChange = true;
+  }
+
   updateTrackView();
 }
 
@@ -314,6 +334,10 @@ void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
     paths[id].x = x < 0 ? 0 : x;
     paths[id].y = std::clamp(y, 0.f, 1.f);
     paths[id].c = std::clamp(c, 0.f, 1.f);
+  }
+
+  if (state.editMode) {
+    state.requestParameterChange = true;
   }
 
   updateTrackView(); 
