@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.22)
 set(FORMATS "VST3;AU;Standalone" CACHE STRING "Plugin formats for JUCE to build. Valid formats: VST AU AUv3 Standalone")
 message("-- Building formats: ${FORMATS}")
 
-project(${PLUGIN_NAME} VERSION ${PLUGIN_VERSION} LANGUAGES CXX)
+project(${PLUGIN_NAME} VERSION ${PLUGIN_VERSION} LANGUAGES C CXX)
 
 add_subdirectory(extern/JUCE)
 
