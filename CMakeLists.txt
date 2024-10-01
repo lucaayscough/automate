@@ -1,7 +1,7 @@
 ################################################################################
 
 set(PLUGIN_NAME              Automate)
-set(PLUGIN_VERSION           0.1.1)
+set(PLUGIN_VERSION           0.1.2)
 set(PLUGIN_MANUFACTURER_CODE Chrm)
 set(PLUGIN_CODE              Auto)
 set(CMAKE_CXX_STANDARD 20)

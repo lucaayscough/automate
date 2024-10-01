@@ -31,10 +31,6 @@ struct Style {
   static constexpr i32 minWidth = 600;
 };
 
-struct Constants {
-  static constexpr i32 kScrollSpeed = 500;
-};
-
 static const juce::URL supportURL { "https://patreon.com/lucaayscough" };
 
 struct Button : juce::Button {
@@ -168,7 +164,6 @@ struct ClipView : juce::Component {
   std::function<void(u32)> remove;
 
   u32 id = 0;
-  bool optKeyPressed = false;
   Grid& grid;
 
   static constexpr i32 trimThreshold = 20;
@@ -205,7 +200,6 @@ struct AutomationLane : juce::Component {
   f32 xHighlightedSegment = -1;
   static constexpr i32 mouseIntersectDistance = 5;
   static constexpr i32 mouseOverDistance = 15;
-  bool optKeyPressed = false;
   juce::Point<i32> lastMouseDragOffset;
 
   f32 kDragIncrement = 100;
@@ -215,18 +209,17 @@ struct AutomationLane : juce::Component {
   Selection selection;
   u32 lastPathAddedID = 0; 
 
-  static constexpr i32 height = 180;
   static constexpr f32 lineThickness = 2;
 };
 
-struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::DragAndDropTarget {
-  Track(StateManager&);
-  ~Track() override;
+struct TrackView : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::DragAndDropTarget {
+  TrackView(StateManager&);
+  ~TrackView() override;
   void paint(juce::Graphics&) override;
   void resized() override;
   void timerCallback() override;
   void resetGrid();
-  i32 getTrackWidth();
+  i32  getTrackWidth();
   void mouseMagnify(const juce::MouseEvent&, f32) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
@@ -243,10 +236,8 @@ struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::D
   StateManager& manager;
 
   Grid grid;
-  juce::OwnedArray<ClipView> clipViews;
-
   AutomationLane automationLane { manager, grid };
-  static constexpr f32 zoomDeltaScale = 5;
+  juce::OwnedArray<ClipView> clipViews;
 
   struct Playhead {
     static constexpr f32 width = 1.25f;
@@ -254,13 +245,7 @@ struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::D
   };
   
   Playhead playhead;
-
   f32 zoom = 0;
-
-  static constexpr i32 timelineHeight = 20;
-  static constexpr i32 presetLaneHeight = 25;
-  static constexpr i32 height = timelineHeight + presetLaneHeight * 2 + AutomationLane::height;
-  static constexpr i32 rightPadding = 200;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
@@ -270,10 +255,8 @@ struct Track : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::D
 
   Bounds b;
 
-  bool shiftKeyPressed = false;
-  bool cmdKeyPressed = false;
-  static constexpr i32 kZoomSpeed = 2;
   f32 viewportDeltaX = 0;
+
   const juce::Font font { Fonts::sofiaProRegular.withHeight(12) };
 
   static constexpr i32 beatTextWidth = 40;
@@ -447,7 +430,7 @@ struct MainView : juce::Component {
 
   StateManager& manager;
   InfoView infoView;
-  Track track { manager };
+  TrackView track { manager };
   std::unique_ptr<juce::AudioProcessorEditor> instance;
   ParametersView parametersView { manager };
   ToolBar toolBar { manager };

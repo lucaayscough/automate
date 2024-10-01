@@ -9,6 +9,22 @@
 
 namespace atmt {
 
+static constexpr i32 kScrollSpeed = 500;
+static constexpr f32 kZoomDeltaScale = 5;
+static constexpr i32 kZoomSpeed = 2;
+
+static constexpr i32 kAutomationLaneHeight = 180;
+static constexpr i32 kTimelineHeight = 20;
+static constexpr i32 kPresetLaneHeight = 25;
+static constexpr i32 kTrackHeight = kTimelineHeight + kPresetLaneHeight * 2 + kAutomationLaneHeight;
+static constexpr i32 kTrackWidthRightPadding = 200;
+
+static constexpr f32 kDefaultPathCurve = 0.5f;
+
+static bool gShiftKeyPressed = false;
+static bool gCmdKeyPressed = false;
+static bool gOptKeyPressed = false;
+
 struct ScopedProcLock {
   ScopedProcLock(juce::AudioProcessor& p) : proc(p) {
     proc.suspendProcessing(true);
@@ -22,15 +38,12 @@ struct ScopedProcLock {
 };
 
 struct Path {
-  u32 id = 0;
   f32 x = 0;
   f32 y = 0;
   f32 c = 0.5;
-  static constexpr f32 defaultCurve = 0.5f;
 };
 
 struct Clip {
-  u32 id = 0;
   f32 x = 0;
   f32 y = 0;
   f32 c = 0.5;
@@ -41,6 +54,7 @@ struct AutomationPoint {
   f32 x = 0;
   f32 y = 0;
   f32 c = 0.5;
+  u32 id = 0;
   Clip* clip = nullptr;
   Path* path = nullptr;
 };
@@ -79,7 +93,7 @@ struct State {
 
 struct Plugin;
 struct Engine;
-struct Track;
+struct TrackView;
 struct AutomationLane;
 struct ParametersView;
 
@@ -133,7 +147,7 @@ struct StateManager {
     automationLaneView = nullptr;
   }
 
-  void registerTrackView(Track* view) {
+  void registerTrackView(TrackView* view) {
     trackView = view;
   }
 
@@ -149,7 +163,7 @@ struct StateManager {
   Plugin* plugin = nullptr;
   Engine* engine = nullptr;
 
-  Track* trackView = nullptr;
+  TrackView* trackView = nullptr;
   AutomationLane* automationLaneView = nullptr;
 
   ParametersView* parametersView = nullptr;

@@ -173,7 +173,6 @@ void StateManager::addClip(f32 x, f32 y, f32 curve) {
     state.clips.emplace_back();
     auto& clip = state.clips.back();
 
-    clip.id = nextUniqueID();
     clip.x = x;
     clip.y = y;
     clip.c = curve;
@@ -190,36 +189,33 @@ void StateManager::addClip(f32 x, f32 y, f32 curve) {
 }
 
 void StateManager::duplicateClip(u32 id, f32 x, bool top) {
-  for (const auto& clip : state.clips) {
-    if (clip.id == id) {
-      state.clips.push_back(clip);
-      auto& newClip = state.clips.back();
+  assert(id < state.clips.size());
 
-      newClip.id = nextUniqueID();
-      newClip.x = x;
-      newClip.y = f32(!top);
-      newClip.c = 0.5f;
+  state.clips.push_back(state.clips[id]);
+  auto& newClip = state.clips.back();
 
-      updateTrackView();
+  newClip.x = x;
+  newClip.y = f32(!top);
+  newClip.c = 0.5f;
 
-      return;
-    }
-  }
-
-  assert(false);
+  updateTrackView();
 }
 
 void StateManager::duplicateClipDenorm(u32 id, f32 x, bool top) {
+  assert(id < state.clips.size());
+
   duplicateClip(id, x / state.zoom, top);
 }
 
 void StateManager::removeClip(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(id);
+  assert(id < state.clips.size());
+
+  auto& clips = state.clips;
 
   {
     ScopedProcLock lk(proc);
-    std::erase_if(state.clips, [id] (Clip& clip) { return clip.id == id; });
+    clips.erase(clips.begin() + id);
   }
 
   updateTrackView();
@@ -227,26 +223,23 @@ void StateManager::removeClip(u32 id) {
 
 void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(id);
+  assert(id < state.clips.size());
 
   {
     ScopedProcLock lk(proc);
 
-    auto it = std::find_if(state.clips.begin(), state.clips.end(), [id] (const Clip& clip) { return clip.id == id; });
-
-    if (it != state.clips.end()) {
-      it->x = x < 0 ? 0 : x;
-      it->y = std::clamp(y, 0.f, 1.f);
-      it->c = std::clamp(curve, 0.f, 1.f);
-    } else {
-      assert(false);
-    }
+    auto& clips = state.clips;
+    clips[id].x = x < 0 ? 0 : x;
+    clips[id].y = std::clamp(y, 0.f, 1.f);
+    clips[id].c = std::clamp(curve, 0.f, 1.f);
   }
 
   updateTrackView();
 }
 
 void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
+  assert(id < state.clips.size());
+
   moveClip(id, x / state.zoom, y, curve);
 }
 
@@ -277,8 +270,6 @@ u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(x >= 0 && y >= 0 && y <= 1 && curve >= 0 && curve <= 1);
 
-  u32 id = nextUniqueID();
-
   {
     ScopedProcLock lk(proc);
     state.paths.emplace_back();
@@ -286,12 +277,11 @@ u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
     path.x = x;
     path.y = y;
     path.c = curve;
-    path.id = id;
   }
 
   updateTrackView();
 
-  return id;
+  return u32(state.paths.size() - 1);
 }
 
 u32 StateManager::addPathDenorm(f32 x, f32 y, f32 curve) {
@@ -303,10 +293,12 @@ u32 StateManager::addPathDenorm(f32 x, f32 y, f32 curve) {
 
 void StateManager::removePath(u32 id) {
   JUCE_ASSERT_MESSAGE_THREAD
+  assert(id < state.paths.size());
 
   {
     ScopedProcLock lk(proc);
-    std::erase_if(state.paths, [id] (const Path& path) { return path.id == id; });
+    auto& paths = state.paths;
+    paths.erase(paths.begin() + id);
   }
 
   updateTrackView();
@@ -314,25 +306,21 @@ void StateManager::removePath(u32 id) {
 
 void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
   JUCE_ASSERT_MESSAGE_THREAD
+  assert(id < state.paths.size());
 
   {
     ScopedProcLock lk(proc);
-
-    auto it = std::find_if(state.paths.begin(), state.paths.end(), [id] (const Path& path) { return path.id == id; });
-
-    if (it != state.paths.end()) {
-      it->x = x < 0 ? 0 : x;
-      it->y = std::clamp(y, 0.f, 1.f);
-      it->c = std::clamp(c, 0.f, 1.f);
-    } else {
-      assert(false);
-    }
+    auto& paths = state.paths;
+    paths[id].x = x < 0 ? 0 : x;
+    paths[id].y = std::clamp(y, 0.f, 1.f);
+    paths[id].c = std::clamp(c, 0.f, 1.f);
   }
 
   updateTrackView(); 
 }
 
 void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
+  assert(id < state.paths.size());
   movePath(id, x / state.zoom, y, c);
 }
 
@@ -527,6 +515,7 @@ void StateManager::updateTrackView() {
       points[n].x = clips[n].x; 
       points[n].y = clips[n].y; 
       points[n].c = clips[n].c; 
+      points[n].id = n;
       points[n].clip = &clips[n];
       points[n].path = nullptr;
     }
@@ -534,6 +523,7 @@ void StateManager::updateTrackView() {
       points[i + n].x = paths[i].x; 
       points[i + n].y = paths[i].y; 
       points[i + n].c = paths[i].c; 
+      points[i + n].id = i; 
       points[i + n].clip = nullptr;
       points[i + n].path = &paths[i];
     }
