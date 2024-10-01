@@ -245,8 +245,6 @@ void PathView::paint(juce::Graphics& g) {
 }
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
-  assert(id);
-
   // TODO(luca): simplify this
   auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
   auto newX = f32(grid.snap(parentLocalPoint.x));
@@ -257,7 +255,6 @@ void PathView::mouseDrag(const juce::MouseEvent& e) {
 }
 
 void PathView::mouseDoubleClick(const juce::MouseEvent&) {
-  assert(id);
   remove(id);
 }
 
@@ -274,7 +271,7 @@ void ClipView::mouseDown(const juce::MouseEvent& e) {
   auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
   assert(container);
 
-  if (container && optKeyPressed) {
+  if (container && gOptKeyPressed) {
     container->startDragging({ i32(id) }, this);
   }
 }
@@ -289,7 +286,7 @@ void ClipView::mouseUp(const juce::MouseEvent&) {
 }
 
 void ClipView::mouseDrag(const juce::MouseEvent& e) {
-  if (!optKeyPressed) {
+  if (!gOptKeyPressed) {
     auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
     f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
     f32 x = grid.snap(parentLocalPoint.x - mouseDownOffset);
@@ -371,14 +368,14 @@ void AutomationLane::mouseMove(const juce::MouseEvent& e) {
   auto p = getAutomationPoint(e.position);
   auto d = p.getDistanceFrom(e.position);
 
-  if (d < mouseIntersectDistance && !optKeyPressed) {
+  if (d < mouseIntersectDistance && !gOptKeyPressed) {
     hoverBounds.setCentre(p);
     hoverBounds.setSize(10, 10);
   } else {
     hoverBounds = {};
   }
 
-  if ((d < mouseOverDistance && mouseIntersectDistance < d) || (d < mouseOverDistance && optKeyPressed)) {
+  if ((d < mouseOverDistance && mouseIntersectDistance < d) || (d < mouseOverDistance && gOptKeyPressed)) {
     xHighlightedSegment = p.x;
   } else {
     xHighlightedSegment = -1; 
@@ -399,12 +396,12 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
   auto p = getAutomationPoint(e.position);
   auto d = p.getDistanceFrom(e.position);
 
-  if (d < mouseOverDistance && optKeyPressed) {
+  if (d < mouseOverDistance && gOptKeyPressed) {
     activeGesture = GestureType::bend;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else if (d < mouseIntersectDistance) {
     activeGesture = GestureType::addPath;
-    lastPathAddedID = manager.addPathDenorm(grid.snap(p.x), p.y / getHeight(), Path::defaultCurve);
+    lastPathAddedID = manager.addPathDenorm(grid.snap(p.x), p.y / getHeight(), kDefaultPathCurve);
     hoverBounds = {};
   } else if (d < mouseOverDistance) {
     activeGesture = GestureType::drag;
@@ -453,9 +450,9 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
       assert(newValue >= 0 && newValue <= 1);
 
       if (p->clip) {
-        manager.moveClip(p->clip->id, p->x, p->y, newValue);
+        manager.moveClip(p->id, p->x, p->y, newValue);
       } else {
-        manager.movePath(p->path->id, p->x, p->y, newValue);
+        manager.movePath(p->id, p->x, p->y, newValue);
       }
 
       lastMouseDragOffset = offset;
@@ -472,7 +469,7 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
       auto newValue = std::clamp(p->y - increment, 0.f, 1.f);
 
       if (p->path) {
-        manager.movePath(p->path->id, p->x, newValue, p->c);
+        manager.movePath(p->id, p->x, newValue, p->c);
       }
 
       if (p != manager.state.points.begin() && std::next(p) != manager.state.points.end()) {
@@ -480,7 +477,7 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
 
         if (prev->path) {
           newValue = std::clamp(prev->y - increment, 0.f, 1.f);
-          manager.movePath(prev->path->id, prev->x, newValue, prev->c);
+          manager.movePath(prev->id, prev->x, newValue, prev->c);
         }
       }
 
@@ -497,29 +494,22 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
 
     repaint();
   } else if (activeGesture == GestureType::addPath) {
-    assert(lastPathAddedID); 
-
-    for (const auto& path : manager.state.paths) {
-      if (path.id == lastPathAddedID) {
-        manager.movePathDenorm(path.id, grid.snap(e.position.x), e.position.y / getHeight(), path.c);
-      }
-    }
-
+    manager.movePathDenorm(lastPathAddedID, grid.snap(e.position.x), e.position.y / kAutomationLaneHeight, manager.state.paths[lastPathAddedID].c);
   } else {
     assert(false);
   }
 }
 void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
-  if (getDistanceFromPoint(e.position) < mouseOverDistance && optKeyPressed) {
+  if (getDistanceFromPoint(e.position) < mouseOverDistance && gOptKeyPressed) {
     auto p = manager.findAutomationPointDenorm(e.position.x);
 
     if (p != manager.state.points.end()){
       assert(p->clip || p->path);
 
       if (p->path) {
-        manager.movePath(p->path->id, p->path->x, p->path->y, 0.5f);
+        manager.movePath(p->id, p->path->x, p->path->y, 0.5f);
       } else {
-        manager.moveClip(p->clip->id, p->clip->x, p->clip->y, 0.5f);
+        manager.moveClip(p->id, p->clip->x, p->clip->y, 0.5f);
       }
     }
   }
@@ -528,7 +518,7 @@ void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
 void AutomationLane::update(const std::vector<Path>& paths, juce::Path a, f32 zoom) {
   automation = std::move(a);
 
-  automation.applyTransform(juce::AffineTransform::scale(zoom, height - lineThickness));
+  automation.applyTransform(juce::AffineTransform::scale(zoom, kAutomationLaneHeight - lineThickness));
   automation.applyTransform(juce::AffineTransform::translation(0, lineThickness / 2));
 
   auto p = automation.getCurrentPosition();
@@ -554,7 +544,7 @@ void AutomationLane::update(const std::vector<Path>& paths, juce::Path a, f32 zo
       const auto& path = paths[i];
       auto* view = pathViews[i32(i)];
      
-      view->id     = path.id;
+      view->id     = i;
       view->move   = [&path, this] (u32 id, f32 x, f32 y) { manager.movePathDenorm(id, x, y, path.c); };
       view->remove = [this] (u32 id) { manager.removePath(id); };
 
@@ -568,19 +558,19 @@ void AutomationLane::update(const std::vector<Path>& paths, juce::Path a, f32 zo
   repaint();
 }
 
-Track::Track(StateManager& m) : manager(m) {
+TrackView::TrackView(StateManager& m) : manager(m) {
   addAndMakeVisible(automationLane);
   startTimerHz(60);
-  setSize(getTrackWidth(), height);
+  setSize(getTrackWidth(), kTrackHeight);
   manager.registerTrackView(this);
 }
 
-Track::~Track() {
+TrackView::~TrackView() {
   manager.deregisterTrackView();
 }
 
-void Track::paint(juce::Graphics& g) {
-  //scoped_timer t("Track::paint()");
+void TrackView::paint(juce::Graphics& g) {
+  //scoped_timer t("TrackView::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(Colours::jet);
@@ -613,19 +603,19 @@ void Track::paint(juce::Graphics& g) {
   g.fillRect(playhead.x, f32(automationLane.getY()), playhead.width, f32(automationLane.getHeight()));
 }
 
-void Track::resized() {
+void TrackView::resized() {
   auto r = getLocalBounds();
-  b.timeline = r.removeFromTop(timelineHeight);
-  b.presetLaneTop = r.removeFromTop(presetLaneHeight);
-  b.presetLaneBottom = r.removeFromBottom(presetLaneHeight);
+  b.timeline = r.removeFromTop(kTimelineHeight);
+  b.presetLaneTop = r.removeFromTop(kPresetLaneHeight);
+  b.presetLaneBottom = r.removeFromBottom(kPresetLaneHeight);
   automationLane.setBounds(r);
 }
 
-void Track::timerCallback() {
+void TrackView::timerCallback() {
   resetGrid();
 }
 
-void Track::resetGrid() {
+void TrackView::resetGrid() {
   Grid::TimeSignature ts { manager.state.numerator.load(), manager.state.denominator.load() };
   auto ph = manager.state.playheadPosition.load() * zoom;
 
@@ -646,7 +636,7 @@ void Track::resetGrid() {
   }
 }
 
-i32 Track::getTrackWidth() {
+i32 TrackView::getTrackWidth() {
   f32 width = 0;
 
   for (const auto& c : manager.state.clips) {
@@ -662,15 +652,15 @@ i32 Track::getTrackWidth() {
   }
 
   width *= zoom;
-  return width > getParentWidth() ? int(width + rightPadding) : getParentWidth();
+  return width > getParentWidth() ? int(width + kTrackWidthRightPadding) : getParentWidth();
 }
 
-void Track::zoomTrack(f32 amount) {
-  scoped_timer t("Track::zoomTrack()");
+void TrackView::zoomTrack(f32 amount) {
+  scoped_timer t("TrackView::zoomTrack()");
 
   f32 mouseX = getMouseXYRelative().x;
   f32 z0 = zoom;
-  f32 z1 = z0 + (amount * kZoomSpeed * (z0 / zoomDeltaScale)); 
+  f32 z1 = z0 + (amount * kZoomSpeed * (z0 / kZoomDeltaScale)); 
 
   z1 = std::clamp(z1, 0.001f, 10000.f);
 
@@ -697,13 +687,13 @@ void Track::zoomTrack(f32 amount) {
   repaint();
 }
 
-void Track::scroll(f32 amount) {
-  viewportDeltaX += amount * Constants::kScrollSpeed;
+void TrackView::scroll(f32 amount) {
+  viewportDeltaX += amount * kScrollSpeed;
   viewportDeltaX = std::clamp(viewportDeltaX, f32(-(getWidth() - getParentWidth())), 0.f);
   setTopLeftPosition(i32(viewportDeltaX), getY());
 }
 
-void Track::update(const std::vector<Clip>& clips, f32 z) {
+void TrackView::update(const std::vector<Clip>& clips, f32 z) {
   automationLane.selection.start = (automationLane.selection.start / zoom) * z;
   automationLane.selection.end = (automationLane.selection.end / zoom) * z;
 
@@ -728,12 +718,12 @@ void Track::update(const std::vector<Clip>& clips, f32 z) {
     const auto& clip = clips[i];
     auto* view = clipViews[i32(i)];
    
-    view->id     = clip.id;
+    view->id     = i;
     view->move   = [&clip, this] (u32 id, f32 x, f32 y) { manager.moveClipDenorm(id, x, y, clip.c); };
     view->remove = [this] (u32 id) { manager.removeClip(id); };
 
-    i32 h = presetLaneHeight;
-    i32 w = presetLaneHeight;
+    i32 h = kPresetLaneHeight;
+    i32 w = kPresetLaneHeight;
     i32 x = i32((clip.x * zoom) - w * 0.5f);
     i32 y = !bool(clip.y) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY();
        
@@ -743,7 +733,7 @@ void Track::update(const std::vector<Clip>& clips, f32 z) {
   setSize(getTrackWidth(), getHeight());
 }
 
-void Track::mouseMagnify(const juce::MouseEvent&, f32 scale) {
+void TrackView::mouseMagnify(const juce::MouseEvent&, f32 scale) {
   if (scale < 1) {
     zoomTrack(-0.1f * (1.f / scale));
   } else {
@@ -751,31 +741,30 @@ void Track::mouseMagnify(const juce::MouseEvent&, f32 scale) {
   }
 }
 
-void Track::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
-  if (cmdKeyPressed) {
+void TrackView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
+  if (gCmdKeyPressed) {
     zoomTrack(w.deltaY);
-  } else if (shiftKeyPressed) {
+  } else if (gShiftKeyPressed) {
     scroll(w.deltaX + w.deltaY);
   } else {
     scroll(w.deltaX);
   }
 }
 
-void Track::mouseDoubleClick(const juce::MouseEvent& e) {
+void TrackView::mouseDoubleClick(const juce::MouseEvent& e) {
   if (b.presetLaneTop.contains(e.position.toInt())) {
-    manager.addClip(grid.snap(e.position.x) / zoom, 0, Path::defaultCurve);
+    manager.addClip(grid.snap(e.position.x) / zoom, 0, kDefaultPathCurve);
   } else if (b.presetLaneBottom.contains(e.position.toInt())) {
-    manager.addClip(grid.snap(e.position.x) / zoom, 1, Path::defaultCurve);
+    manager.addClip(grid.snap(e.position.x) / zoom, 1, kDefaultPathCurve);
   }
 }
 
-bool Track::isInterestedInDragSource(const Details&) {
+bool TrackView::isInterestedInDragSource(const Details&) {
   return true;
 }
 
-void Track::itemDropped(const Details& d) {
+void TrackView::itemDropped(const Details& d) {
   u32 id = u32(i32(d.description));
-  assert(id);
 
   if (b.presetLaneTop.contains(d.localPosition.toInt())) {
     manager.duplicateClipDenorm(id, grid.snap(d.localPosition.x), true);
@@ -1209,7 +1198,7 @@ void ParametersView::resized() {
 }
 
 void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
-  i32 y = getY() + i32(Constants::kScrollSpeed * w.deltaY);
+  i32 y = getY() + i32(kScrollSpeed * w.deltaY);
 
   if (y > ToolBar::height) {
     y = ToolBar::height;
@@ -1237,7 +1226,7 @@ MainView::MainView(StateManager& m, juce::AudioProcessorEditor* i) : manager(m),
   infoView.mainViewUpdateCallback = [this] { toggleInfoView(); };
   toolBar.infoButton.onClick = [this] { toggleInfoView(); };
 
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + ToolBar::height);
 
   manager.registerMainView();
 }
@@ -1253,8 +1242,8 @@ void MainView::resized() {
   toolBar.setBounds(r.removeFromTop(ToolBar::height));
 
   // TODO(luca): find better way of going about setting the track bounds
-  track.setTopLeftPosition(r.removeFromBottom(Track::height).getTopLeft());
-  track.setSize(track.getTrackWidth(), Track::height);
+  track.setTopLeftPosition(r.removeFromBottom(kTrackHeight).getTopLeft());
+  track.setSize(track.getTrackWidth(), kTrackHeight);
   manager.updateTrackView();
 
   auto i = r.removeFromTop(instance->getHeight()); 
@@ -1281,7 +1270,7 @@ void MainView::toggleInfoView() {
 }
 
 void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + Track::height + ToolBar::height);
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + ToolBar::height);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
@@ -1455,7 +1444,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
   manager.state.captureParameterChanges = false;
   manager.state.releaseParameterChanges = false;
-  
+
   if (k.isCommandDown() && k.isShiftDown()) {
     DBG("Releasing parameters");
     manager.state.releaseParameterChanges = true;
@@ -1464,17 +1453,9 @@ void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
     manager.state.captureParameterChanges = true; 
   }
 
-  if (mainView) {
-    auto& track = mainView->track;
-    track.automationLane.optKeyPressed = k.isAltDown();
-
-    for (auto clip : track.clipViews) {
-      clip->optKeyPressed = k.isAltDown();
-    }
-
-    track.shiftKeyPressed = k.isShiftDown();
-    track.cmdKeyPressed = k.isCommandDown();
-  }
+  gOptKeyPressed = k.isAltDown();
+  gShiftKeyPressed = k.isShiftDown();
+  gCmdKeyPressed = k.isCommandDown();
 }
 
 } // namespace atmt
