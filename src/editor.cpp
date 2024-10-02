@@ -1341,7 +1341,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   auto modifier = k.getModifiers(); 
   auto code = k.getKeyCode();
 
-  static constexpr i32 keyDelete = 127;
+  static constexpr i32 space = 32;
 
   static constexpr i32 keyNum1 = 49;
   static constexpr i32 keyNum2 = 50;
@@ -1349,8 +1349,8 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyNum4 = 52;
 
   static constexpr i32 keyPlus = 43;
-  static constexpr i32 keyEquals = 61;
   static constexpr i32 keyMin = 45;
+  static constexpr i32 keyEquals = 61;
 
   static constexpr i32 keyCharD = 68;
   static constexpr i32 keyCharE = 69;
@@ -1359,6 +1359,12 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyCharR = 82;
   static constexpr i32 keyCharV = 86;
   static constexpr i32 keyCharZ = 90;
+
+  static constexpr i32 keyDelete = 127;
+
+  if (code == space) {
+    return false;
+  }
 
   auto& track = mainView->track;
 
