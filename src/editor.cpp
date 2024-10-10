@@ -14,6 +14,7 @@ const juce::Colour Colours::auburn { 166, 48, 49 };
 const juce::Colour Colours::outerSpace { 66, 70, 76 };
 const juce::Colour Colours::atomicTangerine { 251, 146, 75 };
 
+const juce::FontOptions Fonts::sofiaProLight { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_light_otf, BinaryData::sofia_pro_light_otfSize) };
 const juce::FontOptions Fonts::sofiaProRegular { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_regular_otf, BinaryData::sofia_pro_regular_otfSize) };
 const juce::FontOptions Fonts::sofiaProMedium { juce::Typeface::createSystemTypefaceFor(BinaryData::sofia_pro_medium_otf, BinaryData::sofia_pro_medium_otfSize) };
 
@@ -1200,10 +1201,10 @@ void ParametersView::resized() {
 void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   i32 y = getY() + i32(kScrollSpeed * w.deltaY);
 
-  if (y > ToolBar::height) {
-    y = ToolBar::height;
-  } else if (y < - (getHeight() - viewportHeight - ToolBar::height)) {
-    y = - (getHeight() - viewportHeight - ToolBar::height);
+  if (y > kToolBarHeight) {
+    y = kToolBarHeight;
+  } else if (y < - (getHeight() - viewportHeight - kToolBarHeight)) {
+    y = - (getHeight() - viewportHeight - kToolBarHeight);
   }
 
   setTopLeftPosition(getX(), y);
@@ -1226,7 +1227,7 @@ MainView::MainView(StateManager& m, juce::AudioProcessorEditor* i) : manager(m),
   infoView.mainViewUpdateCallback = [this] { toggleInfoView(); };
   toolBar.infoButton.onClick = [this] { toggleInfoView(); };
 
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + ToolBar::height);
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + kToolBarHeight);
 
   manager.registerMainView();
 }
@@ -1239,7 +1240,7 @@ void MainView::resized() {
   auto r = getLocalBounds();
 
   infoView.setBounds(r);
-  toolBar.setBounds(r.removeFromTop(ToolBar::height));
+  toolBar.setBounds(r.removeFromTop(kToolBarHeight));
 
   // TODO(luca): find better way of going about setting the track bounds
   track.setTopLeftPosition(r.removeFromBottom(kTrackHeight).getTopLeft());
@@ -1270,7 +1271,7 @@ void MainView::toggleInfoView() {
 }
 
 void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + ToolBar::height);
+  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + kToolBarHeight);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {

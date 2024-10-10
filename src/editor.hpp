@@ -21,13 +21,14 @@ struct Colours {
 };
 
 struct Fonts {
+  static const juce::FontOptions sofiaProLight;
   static const juce::FontOptions sofiaProRegular;
   static const juce::FontOptions sofiaProMedium;
 };
 
 struct Style {
-  static constexpr f32 lineThickness = 1.5f; 
-  static constexpr f32 lineThicknessHighlighted = 2.25f;
+  static constexpr f32 lineThickness = 1.25f; 
+  static constexpr f32 lineThicknessHighlighted = 1.75f;
   static constexpr i32 minWidth = 600;
 };
 
@@ -42,7 +43,7 @@ struct Button : juce::Button {
 
   juce::Rectangle<f32> rectBounds;
   juce::Rectangle<f32> textBounds;
-  const juce::Font font { Fonts::sofiaProRegular.withHeight(14) };
+  const juce::Font font { Fonts::sofiaProLight.withHeight(14) };
 };
 
 struct Dial : juce::Slider {
@@ -272,7 +273,7 @@ struct ToolBar : juce::Component {
 
     juce::Rectangle<f32> ellipseBounds;
     juce::Rectangle<f32> iBounds;
-    const juce::Font font { Fonts::sofiaProMedium.withHeight(24) };
+    const juce::Font font { Fonts::sofiaProRegular.withHeight(kToolBarHeight / 3) };
   };
 
   struct KillButton : juce::Button {
@@ -293,7 +294,6 @@ struct ToolBar : juce::Component {
   Button modulateDiscreteButton { "Discrete Mode", Button::Type::toggle };
   Button supportLinkButton { "Support", Button::Type::trigger };
   KillButton killButton;
-  static constexpr i32 height = 60;
   static constexpr i32 buttonWidth = 125;
   static constexpr i32 padding = 10;
   static constexpr i32 buttonPadding = 16;

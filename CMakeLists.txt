@@ -38,6 +38,7 @@ juce_add_plugin(${PLUGIN_NAME}
 juce_generate_juce_header(${PLUGIN_NAME})
 
 juce_add_binary_data(Assets SOURCES
+  assets/sofia_pro_light.otf
   assets/sofia_pro_regular.otf
   assets/sofia_pro_medium.otf
 )
@@ -55,6 +56,6 @@ target_link_libraries(${PLUGIN_NAME} PRIVATE
   Assets
   juce::juce_audio_utils
   juce::juce_audio_devices
-  juce::juce_recommended_config_flags # Sets stuff like optimisation level
+  juce::juce_recommended_config_flags
   juce::juce_recommended_lto_flags
   juce::juce_recommended_warning_flags)
