@@ -83,7 +83,6 @@ struct State {
   std::atomic<f32> bpm = 120;
   std::atomic<u32> numerator = 4;
   std::atomic<u32> denominator = 4;
-  std::atomic<bool> requestParameterChange = false;
 
   std::vector<Clip> clips;
   std::vector<Path> paths;
@@ -122,6 +121,9 @@ struct StateManager {
   void movePathDenorm(u32, f32, f32, f32);
 
   void removeSelection(Selection selection);
+
+  void setPlayheadPosition(f32);
+  void setPlayheadPositionDenorm(f32);
 
   bool setPluginID(const juce::String&);
   void setZoom(f32);

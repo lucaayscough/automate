@@ -199,7 +199,7 @@ void StateManager::duplicateClip(u32 id, f32 x, bool top) {
   newClip.c = 0.5f;
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView();
@@ -223,7 +223,7 @@ void StateManager::removeClip(u32 id) {
   }
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView();
@@ -243,7 +243,7 @@ void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   }
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView();
@@ -292,7 +292,7 @@ u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
   }
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView();
@@ -318,7 +318,7 @@ void StateManager::removePath(u32 id) {
   }
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView();
@@ -337,7 +337,7 @@ void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
   }
 
   if (state.editMode) {
-    state.requestParameterChange = true;
+    engine->interpolate();
   }
 
   updateTrackView(); 
@@ -367,6 +367,23 @@ void StateManager::removeSelection(Selection selection) {
   }
 
   updateTrackView();
+}
+
+void StateManager::setPlayheadPosition(f32 x) {
+  assert(x >= 0);
+
+  if (state.editMode) {
+    state.playheadPosition = x;
+
+    {
+      ScopedProcLock lk(proc);
+      engine->interpolate();
+    }
+  }
+}
+
+void StateManager::setPlayheadPositionDenorm(f32 x) {
+  setPlayheadPosition(x / state.zoom);
 }
 
 bool StateManager::setPluginID(const juce::String& id) {

@@ -13,6 +13,7 @@ struct Engine : juce::AudioProcessorListener {
 
   void kill();
   void prepare(f32, i32);
+  void interpolate();
   void process(juce::AudioBuffer<f32>&, juce::MidiBuffer&);
 
   void setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>&);

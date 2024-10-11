@@ -26,89 +26,93 @@ void Engine::prepare(f32 sampleRate, i32 blockSize) {
   }
 }
 
+void Engine::interpolate() {
+  assert(instance);
+
+  f32 time = manager.state.playheadPosition;
+  f32 lerpPos = getYFromX(manager.state.automation, time);
+  assert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
+
+  i32 a = -1;
+  i32 b = -1;
+
+  const auto& clips = manager.state.clips;
+
+  {
+    f32 closest = u32(-1);
+
+    for (u32 i = 0; i < clips.size(); ++i) {
+      if (time >= clips[i].x) {
+        if (time - clips[i].x < closest) {
+          a = i32(i);
+          closest = time - clips[i].x;
+        }
+      }
+    }
+
+    closest = u32(-1);
+    
+    for (u32 i = 0; i < clips.size(); ++i) {
+      if (i32(i) == a) {
+        continue;
+      }
+
+      if (time <= clips[i].x) {
+        if (clips[i].x - time < closest) {
+          b = i32(i);  
+          closest = time - clips[i].x;
+        }
+      }
+    }
+
+    if (a < 0 && b >= 0) {
+      a = b;
+      b = -1;
+    }
+  }
+
+  if (a >= 0 && b < 0) {
+    auto& presetParameters = clips[u32(a)].parameters;
+    auto& parameters = manager.state.parameters;
+
+    for (u32 i = 0; i < parameters.size(); ++i) {
+      if (manager.shouldProcessParameter(&parameters[i])) {
+        if (std::abs(parameters[i].parameter->getValue() - presetParameters[i]) > EPSILON) {
+          parameters[i].parameter->setValue(presetParameters[i]);
+        }
+      }
+    }
+  } else if (a >= 0 && b >= 0) {
+    f32 position = bool(clips[u32(a)].y) ? 1.f - lerpPos : lerpPos;
+
+    auto& beginParameters = clips[u32(a)].parameters;
+    auto& endParameters   = clips[u32(b)].parameters;
+    auto& parameters      = manager.state.parameters;
+
+    for (u32 i = 0; i < parameters.size(); ++i) {
+      if (parameters[i].active) {
+        if (manager.shouldProcessParameter(&parameters[i])) {
+          assert(isNormalised(beginParameters[i]));
+          assert(isNormalised(endParameters[i]));
+
+          f32 increment = (endParameters[i] - beginParameters[i]) * position; 
+          f32 newValue  = beginParameters[i] + increment;
+          f32 distance  = std::abs(newValue - parameters[i].parameter->getValue());
+          assert(isNormalised(newValue));
+
+          if (distance > EPSILON) {
+            parameters[i].parameter->setValue(f32(newValue));
+          }
+        }
+      }
+    }
+  }
+}
+
 void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
   if (instance) {
-    if (!manager.state.editMode || manager.state.requestParameterChange) {
-      manager.state.requestParameterChange = false;
-
-      f32 time = manager.state.playheadPosition;
-      f32 lerpPos = getYFromX(manager.state.automation, time);
-      assert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
-
-      i32 a = -1;
-      i32 b = -1;
-
-      const auto& clips = manager.state.clips;
-
-      {
-        f32 closest = u32(-1);
-
-        for (u32 i = 0; i < clips.size(); ++i) {
-          if (time >= clips[i].x) {
-            if (time - clips[i].x < closest) {
-              a = i32(i);
-              closest = time - clips[i].x;
-            }
-          }
-        }
-
-        closest = u32(-1);
-        
-        for (u32 i = 0; i < clips.size(); ++i) {
-          if (i32(i) == a) {
-            continue;
-          }
-
-          if (time <= clips[i].x) {
-            if (clips[i].x - time < closest) {
-              b = i32(i);  
-              closest = time - clips[i].x;
-            }
-          }
-        }
-
-        if (a < 0 && b >= 0) {
-          a = b;
-          b = -1;
-        }
-      }
-
-      if (a >= 0 && b < 0) {
-        auto& presetParameters = clips[u32(a)].parameters;
-        auto& parameters = manager.state.parameters;
-
-        for (u32 i = 0; i < parameters.size(); ++i) {
-          if (manager.shouldProcessParameter(&parameters[i])) {
-            if (std::abs(parameters[i].parameter->getValue() - presetParameters[i]) > EPSILON) {
-              parameters[i].parameter->setValue(presetParameters[i]);
-            }
-          }
-        }
-      } else if (a >= 0 && b >= 0) {
-        f32 position = bool(clips[u32(a)].y) ? 1.f - lerpPos : lerpPos;
-
-        auto& beginParameters = clips[u32(a)].parameters;
-        auto& endParameters   = clips[u32(b)].parameters;
-        auto& parameters      = manager.state.parameters;
-
-        for (u32 i = 0; i < parameters.size(); ++i) {
-          if (parameters[i].active) {
-            if (manager.shouldProcessParameter(&parameters[i])) {
-              assert(isNormalised(beginParameters[i]));
-              assert(isNormalised(endParameters[i]));
-
-              f32 increment = (endParameters[i] - beginParameters[i]) * position; 
-              f32 newValue  = beginParameters[i] + increment;
-              f32 distance  = std::abs(newValue - parameters[i].parameter->getValue());
-              assert(isNormalised(newValue));
-
-              if (distance > EPSILON) {
-                parameters[i].parameter->setValue(f32(newValue));
-              }
-            }
-          }
-        }
-      }
+    if (!manager.state.editMode) {
+      interpolate();
     }
 
     if (buffer.getNumChannels() < instance->getTotalNumInputChannels()) {
