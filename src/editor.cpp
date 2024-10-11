@@ -415,10 +415,7 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
 
     selection = { start < 0 ? 0 : start, end < 0 ? 0 : end };
 
-    if (manager.state.editMode) {
-      manager.state.playheadPosition = selection.start / manager.state.zoom;
-      manager.state.requestParameterChange = true;
-    }
+    manager.setPlayheadPositionDenorm(selection.start);
   }
 }
 
@@ -488,10 +485,7 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     f32 end = grid.snap(e.position.x); 
     selection.end = end < 0 ? 0 : end;
 
-    if (manager.state.editMode) {
-      manager.state.playheadPosition = selection.end / manager.state.zoom;
-      manager.state.requestParameterChange = true;
-    }
+    manager.setPlayheadPositionDenorm(selection.end);
 
     repaint();
   } else if (activeGesture == GestureType::addPath) {
