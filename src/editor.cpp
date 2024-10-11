@@ -1094,6 +1094,7 @@ bool DefaultView::isInterestedInFileDrag(const juce::StringArray&){
 void DefaultView::filesDropped(const juce::StringArray& files, i32, i32) {
   juce::OwnedArray<juce::PluginDescription> types;
   knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
+  saveKnownPluginList(knownPluginList); 
   resized();
 }
 
