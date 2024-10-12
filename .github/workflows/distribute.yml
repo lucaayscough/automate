@@ -70,7 +70,7 @@ jobs:
     runs-on: windows-latest
     permissions: write-all
     steps:
-      - name: Checkout repo and download LFS objects
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -95,5 +95,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Automate_artefacts/Release/VST3/Automate.vst3
+            build/Automate_artefacts/Release/VST3/Automate.vst3/*
 
