@@ -101,5 +101,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Automate_artefacts/Release/VST3/Automate.vst3/*
+            build/Automate_artefacts/Release/VST3/Automate.vst3/**
 
