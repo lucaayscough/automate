@@ -91,6 +91,9 @@ jobs:
           #    path: dist/pluginInstaller.iss
           #    options: /DGitTag=${{ github.ref_name }}
 
+      - name: Check build directory
+        run: ls -R build
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
