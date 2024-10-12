@@ -1,0 +1,99 @@
+name: Build and Release macOS + Win32
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  #release-mac:
+  #  runs-on: macos-latest
+  #  permissions: write-all
+  #  steps:
+  #    - name: Checkout repo
+  #      uses: actions/checkout@v4
+  #      with:
+  #        submodules: recursive
+
+  #    - name: Setup Ninja
+  #      uses: seanmiddleditch/gha-setup-ninja@master
+
+  #    - name: Build plugin artefacts
+  #      run: |
+  #        cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DFORMATS="AU;VST3" -DCODESIGN_IDENTITY=- -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+  #        cmake --build build
+
+  #    - name: Create plugin .pkg installer
+  #      env:
+  #        MACOS_CERT: ${{ secrets.MACOS_CERT }}
+  #        MACOS_CERT_PASSWD: ${{ secrets.MACOS_CERT_PASSWD }}
+  #        MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+  #        KEYCHAIN_PW: REZdmC68629T
+  #      run: |
+  #        cd dist
+
+
+  #        echo $MACOS_CERT | base64 --decode > certificate.p12
+
+  #        security create-keychain -p $KEYCHAIN_PW build.keychain
+  #        security default-keychain -s build.keychain
+  #        security unlock-keychain -p $KEYCHAIN_PW build.keychain
+  #        security import certificate.p12 -k build.keychain -P $MACOS_CERT_PASSWD -T /usr/bin/codesign -T /usr/bin/productbuild
+
+  #        # NOTE(robin): 6hr timeout
+  #        security set-keychain-settings -lut 21600 build.keychain
+
+  #        # NOTE(robin): gives us some info in the logs
+  #        security find-identity -v
+  #        security set-key-partition-list -S apple-tool:,apple: -s -k $KEYCHAIN_PW build.keychain
+
+  #        # NOTE(robin): we have to source this instead of executing it because
+  #        # security unlock-keychain only affects the current process
+  #        source pluginPackage.sh ${{ github.ref_name }} $MACOS_TEAM_ID
+
+  #    - name: Notarise .pkg installer
+  #      env:
+  #        MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+  #        MACOS_NOTARY_APPLE_ID_PASSWD: ${{ secrets.MACOS_NOTARY_APPLE_ID_PASSWD }}
+  #        MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+  #      run: |
+  #        xcrun notarytool store-credentials "notarytool-profile" --apple-id $MACOS_NOTARY_APPLE_ID --team-id $MACOS_TEAM_ID --password $MACOS_NOTARY_APPLE_ID_PASSWD
+  #        xcrun notarytool submit build/Combobulator-*-setup.pkg --keychain-profile "notarytool-profile" --wait
+  #        xcrun stapler staple build/Combobulator-*-setup.pkg
+
+  #    - name: Create Release
+  #      uses: softprops/action-gh-release@v2
+  #      with:
+  #        files: |
+  #          build/Combobulator-${{ github.ref_name }}-setup.pkg
+
+  release-win32:
+    runs-on: windows-latest
+    permissions: write-all
+    steps:
+      - name: Checkout repo and download LFS objects
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup dev cmd
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Build plugin artefacts
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake --build build
+
+          #- name: Create Inno Setup installer
+          #  uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+          #  with:
+          #    path: dist/pluginInstaller.iss
+          #    options: /DGitTag=${{ github.ref_name }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Automate_artefacts/Release/VST3/Automate.vst3
+
