@@ -80,9 +80,12 @@ jobs:
         with:
           arch: amd64
 
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+
       - name: Build plugin artefacts
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
           cmake --build build
 
           #- name: Create Inno Setup installer
@@ -98,5 +101,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Automate_artefacts/Debug/VST3/Automate.vst3/*
+            build/Automate_artefacts/Release/VST3/Automate.vst3/*
 
