@@ -2,10 +2,22 @@
 
 file(STRINGS "VERSION" VERSION)
 
-set(PLUGIN_NAME              Automate)
-set(PLUGIN_VERSION           ${VERSION})
+if (${PLUGIN_TYPE} STREQUAL "Instrument")
+  set(PLUGIN_NAME "Automate-Instrument")
+  set(BUNDLE_ID "com.chromaaudio.automate-instrument")
+  set(PLUGIN_CODE Autf)
+  set(VST3_PLUGIN_TYPE "Instrument")
+  set(AU_PLUGIN_TYPE "kAudioUnitType_MusicDevice")
+else()
+  set(PLUGIN_NAME "Automate-FX")
+  set(BUNDLE_ID "com.chromaaudio.automate-fx")
+  set(PLUGIN_CODE Auti)
+  set(VST3_PLUGIN_TYPE "Fx")
+  set(AU_PLUGIN_TYPE "kAudioUnitType_Effect")
+endif()
+
+set(PLUGIN_VERSION ${VERSION})
 set(PLUGIN_MANUFACTURER_CODE Chrm)
-set(PLUGIN_CODE              Auto)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
 
@@ -22,28 +34,26 @@ add_subdirectory(extern/JUCE)
 
 juce_add_plugin(${PLUGIN_NAME}
   COMPANY_NAME "Chroma Audio"
-  BUNDLE_ID com.chromaaudio.automate
+  BUNDLE_ID ${BUNDLE_ID} 
   PLUGIN_MANUFACTURER_CODE ${PLUGIN_MANUFACTURER_CODE}
   PLUGIN_CODE ${PLUGIN_CODE}
   FORMATS ${FORMATS}
   PRODUCT_NAME ${PLUGIN_NAME}
   EDITOR_WANTS_KEYBOARD_FOCUS FALSE
   COPY_PLUGIN_AFTER_BUILD TRUE 
-  VST3_CATEGORIES Fx
-  AU_MAIN_TYPE kAudioUnitType_MusicEffect
+  VST3_CATEGORIES ${VST3_PLUGIN_TYPE}
+  AU_MAIN_TYPE ${AU_PLUGIN_TYPE}
   MICROPHONE_PERMISSION_ENABLED FALSE 
   NEEDS_MIDI_INPUT TRUE
   NEEDS_MIDI_OUTPUT TRUE 
-  IS_MIDI_EFFECT FALSE
-)
+  IS_MIDI_EFFECT FALSE)
 
 juce_generate_juce_header(${PLUGIN_NAME})
 
 juce_add_binary_data(Assets SOURCES
   assets/sofia_pro_light.otf
   assets/sofia_pro_regular.otf
-  assets/sofia_pro_medium.otf
-)
+  assets/sofia_pro_medium.otf)
 
 target_sources(${PLUGIN_NAME} PRIVATE src/juce_build.cpp)
 

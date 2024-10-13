@@ -14,7 +14,7 @@ static constexpr f32 kZoomDeltaScale = 5;
 static constexpr i32 kZoomSpeed = 2;
 
 static constexpr i32 kToolBarHeight = 50;
-static constexpr i32 kAutomationLaneHeight = 180;
+static constexpr i32 kAutomationLaneHeight = 140;
 static constexpr i32 kTimelineHeight = 16;
 static constexpr i32 kPresetLaneHeight = 24;
 static constexpr i32 kTrackHeight = kTimelineHeight + kPresetLaneHeight * 2 + kAutomationLaneHeight;
