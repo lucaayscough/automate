@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE installer-gui-script [
+  <!ENTITY name "Automate">
+]>
+
+<installer-gui-script minSpecVersion="1">
+  <title>&name;</title>
+  <welcome>Welcome to &name; Installation</welcome>
+  <options hostArchitectures="x86_64,arm64"/>
+
+  <installation-check script="installationCheck()"/>
+
+  <script>
+    <![CDATA[
+      function installationCheck() {
+        var systemVersion = system.version.ProductVersion;
+        var requiredVersion = '10.15.0';  // set this appropriately
+
+        if (system.compareVersions(systemVersion, requiredVersion) < 0) {
+          my.result.type = 'Fatal';
+          my.result.message = 'This software requires macOS 10.15 or later';
+          return false;
+        }
+        return true;
+      }
+    ]]>
+  </script>
+
+  <!-- Note that these reference .pkg files in the same directory as distribution.xml -->
+  <pkg-ref id="VST3">&name;-VST3.pkg</pkg-ref>
+  <pkg-ref id="AU">&name;-AU.pkg</pkg-ref>
+
+  <!-- This allows the user whether to install both VST3 and AU or just one -->
+  <choices-outline>
+    <line choice="VST3"/>
+    <line choice="AU"/>
+  </choices-outline>
+
+  <!-- The id here is the same as the one passed to pkg-ref -->
+  <choice id="VST3" title="Install &name; VST3">
+    <pkg-ref id="VST3"/>
+  </choice>
+  <choice id="AU" title="Install &name; AU">
+    <pkg-ref id="AU"/>
+  </choice>
+
+  <conclusion>The installation was successful.</conclusion>
+</installer-gui-script>
