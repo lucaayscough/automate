@@ -147,7 +147,6 @@ struct PathView : juce::Component {
 
   Grid& grid;
   u32 id = 0;
-  f32 zoom = 1;
 
   static constexpr i32 size = 20;
   static constexpr i32 posOffset = size / 2;
@@ -190,8 +189,6 @@ struct AutomationLane : juce::Component {
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
-  void update(const std::vector<Path>&, juce::Path, f32 zoom);
-
   StateManager& manager;
   Grid& grid;
   juce::Path automation;
@@ -227,8 +224,6 @@ struct TrackView : juce::Component, juce::Timer, juce::DragAndDropContainer, juc
 
   void zoomTrack(f32);
   void scroll(f32);
-
-  void update(const std::vector<Clip>&, f32);
 
   using Details = juce::DragAndDropTarget::SourceDetails;
   bool isInterestedInDragSource(const Details&) override;

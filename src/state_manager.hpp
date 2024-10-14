@@ -89,6 +89,7 @@ struct State {
   std::vector<AutomationPoint> points;
   std::vector<Parameter> parameters;
   juce::Path automation;
+  Selection selection;
 };
 
 struct Plugin;
@@ -120,7 +121,9 @@ struct StateManager {
   void movePath(u32, f32, f32, f32);
   void movePathDenorm(u32, f32, f32, f32);
 
-  void removeSelection(Selection selection);
+  void setSelection(f32, f32);
+  void setSelectionDenorm(f32, f32);
+  void removeSelection();
 
   void setPlayheadPosition(f32);
   void setPlayheadPositionDenorm(f32);
@@ -138,7 +141,7 @@ struct StateManager {
   auto findAutomationPoint(f32);
   auto findAutomationPointDenorm(f32);
 
-  void updateTrackView();
+  void updateTrack();
   void updateParametersView();
   void updateDebugView();
 
@@ -159,7 +162,7 @@ struct StateManager {
   }
 
   void registerMainView() {
-    updateTrackView();
+    updateTrack();
   }
 
   juce::AudioProcessor& proc;

@@ -98,7 +98,7 @@ void StateManager::replace(const juce::ValueTree& tree) {
 
     DBG(tree.toXmlString());
 
-    updateTrackView(); 
+    updateTrack(); 
   }
 }
 
@@ -185,7 +185,7 @@ void StateManager::addClip(f32 x, f32 y, f32 curve) {
     }
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::duplicateClip(u32 id, f32 x, bool top) {
@@ -202,7 +202,7 @@ void StateManager::duplicateClip(u32 id, f32 x, bool top) {
     engine->interpolate();
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::duplicateClipDenorm(u32 id, f32 x, bool top) {
@@ -226,7 +226,7 @@ void StateManager::removeClip(u32 id) {
     engine->interpolate();
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
@@ -246,7 +246,7 @@ void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
     engine->interpolate();
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
@@ -295,7 +295,7 @@ u32 StateManager::addPath(f32 x, f32 y, f32 curve) {
     engine->interpolate();
   }
 
-  updateTrackView();
+  updateTrack();
 
   return u32(state.paths.size() - 1);
 }
@@ -321,7 +321,7 @@ void StateManager::removePath(u32 id) {
     engine->interpolate();
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
@@ -340,7 +340,7 @@ void StateManager::movePath(u32 id, f32 x, f32 y, f32 c) {
     engine->interpolate();
   }
 
-  updateTrackView(); 
+  updateTrack(); 
 }
 
 void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
@@ -348,10 +348,21 @@ void StateManager::movePathDenorm(u32 id, f32 x, f32 y, f32 c) {
   movePath(id, x / state.zoom, y, c);
 }
 
-void StateManager::removeSelection(Selection selection) {
+void StateManager::setSelection(f32 start, f32 end) {
+  state.selection.start = start; 
+  state.selection.end = end;
+
+  updateTrack();
+}
+
+void StateManager::setSelectionDenorm(f32 start, f32 end) {
+  setSelection(start / state.zoom, end / state.zoom);
+}
+
+void StateManager::removeSelection() {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  DBG("StateManager::removeSelection()");
+  Selection selection = state.selection;
 
   assert(selection.start >= 0 && selection.end >= 0);
 
@@ -366,7 +377,7 @@ void StateManager::removeSelection(Selection selection) {
     std::erase_if(state.paths, [selection] (const Path& p) { return p.x >= selection.start && p.x <= selection.end; }); 
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 void StateManager::setPlayheadPosition(f32 x) {
@@ -435,7 +446,7 @@ void StateManager::setZoom(f32 z) {
   assert(z > 0);
 
   state.zoom = z;
-  updateTrackView(); 
+  updateTrack(); 
 }
 
 void StateManager::setEditMode(bool m) {
@@ -493,7 +504,7 @@ void StateManager::clear() {
     state.parameters.reserve(1000);
   }
 
-  updateTrackView();
+  updateTrack();
 }
 
 auto StateManager::findAutomationPoint(f32 x) {
@@ -535,12 +546,53 @@ void StateManager::updateParametersView() {
   }
 }
 
-void StateManager::updateTrackView() {
+void StateManager::updateTrack() {
+  //scoped_timer t("StateManager::updateTrack()");
+
   if (trackView) {
-    trackView->update(state.clips, state.zoom);
+    automationLaneView->selection.start = state.selection.start * state.zoom;
+    automationLaneView->selection.end = state.selection.end * state.zoom;
+
+    trackView->zoom = state.zoom;
+
+    auto& clips = state.clips;
+    auto& clipViews = trackView->clipViews;
+
+    u32 numClips = u32(clips.size());
+    u32 numViews = u32(clipViews.size());
+
+    if (numViews < numClips) {
+      u32 diff = numClips - numViews;
+
+      while (diff--) {
+        clipViews.add(new ClipView(trackView->grid));
+        trackView->addAndMakeVisible(clipViews.getLast());
+      }
+    } else if (numViews > numClips) {
+      i32 diff = i32(numViews - numClips);
+      clipViews.removeLast(diff);
+    }
+
+    for (u32 i = 0; i < numClips; ++i) {
+      const auto& clip = clips[i];
+      auto* view = clipViews[i32(i)];
+     
+      view->id     = i;
+      view->move   = [&clip, this] (u32 id, f32 x, f32 y) { moveClipDenorm(id, x, y, clip.c); };
+      view->remove = [this] (u32 id) { removeClip(id); };
+
+      i32 h = kPresetLaneHeight;
+      i32 w = kPresetLaneHeight;
+      i32 x = i32((clip.x * state.zoom) - w * 0.5f);
+      i32 y = !bool(clip.y) ? trackView->b.presetLaneTop.getY() : trackView->b.presetLaneBottom.getY();
+         
+      view->setBounds(x, y, w, h);
+    }
+
+    trackView->setSize(trackView->getTrackWidth(), trackView->getHeight());
   }
 
-  { // TODO(luca): this should be moved somewhere else 
+  {
     ScopedProcLock lk(proc);
 
     state.automation.clear();
@@ -584,7 +636,50 @@ void StateManager::updateTrackView() {
   }
 
   if (automationLaneView) {
-    automationLaneView->update(state.paths, state.automation, state.zoom);
+    auto& automation = automationLaneView->automation;
+    automation = state.automation; 
+
+    f32 zoom = state.zoom;
+    automation.applyTransform(juce::AffineTransform::scale(zoom, kAutomationLaneHeight - Style::lineThickness));
+    automation.applyTransform(juce::AffineTransform::translation(0, Style::lineThickness / 2));
+
+    auto p = automation.getCurrentPosition();
+    automation.quadraticTo(automationLaneView->getWidth(), p.y, automationLaneView->getWidth(), p.y);
+
+    {
+      auto& paths = state.paths;
+      auto& pathViews = automationLaneView->pathViews;
+      u32 numPaths = u32(paths.size());
+      u32 numViews = u32(pathViews.size());
+
+      if (numViews < numPaths) {
+        u32 diff = numPaths - numViews;
+
+        while (diff--) {
+          pathViews.add(new PathView(automationLaneView->grid));
+          automationLaneView->addAndMakeVisible(pathViews.getLast());
+        }
+      } else if (numViews > numPaths) {
+        i32 diff = i32(numViews - numPaths);
+        pathViews.removeLast(diff);
+      }
+
+      for (u32 i = 0; i < numPaths; ++i) {
+        const auto& path = paths[i];
+        auto* view = pathViews[i32(i)];
+       
+        view->id     = i;
+        view->move   = [&path, this] (u32 id, f32 x, f32 y) { movePathDenorm(id, x, y, path.c); };
+        view->remove = [this] (u32 id) { removePath(id); };
+
+        i32 x = i32(path.x * zoom - PathView::posOffset);
+        i32 y = i32(path.y * automationLaneView->getHeight() - PathView::posOffset);
+           
+        view->setBounds(x, y, PathView::size, PathView::size);
+      }
+    }
+
+    automationLaneView->repaint();
   }
 }
 

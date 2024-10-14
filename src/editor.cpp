@@ -413,8 +413,7 @@ void AutomationLane::mouseDown(const juce::MouseEvent& e) {
     f32 start = grid.snap(e.position.x);
     f32 end = grid.snap(e.position.x); 
 
-    selection = { start < 0 ? 0 : start, end < 0 ? 0 : end };
-
+    manager.setSelectionDenorm(start < 0 ? 0 : start, end < 0 ? 0 : end);
     manager.setPlayheadPositionDenorm(selection.start);
   }
 }
@@ -483,8 +482,8 @@ void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
     }
   } else if (activeGesture == GestureType::select) {
     f32 end = grid.snap(e.position.x); 
-    selection.end = end < 0 ? 0 : end;
 
+    manager.setSelectionDenorm(selection.start, end < 0 ? 0 : end);
     manager.setPlayheadPositionDenorm(selection.end);
 
     repaint();
@@ -508,49 +507,6 @@ void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
       }
     }
   }
-}
-
-void AutomationLane::update(const std::vector<Path>& paths, juce::Path a, f32 zoom) {
-  automation = std::move(a);
-
-  automation.applyTransform(juce::AffineTransform::scale(zoom, kAutomationLaneHeight - lineThickness));
-  automation.applyTransform(juce::AffineTransform::translation(0, lineThickness / 2));
-
-  auto p = automation.getCurrentPosition();
-  automation.quadraticTo(getWidth(), p.y, getWidth(), p.y);
-
-  {
-    u32 numPaths = u32(paths.size());
-    u32 numViews = u32(pathViews.size());
-
-    if (numViews < numPaths) {
-      u32 diff = numPaths - numViews;
-
-      while (diff--) {
-        pathViews.add(new PathView(grid));
-        addAndMakeVisible(pathViews.getLast());
-      }
-    } else if (numViews > numPaths) {
-      i32 diff = i32(numViews - numPaths);
-      pathViews.removeLast(diff);
-    }
-
-    for (u32 i = 0; i < numPaths; ++i) {
-      const auto& path = paths[i];
-      auto* view = pathViews[i32(i)];
-     
-      view->id     = i;
-      view->move   = [&path, this] (u32 id, f32 x, f32 y) { manager.movePathDenorm(id, x, y, path.c); };
-      view->remove = [this] (u32 id) { manager.removePath(id); };
-
-      i32 x = i32(path.x * zoom - PathView::posOffset);
-      i32 y = i32(path.y * getHeight() - PathView::posOffset);
-         
-      view->setBounds(x, y, PathView::size, PathView::size);
-    }
-  }
-
-  repaint();
 }
 
 TrackView::TrackView(StateManager& m) : manager(m) {
@@ -686,46 +642,6 @@ void TrackView::scroll(f32 amount) {
   viewportDeltaX += amount * kScrollSpeed;
   viewportDeltaX = std::clamp(viewportDeltaX, f32(-(getWidth() - getParentWidth())), 0.f);
   setTopLeftPosition(i32(viewportDeltaX), getY());
-}
-
-void TrackView::update(const std::vector<Clip>& clips, f32 z) {
-  automationLane.selection.start = (automationLane.selection.start / zoom) * z;
-  automationLane.selection.end = (automationLane.selection.end / zoom) * z;
-
-  zoom = z;
-
-  u32 numClips = u32(clips.size());
-  u32 numViews = u32(clipViews.size());
-
-  if (numViews < numClips) {
-    u32 diff = numClips - numViews;
-
-    while (diff--) {
-      clipViews.add(new ClipView(grid));
-      addAndMakeVisible(clipViews.getLast());
-    }
-  } else if (numViews > numClips) {
-    i32 diff = i32(numViews - numClips);
-    clipViews.removeLast(diff);
-  }
-
-  for (u32 i = 0; i < numClips; ++i) {
-    const auto& clip = clips[i];
-    auto* view = clipViews[i32(i)];
-   
-    view->id     = i;
-    view->move   = [&clip, this] (u32 id, f32 x, f32 y) { manager.moveClipDenorm(id, x, y, clip.c); };
-    view->remove = [this] (u32 id) { manager.removeClip(id); };
-
-    i32 h = kPresetLaneHeight;
-    i32 w = kPresetLaneHeight;
-    i32 x = i32((clip.x * zoom) - w * 0.5f);
-    i32 y = !bool(clip.y) ? b.presetLaneTop.getY() : b.presetLaneBottom.getY();
-       
-    view->setBounds(x, y, w, h);
-  }
-
-  setSize(getTrackWidth(), getHeight());
 }
 
 void TrackView::mouseMagnify(const juce::MouseEvent&, f32 scale) {
@@ -1240,7 +1156,7 @@ void MainView::resized() {
   // TODO(luca): find better way of going about setting the track bounds
   track.setTopLeftPosition(r.removeFromBottom(kTrackHeight).getTopLeft());
   track.setSize(track.getTrackWidth(), kTrackHeight);
-  manager.updateTrackView();
+  manager.updateTrack();
 
   auto i = r.removeFromTop(instance->getHeight()); 
   instance->setBounds(i.withSizeKeepingCentre(instance->getWidth(), i.getHeight()));
@@ -1399,10 +1315,7 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   } else {
     switch (code) {
       case keyDelete: {
-        Selection selection = track.automationLane.selection;
-        selection.start /= track.zoom;
-        selection.end /= track.zoom;
-        manager.removeSelection(selection);
+        manager.removeSelection();
       } break;
       case keyPlus: {
         track.zoomTrack(1);
