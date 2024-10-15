@@ -12,6 +12,10 @@ static std::mt19937 randGen { randDevice() };
 static std::normal_distribution<f32> rand_ { 0.0, 1.0 };
 static std::atomic<u32> uniqueCounter = 0;
 
+inline bool neqf32(f32 a, f32 b) {
+  return std::abs(a - b) > EPSILON;
+}
+
 inline bool isNormalised(f32 v) {
   return v >= 0.0 && v <= 1.0;
 }
@@ -233,20 +237,21 @@ void StateManager::moveClip(u32 id, f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(id < state.clips.size());
 
-  {
+  auto& clips = state.clips;
+
+  if (neqf32(clips[id].x, x) || neqf32(clips[id].y, y) || neqf32(clips[id].c, curve)) {
     ScopedProcLock lk(proc);
 
-    auto& clips = state.clips;
     clips[id].x = x < 0 ? 0 : x;
     clips[id].y = std::clamp(y, 0.f, 1.f);
     clips[id].c = std::clamp(curve, 0.f, 1.f);
-  }
 
-  if (state.editMode) {
-    engine->interpolate();
-  }
+    if (state.editMode) {
+      engine->interpolate();
+    }
 
-  updateTrack();
+    updateTrack();
+  }
 }
 
 void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {

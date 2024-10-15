@@ -38,7 +38,7 @@ void Engine::interpolate() {
 
   const auto& clips = manager.state.clips;
 
-  {
+  if (!clips.empty()) {
     f32 closest = u32(-1);
 
     for (u32 i = 0; i < clips.size(); ++i) {
@@ -50,6 +50,7 @@ void Engine::interpolate() {
       }
     }
 
+    assert(closest >= 0);
     closest = u32(-1);
     
     for (u32 i = 0; i < clips.size(); ++i) {
@@ -60,10 +61,12 @@ void Engine::interpolate() {
       if (time <= clips[i].x) {
         if (clips[i].x - time < closest) {
           b = i32(i);  
-          closest = time - clips[i].x;
+          closest = clips[i].x - time;
         }
       }
     }
+
+    assert(closest >= 0);
 
     if (a < 0 && b >= 0) {
       a = b;
