@@ -85,8 +85,10 @@ jobs:
 
       - name: Build plugin artefacts
         run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-          cmake --build build
+          cmake -B build_fx -G Ninja -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DPLUGIN_TYPE=Effect -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake -B build_inst -G Ninja -DCMAKE_BUILD_TYPE=Release -DFORMATS="VST3" -DPLUGIN_TYPE=Instrument -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+          cmake --build build_fx
+          cmake --build build_inst
 
           #- name: Create Inno Setup installer
           #  uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -101,5 +103,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            build/Automate_artefacts/Release/VST3/Automate.vst3/**
+            build_fx/Automate-FX_artefacts/Release/VST3/Automate-FX.vst3/**
+            build_inst/Automate-Instrument_artefacts/Release/VST3/Automate-Instrument.vst3/**
 
