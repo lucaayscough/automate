@@ -162,6 +162,9 @@ struct ClipView : juce::Component {
 
   std::function<void(u32, f32, f32)> move;
   std::function<void(u32)> remove;
+  std::function<void(u32)> select;
+
+  bool selected = false;
 
   u32 id = 0;
   Grid& grid;

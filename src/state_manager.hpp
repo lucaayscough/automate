@@ -90,6 +90,7 @@ struct State {
   std::vector<Parameter> parameters;
   juce::Path automation;
   Selection selection;
+  i32 selectedClipID = -1;
 };
 
 struct Plugin;
@@ -111,6 +112,7 @@ struct StateManager {
   void removeClip(u32);
   void moveClip(u32, f32, f32, f32);
   void moveClipDenorm(u32, f32, f32, f32);
+  void selectClip(u32);
 
   void randomiseParameters();
   bool shouldProcessParameter(Parameter*);

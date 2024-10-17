@@ -259,20 +259,33 @@ void PathView::mouseDoubleClick(const juce::MouseEvent&) {
   remove(id);
 }
 
-ClipView::ClipView(Grid& g) : grid(g) {}
+ClipView::ClipView(Grid& g) : grid(g) {
+  setRepaintsOnMouseActivity(true);
+}
 
 void ClipView::paint(juce::Graphics& g) {
   g.setColour(Colours::auburn);
   g.fillEllipse(getLocalBounds().toFloat());
+
+  if (selected) {
+    g.setColour(Colours::isabelline);
+    g.fillEllipse(getLocalBounds().toFloat());
+  }
+
+  if (isMouseOver()) {
+    g.setColour(Colours::shamrockGreen);
+    g.drawEllipse(getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted / 2), Style::lineThicknessHighlighted);
+  }
 }
 
 void ClipView::mouseDown(const juce::MouseEvent& e) {
-  mouseDownOffset = e.position.x;
+  mouseDownOffset = getWidth() / 2 - e.position.x;
 
-  auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
-  assert(container);
+  select(id);
 
-  if (container && gOptKeyPressed) {
+  if (gOptKeyPressed) {
+    auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
+    assert(container);
     container->startDragging({ i32(id) }, this);
   }
 }
@@ -290,7 +303,7 @@ void ClipView::mouseDrag(const juce::MouseEvent& e) {
   if (!gOptKeyPressed) {
     auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
     f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
-    f32 x = grid.snap(parentLocalPoint.x - mouseDownOffset);
+    f32 x = grid.snap(parentLocalPoint.x + mouseDownOffset);
     move(id, x, y);
   }
 }

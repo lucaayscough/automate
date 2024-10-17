@@ -276,6 +276,13 @@ void StateManager::randomiseParameters() {
   }
 }
 
+void StateManager::selectClip(u32 id) {
+  assert(id < state.clips.size());
+  state.selectedClipID = i32(id);
+
+  updateTrack();
+}
+
 bool StateManager::shouldProcessParameter(Parameter* p) {
   if (p->active && p->parameter->isAutomatable()) {
     return p->parameter->isDiscrete() ? state.modulateDiscrete.load() : true; 
@@ -581,10 +588,13 @@ void StateManager::updateTrack() {
     for (u32 i = 0; i < numClips; ++i) {
       const auto& clip = clips[i];
       auto* view = clipViews[i32(i)];
-     
-      view->id     = i;
-      view->move   = [&clip, this] (u32 id, f32 x, f32 y) { moveClipDenorm(id, x, y, clip.c); };
+
+      view->id = i;
+      view->selected = state.selectedClipID == i32(i);
+
+      view->move = [&clip, this] (u32 id, f32 x, f32 y) { moveClipDenorm(id, x, y, clip.c); };
       view->remove = [this] (u32 id) { removeClip(id); };
+      view->select = [this] (u32 id) { selectClip(id); };
 
       i32 h = kPresetLaneHeight;
       i32 w = kPresetLaneHeight;
@@ -592,6 +602,7 @@ void StateManager::updateTrack() {
       i32 y = !bool(clip.y) ? trackView->b.presetLaneTop.getY() : trackView->b.presetLaneBottom.getY();
          
       view->setBounds(x, y, w, h);
+      view->repaint();
     }
 
     trackView->setSize(trackView->getTrackWidth(), trackView->getHeight());
