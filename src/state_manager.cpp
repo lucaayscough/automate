@@ -112,7 +112,9 @@ void StateManager::selectClip(i32 id) {
   assert(id < i32(clips.size()));
   selectedClipID = id;
 
-  engine->setParameters(clips[u32(id)].parameters, parameters);
+  if (id != NONE) {
+    engine->setParameters(clips[u32(id)].parameters, parameters);
+  }
 
   updateTrackView();
 }
@@ -223,7 +225,7 @@ void StateManager::removePath(u32 id) {
     updateTrack();
   }
 
-  if (editMode) {
+  if (editMode && !clips.empty()) {
     engine->interpolate();
   }
 }

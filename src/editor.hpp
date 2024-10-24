@@ -374,6 +374,8 @@ struct InstanceWindow : juce::DocumentWindow {
     setVisible(true);
     setContentNonOwned(instance, true);
     setUsingNativeTitleBar(true);
+    setResizable(false, false);
+    toFront(false);
   }
 };
 
@@ -386,6 +388,12 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 
   bool keyPressed(const juce::KeyPress&) override;
   void modifierKeysChanged(const juce::ModifierKeys&) override;
+
+  void focusGained(juce::Component::FocusChangeType) override {
+    if (instanceWindow) {
+      instanceWindow->toFront(false);
+    }
+  }
 
   Plugin& proc;
   StateManager& manager { proc.manager };
