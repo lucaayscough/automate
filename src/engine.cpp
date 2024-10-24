@@ -5,172 +5,110 @@ namespace atmt {
 
 Engine::Engine(StateManager& m) : manager(m) {}
 
-Engine::~Engine() {
-  if (instance) {
-    instance->removeListener(this);
-  }
-}
-
-void Engine::kill() {
-  proc.suspendProcessing(true);
-  killInstanceBroadcaster.sendSynchronousChangeMessage();
-  instance.reset();
-  proc.suspendProcessing(false);
-}
-
 void Engine::prepare(f32 sampleRate, i32 blockSize) {
-  if (instance) {
-    instance->prepareToPlay(sampleRate, blockSize);
-    instance->addListener(this);
-    proc.setLatencySamples(instance->getLatencySamples());
+  assert(instance);
+
+  instance->prepareToPlay(sampleRate, blockSize);
+  proc.setLatencySamples(instance->getLatencySamples());
+}
+
+void Engine::setParameters(const std::vector<f32>& preset, std::vector<Parameter>& parameters) {
+  //scoped_timer t("Engine::setParameters()");
+
+  for (u32 i = 0; i < parameters.size(); ++i) {
+    if (manager.shouldProcessParameter(i)) {
+      if (neqf32(parameters[i].parameter->getValue(), preset[i])) {
+        parameters[i].parameter->setValue(preset[i]);
+      }
+    }
   }
 }
 
 void Engine::interpolate() {
+  //scoped_timer t("Engine::interpolate()");
+
   assert(instance);
 
-  f32 time = manager.state.playheadPosition;
-  f32 lerpPos = getYFromX(manager.state.automation, time);
+  f32 time = manager.playheadPosition;
+  f32 lerpPos = getYFromX(manager.automation, time);
   assert(!(lerpPos > 1.f) && !(lerpPos < 0.f));
 
-  i32 a = -1;
-  i32 b = -1;
+  const auto& clips = manager.clips;
+  const auto& pairs = lerpPairs;
 
-  const auto& clips = manager.state.clips;
+  assert(!clips.empty());
 
-  if (!clips.empty()) {
-    f32 closest = u32(-1);
-
-    for (u32 i = 0; i < clips.size(); ++i) {
-      if (time >= clips[i].x) {
-        if (time - clips[i].x < closest) {
-          a = i32(i);
-          closest = time - clips[i].x;
-        }
-      }
+  if (clips.size() == 1) {
+    if (lastVisitedPair != FRONT_PAIR) {
+      lastVisitedPair = FRONT_PAIR;
+      setParameters(clips.front().parameters, manager.parameters);
     }
-
-    assert(closest >= 0);
-    closest = u32(-1);
-    
-    for (u32 i = 0; i < clips.size(); ++i) {
-      if (i32(i) == a) {
-        continue;
-      }
-
-      if (time <= clips[i].x) {
-        if (clips[i].x - time < closest) {
-          b = i32(i);  
-          closest = clips[i].x - time;
-        }
-      }
+  } else if (time < pairs.front().start) {
+    if (lastVisitedPair != FRONT_PAIR) {
+      lastVisitedPair = FRONT_PAIR;
+      setParameters(clips[pairs.front().a].parameters, manager.parameters);
     }
+  } else if (time > pairs.back().end) {
+    assert(clips.size() == pairs.size() + 1);
 
-    assert(closest >= 0);
-
-    if (a < 0 && b >= 0) {
-      a = b;
-      b = -1;
+    if (lastVisitedPair != BACK_PAIR) {
+      lastVisitedPair = BACK_PAIR;
+      setParameters(clips[pairs.back().b].parameters, manager.parameters);
     }
-  }
+  } else {
+    assert(clips.size() == pairs.size() + 1);
 
-  if (a >= 0 && b < 0) {
-    auto& presetParameters = clips[u32(a)].parameters;
-    auto& parameters = manager.state.parameters;
+    u32 a, b;
 
-    for (u32 i = 0; i < parameters.size(); ++i) {
-      if (manager.shouldProcessParameter(&parameters[i])) {
-        if (std::abs(parameters[i].parameter->getValue() - presetParameters[i]) > EPSILON) {
-          parameters[i].parameter->setValue(presetParameters[i]);
-        }
-      }
-    }
-  } else if (a >= 0 && b >= 0) {
-    f32 position = bool(clips[u32(a)].y) ? 1.f - lerpPos : lerpPos;
+    for (u32 pairIndex = 0; pairIndex < pairs.size(); ++pairIndex) {
+      assert(pairIndex < pairs.size());
 
-    auto& beginParameters = clips[u32(a)].parameters;
-    auto& endParameters   = clips[u32(b)].parameters;
-    auto& parameters      = manager.state.parameters;
+      if (time >= pairs[pairIndex].start && time <= pairs[pairIndex].end) {
+        a = pairs[pairIndex].a;
+        b = pairs[pairIndex].b;
 
-    for (u32 i = 0; i < parameters.size(); ++i) {
-      if (parameters[i].active) {
-        if (manager.shouldProcessParameter(&parameters[i])) {
-          assert(isNormalised(beginParameters[i]));
-          assert(isNormalised(endParameters[i]));
+        const auto& beginParameters = clips[a].parameters;
+        const auto& endParameters   = clips[b].parameters;
+        auto& parameters = manager.parameters;
 
-          f32 increment = (endParameters[i] - beginParameters[i]) * position; 
-          f32 newValue  = beginParameters[i] + increment;
-          f32 distance  = std::abs(newValue - parameters[i].parameter->getValue());
-          assert(isNormalised(newValue));
+        if (pairs[pairIndex].interpolate) {
+          for (u32 parameterIndex = 0; parameterIndex < parameters.size(); ++parameterIndex) {
+            if (parameters[parameterIndex].active && (pairs[pairIndex].parameters[parameterIndex] || lastVisitedPair != i32(pairIndex))) {
+              if (manager.shouldProcessParameter(parameterIndex)) {
+                assert(isNormalised(beginParameters[parameterIndex]));
+                assert(isNormalised(endParameters[parameterIndex]));
 
-          if (distance > EPSILON) {
-            parameters[i].parameter->setValue(f32(newValue));
+                f32 position = bool(clips[u32(a)].y) ? 1.f - lerpPos : lerpPos;
+
+                f32 increment = (endParameters[parameterIndex] - beginParameters[parameterIndex]) * position;
+                f32 newValue  = beginParameters[parameterIndex] + increment;
+                assert(isNormalised(newValue));
+
+                parameters[parameterIndex].parameter->setValue(f32(newValue));
+              }
+            }
           }
         }
+
+        lastVisitedPair = i32(pairIndex);
+        break;
       }
     }
   }
 }
 
 void Engine::process(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midiBuffer) {
-  if (instance) {
-    if (!manager.state.editMode) {
-      interpolate();
-    }
+  assert(instance);
 
-    if (buffer.getNumChannels() < instance->getTotalNumInputChannels()) {
-      buffer.setSize(instance->getTotalNumInputChannels(), buffer.getNumSamples(), true, false, true);
-    }
-
-    instance->processBlock(buffer, midiBuffer);
+  if (!manager.editMode && !manager.clips.empty()) {
+    interpolate();
   }
-}
 
-void Engine::setPluginInstance(std::unique_ptr<juce::AudioPluginInstance>& _instance) {
-  jassert(_instance);
+  if (buffer.getNumChannels() < instance->getTotalNumInputChannels()) {
+    buffer.setSize(instance->getTotalNumInputChannels(), buffer.getNumSamples(), true, false, true);
+  }
 
-  instance = std::move(_instance);
-  createInstanceBroadcaster.sendChangeMessage();
-}
-
-void Engine::audioProcessorParameterChanged(juce::AudioProcessor*, i32 i, f32) {
-  DBG("Engine::audioProcessorParameterChanged()");
-  handleParameterChange(&manager.state.parameters[u32(i)]);
-}
-
-void Engine::audioProcessorChanged(juce::AudioProcessor*, const juce::AudioProcessorListener::ChangeDetails&) {}
-
-void Engine::audioProcessorParameterChangeGestureBegin(juce::AudioProcessor*, i32 i) {
-  DBG("Engine::audioProcessorParameterChangeGestureBegin()");
-  handleParameterChange(&manager.state.parameters[u32(i)]);
-}
-
-void Engine::handleParameterChange(Parameter* parameter) {
-  juce::MessageManager::callAsync([parameter, this] {
-    if (manager.state.captureParameterChanges) {
-      manager.setParameterActive(parameter, true);
-    } else if (manager.state.releaseParameterChanges) {
-      manager.setParameterActive(parameter, false);
-    }
-
-    if (manager.shouldProcessParameter(parameter)) {
-      if (!manager.state.editMode) {
-        manager.setEditMode(true);
-      }
-    }
-  });
-}
-
-void Engine::audioProcessorParameterChangeGestureEnd(juce::AudioProcessor*, int) {
-  // TODO(luca): implent this
-}
-
-bool Engine::hasInstance() {
-  return instance ? true : false;
-}
-
-juce::AudioProcessorEditor* Engine::getEditor() {
-  return hasInstance() && instance->hasEditor() ? instance->createEditor() : nullptr;
+  instance->processBlock(buffer, midiBuffer);
 }
 
 } // namespace atmt

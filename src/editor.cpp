@@ -44,21 +44,17 @@ void Button::resized() {
   textBounds = rectBounds.translated(0, yTranslation);
 }
 
-Dial::Dial(const Parameter* p) : parameter(p) {
+Dial::Dial() {
   setSliderStyle(juce::Slider::SliderStyle::RotaryVerticalDrag);
   setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
   setScrollWheelEnabled(false);
-
   setRange(0, 1);
-  setValue(parameter->parameter->getValue());
-  setDoubleClickReturnValue(true, parameter->parameter->getDefaultValue());
-  onValueChange = [this] { parameter->parameter->setValue(f32(getValue())); };
 }
 
 void Dial::paint(juce::Graphics& g) {
   auto r = getLocalBounds().toFloat().reduced(Style::lineThicknessHighlighted, Style::lineThicknessHighlighted);
 
-  if (parameter->active) {
+  if (active) {
     g.setColour(Colours::shamrockGreen);
   } else {
     g.setColour(Colours::auburn);
@@ -97,7 +93,7 @@ void Dial::mouseUp(const juce::MouseEvent& e) {
 }
 
 void InfoView::paint(juce::Graphics& g) {
-  auto r = getLocalBounds().withSizeKeepingCentre(i32(Style::minWidth * 0.75f), numCommands * commandHeight);
+  auto r = getLocalBounds().withSizeKeepingCentre(i32(kWidth * 0.75f), numCommands * commandHeight);
   auto left = r.removeFromLeft(r.getWidth() / 2);
   auto right = r;
 
@@ -115,126 +111,9 @@ void InfoView::mouseDown(const juce::MouseEvent&) {
   mainViewUpdateCallback();
 }
 
-bool Grid::reset(f32 z, f32 mw, TimeSignature _ts) {
-  if (std::abs(zoom - z) > EPSILON || std::abs(maxWidth - mw) > EPSILON || ts.numerator != _ts.numerator || ts.denominator != _ts.denominator) {
-    maxWidth = mw;
-    ts = _ts;
-    zoom = z;
-    reset();
-    return true;
-  }
-  return false;
+PathView::PathView() {
+  setRepaintsOnMouseActivity(true);
 }
-
-void Grid::reset() {
-  assert(zoom > 0 && maxWidth > 0 && ts.numerator > 0 && ts.denominator > 0);
-
-  // TODO(luca): there is still some stuff to work out with the triplet grid
-  lines.clear();
-  beats.clear();
-  
-  u32 barCount = 0;
-  u32 beatCount = 0;
-
-  f32 pxInterval = zoom / (ts.denominator / 4.f);
-  u32 beatInterval = 1;
-  u32 barInterval = ts.numerator;
-
-  while (pxInterval * beatInterval < intervalMin) {
-    beatInterval *= 2;
-
-    if (beatInterval > barInterval) {
-      beatInterval -= beatInterval % barInterval;
-    } else {
-      beatInterval += barInterval - beatInterval;
-    }
-  }
-
-  pxInterval *= beatInterval;
-
-  f32 pxTripletInterval = pxInterval * 2 / 3;
-  f32 x = 0;
-  f32 tx = 0;
-  u32 numSubIntervals = u32(std::abs(gridWidth)) * 2;
-  
-  f32 subInterval = 0;
-  if (gridWidth < 0) {
-    subInterval = tripletMode ? pxTripletInterval : pxInterval / f32(numSubIntervals);
-  } else if (gridWidth > 0) {
-    subInterval = tripletMode ? pxTripletInterval : pxInterval / (1.f / f32(numSubIntervals));
-  } else {
-    subInterval = tripletMode ? pxTripletInterval : pxInterval; 
-  }
-
-  u32 count = 0;
-
-  while (x < maxWidth || tx < maxWidth) {
-    Beat b { barCount + 1, beatCount + 1, x };
-    beats.push_back(b);
-
-    if (gridWidth < 0) {
-      for (u32 i = 0; i < numSubIntervals; ++i) {
-        lines.push_back((tripletMode ? tx : x) + f32(i) * subInterval);
-      }
-      lines.push_back(tripletMode ? tx : x);
-    } else if (gridWidth > 0) {
-      if (count % numSubIntervals == 0) {
-        lines.push_back(tripletMode ? tx : x);
-      }
-    } else {
-      lines.push_back(tripletMode ? tx : x);
-    }
-
-    x += pxInterval;
-    tx += pxTripletInterval;
-
-    for (u32 i = 0; i < beatInterval; ++i) {
-      beatCount = (beatCount + 1) % barInterval;
-
-      if (!beatCount) {
-        ++barCount;
-      }
-    }
-    ++count;
-  }
-
-  snapInterval = subInterval;
-}
-
-f32 Grid::snap(f32 time) {
-  if (snapOn) {
-    i32 div = i32(time / snapInterval);
-    f32 left  = div * snapInterval;
-    return time - left < snapInterval / 2 ? left : left + snapInterval;
-  } else {
-    return time;
-  }
-}
-
-void Grid::narrow() {
-  if (gridWidth > -2) {
-    --gridWidth;
-    reset();
-  }
-}
-
-void Grid::widen() {
-  if (gridWidth < 2) {
-    ++gridWidth;
-    reset();
-  }
-}
-
-void Grid::triplet() {
-  tripletMode = !tripletMode;
-  reset();
-}
-
-void Grid::toggleSnap() {
-  snapOn = !snapOn;
-}
-
-PathView::PathView(Grid& g) : grid(g) {}
 
 void PathView::paint(juce::Graphics& g) {
   if (isMouseOverOrDragging()) {
@@ -246,20 +125,17 @@ void PathView::paint(juce::Graphics& g) {
 }
 
 void PathView::mouseDrag(const juce::MouseEvent& e) {
-  // TODO(luca): simplify this
-  auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
-  auto newX = f32(grid.snap(parentLocalPoint.x));
-  auto newY = f32(parentLocalPoint.y / getParentComponent()->getHeight());
-  newY = std::clamp(newY, 0.f, 1.f);
-
-  move(id, newX, newY);
+  auto parent = getParentComponent();
+  assert(parent);
+  auto parentLocalPoint = parent->getLocalPoint(this, e.position);
+  move(id, parentLocalPoint.x, parentLocalPoint.y);
 }
 
 void PathView::mouseDoubleClick(const juce::MouseEvent&) {
   remove(id);
 }
 
-ClipView::ClipView(Grid& g) : grid(g) {
+ClipView::ClipView() {
   setRepaintsOnMouseActivity(true);
 }
 
@@ -281,7 +157,7 @@ void ClipView::paint(juce::Graphics& g) {
 void ClipView::mouseDown(const juce::MouseEvent& e) {
   mouseDownOffset = getWidth() / 2 - e.position.x;
 
-  select(id);
+  select(i32(id));
 
   if (gOptKeyPressed) {
     auto container = juce::DragAndDropContainer::findParentDragContainerFor(this);
@@ -303,21 +179,12 @@ void ClipView::mouseDrag(const juce::MouseEvent& e) {
   if (!gOptKeyPressed) {
     auto parentLocalPoint = getParentComponent()->getLocalPoint(this, e.position);
     f32 y = parentLocalPoint.y > (getParentComponent()->getHeight() / 2) ? 1 : 0;
-    f32 x = grid.snap(parentLocalPoint.x + mouseDownOffset);
+    f32 x = parentLocalPoint.x + mouseDownOffset;
     move(id, x, y);
   }
 }
 
-AutomationLane::AutomationLane(StateManager& m, Grid& g) : manager(m), grid(g) {
-  manager.registerAutomationLaneView(this);
-}
-
-AutomationLane::~AutomationLane() {
-  manager.deregisterAutomationLaneView();
-}
-
 void AutomationLane::paint(juce::Graphics& g) {
-  //scoped_timer t("AutomationLane::paint()");
 
   { // NOTE(luca): draw selection
     auto r = getLocalBounds();
@@ -361,7 +228,8 @@ void AutomationLane::paint(juce::Graphics& g) {
   { // NOTE(luca): draw point
     auto cond = [] (PathView* p) { return p->isMouseButtonDown() || p->isMouseOver(); };
     auto it = std::find_if(pathViews.begin(), pathViews.end(), cond);
-    if (it == pathViews.end()) {
+
+    if (it == pathViews.end() && paintHoverPoint) {
       g.setColour(Colours::atomicTangerine);
       g.fillEllipse(hoverBounds);
     }
@@ -382,52 +250,56 @@ void AutomationLane::mouseMove(const juce::MouseEvent& e) {
   auto p = getAutomationPoint(e.position);
   auto d = p.getDistanceFrom(e.position);
 
-  if (d < mouseIntersectDistance && !gOptKeyPressed) {
+  if (d < mouseIntersectDistance && !gOptKeyPressed && hoverBounds.getCentre() != p) {
     hoverBounds.setCentre(p);
     hoverBounds.setSize(10, 10);
-  } else {
-    hoverBounds = {};
+    paintHoverPoint = true;
+    repaint();
+  } else if (paintHoverPoint) {
+    paintHoverPoint = false;
+    repaint();
   }
 
   if ((d < mouseOverDistance && mouseIntersectDistance < d) || (d < mouseOverDistance && gOptKeyPressed)) {
     xHighlightedSegment = p.x;
-  } else {
-    xHighlightedSegment = -1; 
+    repaint();
+  } else if (i32(xHighlightedSegment) != NONE) {
+    xHighlightedSegment = NONE; 
+    repaint();
   }
-
-  repaint();
 }
 
 void AutomationLane::mouseExit(const juce::MouseEvent&) {
-  hoverBounds = {};
-  xHighlightedSegment = -1; 
+  paintHoverPoint = false;
+  xHighlightedSegment = NONE; 
   lastMouseDragOffset = {};
+  repaint();
 }
 
 void AutomationLane::mouseDown(const juce::MouseEvent& e) {
   assert(activeGesture == GestureType::none);
 
-  auto p = getAutomationPoint(e.position);
-  auto d = p.getDistanceFrom(e.position);
+  auto point = getAutomationPoint(e.position);
+  auto distance = point.getDistanceFrom(e.position);
 
-  if (d < mouseOverDistance && gOptKeyPressed) {
+  if (distance < mouseOverDistance && gOptKeyPressed) {
     activeGesture = GestureType::bend;
     setMouseCursor(juce::MouseCursor::NoCursor);
-  } else if (d < mouseIntersectDistance) {
+  } else if (distance < mouseIntersectDistance) {
     activeGesture = GestureType::addPath;
-    lastPathAddedID = manager.addPathDenorm(grid.snap(p.x), p.y / getHeight(), kDefaultPathCurve);
-    hoverBounds = {};
-  } else if (d < mouseOverDistance) {
+    lastPathAddedID = addPath(point.x, point.y, kDefaultPathCurve);
+    paintHoverPoint = false;
+  } else if (distance < mouseOverDistance) {
     activeGesture = GestureType::drag;
     setMouseCursor(juce::MouseCursor::NoCursor);
   } else {
     activeGesture = GestureType::select;
 
-    f32 start = grid.snap(e.position.x);
-    f32 end = grid.snap(e.position.x); 
+    f32 start = e.position.x;
+    f32 end = e.position.x; 
 
-    manager.setSelectionDenorm(start < 0 ? 0 : start, end < 0 ? 0 : end);
-    manager.setPlayheadPositionDenorm(selection.start);
+    setSelection(start < 0 ? 0 : start, end < 0 ? 0 : end);
+    setPlayheadPosition(selection.start);
   }
 }
 
@@ -438,8 +310,8 @@ void AutomationLane::mouseUp(const juce::MouseEvent&) {
   //  juce::Desktop::setMousePosition(globalPoint);
   //}
 
-  xHighlightedSegment = -1; 
-  hoverBounds = {};
+  xHighlightedSegment = NONE; 
+  paintHoverPoint = false;
   lastMouseDragOffset = {};
 
   activeGesture = GestureType::none;
@@ -448,93 +320,45 @@ void AutomationLane::mouseUp(const juce::MouseEvent&) {
 
 void AutomationLane::mouseDrag(const juce::MouseEvent& e) {
   if (activeGesture == GestureType::bend) {
-    auto p = manager.findAutomationPointDenorm(xHighlightedSegment);
+    auto offset = e.getOffsetFromDragStart();
+    f32 y = f32(lastMouseDragOffset.y - offset.y);
+    f32 increment = y / kDragIncrement;
 
-    if (p != manager.state.points.end()){
-      assert(p->clip || p->path);
-
-      auto offset = e.getOffsetFromDragStart();
-      auto y = f32(lastMouseDragOffset.y - offset.y);
-      auto increment = y / kDragIncrement;
-      auto newValue = std::clamp(p->c + increment, 0.f, 1.f);
-      assert(newValue >= 0 && newValue <= 1);
-
-      if (p->clip) {
-        manager.moveClip(p->id, p->x, p->y, newValue);
-      } else {
-        manager.movePath(p->id, p->x, p->y, newValue);
-      }
-
-      lastMouseDragOffset = offset;
-    }
+    lastMouseDragOffset = offset;
+    bendAutomation(e.position.x, increment);
   } else if (activeGesture == GestureType::drag) {
-    auto p = manager.findAutomationPointDenorm(xHighlightedSegment);
+    auto offset = e.getOffsetFromDragStart();
+    f32 y = f32(lastMouseDragOffset.y - offset.y);
+    f32 increment = y / kDragIncrement;
 
-    if (p != manager.state.points.end()) {
-      assert(p->clip || p->path);
-
-      auto offset = e.getOffsetFromDragStart();
-      auto y = f32(lastMouseDragOffset.y - offset.y);
-      auto increment = y / kDragIncrement;
-      auto newValue = std::clamp(p->y - increment, 0.f, 1.f);
-
-      if (p->path) {
-        manager.movePath(p->id, p->x, newValue, p->c);
-      }
-
-      if (p != manager.state.points.begin() && std::next(p) != manager.state.points.end()) {
-        auto prev = std::prev(p);
-
-        if (prev->path) {
-          newValue = std::clamp(prev->y - increment, 0.f, 1.f);
-          manager.movePath(prev->id, prev->x, newValue, prev->c);
-        }
-      }
-
-      lastMouseDragOffset = offset;
-    }
+    lastMouseDragOffset = offset;
+    dragAutomationSection(e.position.x, increment);
   } else if (activeGesture == GestureType::select) {
-    f32 end = grid.snap(e.position.x); 
+    f32 end = e.position.x; 
 
-    manager.setSelectionDenorm(selection.start, end < 0 ? 0 : end);
-    manager.setPlayheadPositionDenorm(selection.end);
+    setSelection(selection.start, end < 0 ? 0 : end);
+    setPlayheadPosition(selection.end);
 
     repaint();
   } else if (activeGesture == GestureType::addPath) {
-    manager.movePathDenorm(lastPathAddedID, grid.snap(e.position.x), e.position.y / kAutomationLaneHeight, manager.state.paths[lastPathAddedID].c);
+    movePath(lastPathAddedID, e.position.x, e.position.y);
   } else {
     assert(false);
   }
 }
+
 void AutomationLane::mouseDoubleClick(const juce::MouseEvent& e) {
   if (getDistanceFromPoint(e.position) < mouseOverDistance && gOptKeyPressed) {
-    auto p = manager.findAutomationPointDenorm(e.position.x);
-
-    if (p != manager.state.points.end()){
-      assert(p->clip || p->path);
-
-      if (p->path) {
-        manager.movePath(p->id, p->path->x, p->path->y, 0.5f);
-      } else {
-        manager.moveClip(p->id, p->clip->x, p->clip->y, 0.5f);
-      }
-    }
+    flattenAutomationCurve(e.position.x);
   }
 }
 
-TrackView::TrackView(StateManager& m) : manager(m) {
+TrackView::TrackView() {
   addAndMakeVisible(automationLane);
-  startTimerHz(60);
-  setSize(getTrackWidth(), kTrackHeight);
-  manager.registerTrackView(this);
-}
-
-TrackView::~TrackView() {
-  manager.deregisterTrackView();
 }
 
 void TrackView::paint(juce::Graphics& g) {
-  //scoped_timer t("TrackView::paint()");
+  scoped_timer t("TrackView::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(Colours::jet);
@@ -549,7 +373,7 @@ void TrackView::paint(juce::Graphics& g) {
   { // NOTE(luca): beats
     g.setFont(font);
     g.setColour(Colours::frenchGray);
-    for (auto& beat : grid.beats) {
+    for (auto& beat : grid->beats) {
       auto beatText = juce::String(beat.bar);
       if (beat.beat > 1) {
         beatText << "." + juce::String(beat.beat);
@@ -558,8 +382,8 @@ void TrackView::paint(juce::Graphics& g) {
     }
 
     g.setColour(Colours::outerSpace);
-    for (u32 i = 1; i < grid.lines.size(); ++i) {
-      g.fillRect(f32(grid.lines[i]), f32(r.getY()), 0.75f, f32(getHeight()));
+    for (u32 i = 1; i < grid->lines.size(); ++i) {
+      g.fillRect(f32(grid->lines[i]), f32(r.getY()), 0.75f, f32(getHeight()));
     }
   }
 
@@ -575,111 +399,29 @@ void TrackView::resized() {
   automationLane.setBounds(r);
 }
 
-void TrackView::timerCallback() {
-  resetGrid();
-}
-
-void TrackView::resetGrid() {
-  Grid::TimeSignature ts { manager.state.numerator.load(), manager.state.denominator.load() };
-  auto ph = manager.state.playheadPosition.load() * zoom;
-
-  if (std::abs(playhead.x - ph) > EPSILON) {
-    auto x = -viewportDeltaX;
-    auto inBoundsOld = playhead.x >= x && playhead.x <= (x + getWidth()); 
-    auto inBoundsNew = ph >= x && ph <= (x + getWidth()); 
-
-    playhead.x = ph;
-
-    if (inBoundsOld || inBoundsNew) {
-      repaint();
-    }
-  }
-
-  if (getWidth() > 0 && grid.reset(zoom, getWidth(), ts)) {
-    repaint();
-  }
-}
-
-i32 TrackView::getTrackWidth() {
-  f32 width = 0;
-
-  for (const auto& c : manager.state.clips) {
-    if (c.x > width) {
-      width = c.x;
-    }
-  }
-
-  for (const auto& p : manager.state.paths) {
-    if (p.x > width) {
-      width = p.x;
-    }
-  }
-
-  width *= zoom;
-  return width > getParentWidth() ? int(width + kTrackWidthRightPadding) : getParentWidth();
-}
-
-void TrackView::zoomTrack(f32 amount) {
-  scoped_timer t("TrackView::zoomTrack()");
-
-  f32 mouseX = getMouseXYRelative().x;
-  f32 z0 = zoom;
-  f32 z1 = z0 + (amount * kZoomSpeed * (z0 / kZoomDeltaScale)); 
-
-  z1 = std::clamp(z1, 0.001f, 10000.f);
-
-  f32 x0 = -viewportDeltaX;
-  f32 x1 = mouseX;
-  f32 d = x1 - x0;
-  f32 p = x1 / z0;
-  f32 X1 = p * z1;
-  f32 X0 = X1 - d;
-
-  manager.setZoom(z1 <= 0 ? EPSILON : z1);
-
-  f32 trackWidth = getTrackWidth();
-  f32 parentWidth = getParentWidth();
-
-  viewportDeltaX = std::clamp(-X0, -(trackWidth - parentWidth), 0.f);
-
-  setTopLeftPosition(i32(viewportDeltaX), getY());
-
-  assert(viewportDeltaX <= 0);
-  assert(trackWidth + viewportDeltaX >= parentWidth);
-
-  resetGrid();
-  repaint();
-}
-
-void TrackView::scroll(f32 amount) {
-  viewportDeltaX += amount * kScrollSpeed;
-  viewportDeltaX = std::clamp(viewportDeltaX, f32(-(getWidth() - getParentWidth())), 0.f);
-  setTopLeftPosition(i32(viewportDeltaX), getY());
-}
-
 void TrackView::mouseMagnify(const juce::MouseEvent&, f32 scale) {
   if (scale < 1) {
-    zoomTrack(-0.1f * (1.f / scale));
+    doZoom(-0.1f * (1.f / scale), getMouseXYRelative().x);
   } else {
-    zoomTrack(0.1f * scale);
+    doZoom(0.1f * scale, getMouseXYRelative().x);
   }
 }
 
 void TrackView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   if (gCmdKeyPressed) {
-    zoomTrack(w.deltaY);
+    doZoom(w.deltaY, getMouseXYRelative().x);
   } else if (gShiftKeyPressed) {
-    scroll(w.deltaX + w.deltaY);
+    doScroll(w.deltaX + w.deltaY);
   } else {
-    scroll(w.deltaX);
+    doScroll(w.deltaX);
   }
 }
 
 void TrackView::mouseDoubleClick(const juce::MouseEvent& e) {
   if (b.presetLaneTop.contains(e.position.toInt())) {
-    manager.addClip(grid.snap(e.position.x) / zoom, 0, kDefaultPathCurve);
+    addClip(e.position.x, 0, kDefaultPathCurve);
   } else if (b.presetLaneBottom.contains(e.position.toInt())) {
-    manager.addClip(grid.snap(e.position.x) / zoom, 1, kDefaultPathCurve);
+    addClip(e.position.x, 1, kDefaultPathCurve);
   }
 }
 
@@ -691,9 +433,9 @@ void TrackView::itemDropped(const Details& d) {
   u32 id = u32(i32(d.description));
 
   if (b.presetLaneTop.contains(d.localPosition.toInt())) {
-    manager.duplicateClipDenorm(id, grid.snap(d.localPosition.x), true);
+    duplicateClip(id, d.localPosition.x, true);
   } else if (b.presetLaneBottom.contains(d.localPosition.toInt())) {
-    manager.duplicateClipDenorm(id, grid.snap(d.localPosition.x), false);
+    duplicateClip(id, d.localPosition.x, false);
   }
 }
 
@@ -734,23 +476,12 @@ void ToolBar::KillButton::paintButton(juce::Graphics& g, bool highlighted, bool)
   g.drawLine(r.getX() + r.getWidth(), r.getY(), r.getX(), r.getY() + r.getHeight(), thickness);
 }
 
-ToolBar::ToolBar(StateManager& m) : manager(m) {
-  manager.debugView = this; 
-
+ToolBar::ToolBar() {
   addAndMakeVisible(infoButton);
   addAndMakeVisible(editModeButton);
-  addAndMakeVisible(modulateDiscreteButton);
+  addAndMakeVisible(discreteModeButton);
   addAndMakeVisible(supportLinkButton);
   addAndMakeVisible(killButton);
-
-  editModeButton.onClick = [this] { manager.setEditMode(!manager.state.editMode); };
-  modulateDiscreteButton.onClick = [this] { manager.setModulateDiscrete(!manager.state.modulateDiscrete); };
-  supportLinkButton.onClick = [] { supportURL.launchInDefaultBrowser(); };
-  killButton.onClick = [this] { manager.setPluginID({}); };
-}
-
-ToolBar::~ToolBar() {
-  manager.debugView = nullptr;
 }
 
 void ToolBar::resized() {
@@ -761,13 +492,10 @@ void ToolBar::resized() {
   infoButton.setBounds(r.removeFromLeft(r.getHeight()));
   editModeButton.setBounds(middle.removeFromLeft(buttonWidth));
   middle.removeFromLeft(buttonPadding);
-  modulateDiscreteButton.setBounds(middle.removeFromLeft(buttonWidth));
+  discreteModeButton.setBounds(middle.removeFromLeft(buttonWidth));
   middle.removeFromLeft(buttonPadding);
   supportLinkButton.setBounds(middle.removeFromLeft(buttonWidth));
   killButton.setBounds(r.removeFromRight(r.getHeight()));
-
-  editModeButton.setToggleState(manager.state.editMode, DONT_NOTIFY);
-  modulateDiscreteButton.setToggleState(manager.state.modulateDiscrete, DONT_NOTIFY);
 }
 
 void ToolBar::paint(juce::Graphics& g) {
@@ -822,7 +550,7 @@ void DefaultView::PluginsPanel::mouseDown(const juce::MouseEvent& e) {
     const auto& p = plugins[i];
 
     if (p.visible && p.r.contains(e.position.toInt())) {
-      setPluginID(p.description.createIdentifierString());
+      loadPlugin(p.description.createIdentifierString());
       break;
     }
   }
@@ -830,7 +558,7 @@ void DefaultView::PluginsPanel::mouseDown(const juce::MouseEvent& e) {
 
 void DefaultView::PluginsPanel::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   i32 v = getY() + i32(100.f * w.deltaY);
-  v = std::clamp(v, - getHeight() + DefaultView::height, 0);
+  v = std::clamp(v, - getHeight() + kDefaultViewHeight, 0);
   setTopLeftPosition(getX(), v); 
 }
 
@@ -875,7 +603,7 @@ void DefaultView::PluginsPanel::updateManufacturerFilter(const juce::String& m) 
 
   i32 newHeight = DefaultView::buttonHeight * count + DefaultView::titleHeight;
   setTopLeftPosition(getX(), 0);
-  setSize(DefaultView::width / 2, newHeight < height ? height : newHeight);
+  setSize(kDefaultViewWidth / 2, newHeight < kDefaultViewHeight ? kDefaultViewHeight : newHeight);
   resized();
   repaint();
 }
@@ -934,11 +662,13 @@ void DefaultView::ManufacturersPanel::mouseDown(const juce::MouseEvent& e) {
       break;
     }
   }
+
+  repaint();
 }
 
 void DefaultView::ManufacturersPanel::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
   i32 v = getY() + i32(100.f * w.deltaY);
-  v = std::clamp(v, - getHeight() + DefaultView::height, 0);
+  v = std::clamp(v, - getHeight() + kDefaultViewHeight, 0);
   setTopLeftPosition(getX(), v); 
 }
 
@@ -992,17 +722,15 @@ void DefaultView::ManufacturersPanel::update(juce::Array<juce::PluginDescription
   }
 
   i32 newHeight = DefaultView::buttonHeight * i32(manufacturers.size()) + DefaultView::titleHeight;
-  setSize(DefaultView::width / 2, newHeight < height ? height : newHeight);
+  setSize(kDefaultViewWidth / 2, newHeight < kDefaultViewHeight ? kDefaultViewHeight : newHeight);
   resized();
 }
 
 DefaultView::DefaultView(StateManager& m, juce::AudioPluginFormatManager& fm, juce::KnownPluginList& kpl) : manager(m), knownPluginList(kpl), formatManager(fm) {
-  pluginsPanel.setPluginID = [this] (const juce::String& id) { manager.setPluginID(id); };
+  pluginsPanel.loadPlugin = [this] (const juce::String& id) { manager.loadPlugin(id); };
 
   addAndMakeVisible(manufacturersPanel);
   addAndMakeVisible(pluginsPanel);
-
-  setSize(width, height);
 }
 
 void DefaultView::resized() {
@@ -1027,21 +755,9 @@ void DefaultView::filesDropped(const juce::StringArray& files, i32, i32) {
   resized();
 }
 
-ParametersView::ParameterView::ParameterView(StateManager& m, Parameter* p) : manager(m), parameter(p) {
-  assert(parameter);
-  assert(parameter->parameter);
-
-  parameter->parameter->addListener(this);
-
+ParametersView::ParameterView::ParameterView() {
   addAndMakeVisible(dial);
   addAndMakeVisible(activeToggle);
-
-  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
-  activeToggle.onClick = [this] { manager.setParameterActive(parameter, !parameter->active); };
-}
-
-ParametersView::ParameterView::~ParameterView() {
-  parameter->parameter->removeListener(this);
 }
 
 void ParametersView::ParameterView::resized() {
@@ -1055,35 +771,7 @@ void ParametersView::ParameterView::resized() {
 void ParametersView::ParameterView::paint(juce::Graphics& g) {
   g.setColour(Colours::isabelline); 
   g.setFont(Fonts::sofiaProRegular.withHeight(10));
-  g.drawText(parameter->parameter->getName(1024), nameBounds, juce::Justification::centred);
-}
-
-void ParametersView::ParameterView::update() {
-  activeToggle.setToggleState(parameter->active, DONT_NOTIFY);
-  repaint();
-}
-
-void ParametersView::ParameterView::parameterValueChanged(i32, f32 v) {
-  juce::MessageManager::callAsync([v, this] { dial.setValue(v); repaint(); });
-}
- 
-void ParametersView::ParameterView::parameterGestureChanged(i32, bool) {}
-
-ParametersView::ParametersView(StateManager& m) : manager(m) {
-  DBG("ParametersView::ParametersView()");
-  manager.parametersView = this;
-
-  for (auto& p : manager.state.parameters) {
-    if (p.parameter->isAutomatable()) {
-      auto param = new ParameterView(manager, &p);
-      addAndMakeVisible(param);
-      parameters.add(param);
-    }
-  }
-}
-
-ParametersView::~ParametersView() {
-  manager.parametersView = nullptr;
+  g.drawText(name, nameBounds, juce::Justification::centred);
 }
 
 void ParametersView::resized() {
@@ -1094,9 +782,9 @@ void ParametersView::resized() {
   r.removeFromRight(padding);
 
   i32 numPerRow = r.getWidth() / ParameterView::height;
-  i32 numRows = parameters.size() / numPerRow;
+  i32 numRows = parameterViews.size() / numPerRow;
 
-  if ( parameters.size() % numPerRow != 0) {
+  if (parameterViews.size() % numPerRow != 0) {
     ++numRows; 
   }
 
@@ -1113,7 +801,7 @@ void ParametersView::resized() {
   i32 count = 0;
   juce::Rectangle<i32> row;
 
-  for (auto p : parameters) {
+  for (auto p : parameterViews) {
     if (count % numPerRow == 0) {
       row = r.removeFromTop(ParameterView::height);    
     }
@@ -1134,26 +822,16 @@ void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWh
   setTopLeftPosition(getX(), y);
 }
 
-void ParametersView::updateParameters() {
-  for (auto& p : parameters) {
-    p->update();
-  }
-}
-
-MainView::MainView(StateManager& m, juce::AudioProcessorEditor* i) : manager(m), instance(i) {
-  assert(i);
-  addChildComponent(parametersView);
+MainView::MainView() {
+  addAndMakeVisible(parametersView);
   addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
-  addAndMakeVisible(instance.get());
   addChildComponent(infoView);
 
   infoView.mainViewUpdateCallback = [this] { toggleInfoView(); };
   toolBar.infoButton.onClick = [this] { toggleInfoView(); };
 
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + kToolBarHeight);
-
-  manager.registerMainView();
+  setSize(kWidth, kHeight);
 }
 
 void MainView::paint(juce::Graphics& g) {
@@ -1166,51 +844,28 @@ void MainView::resized() {
   infoView.setBounds(r);
   toolBar.setBounds(r.removeFromTop(kToolBarHeight));
 
-  // TODO(luca): find better way of going about setting the track bounds
-  track.setTopLeftPosition(r.removeFromBottom(kTrackHeight).getTopLeft());
-  track.setSize(track.getTrackWidth(), kTrackHeight);
-  manager.updateTrack();
+  parametersView.setTopLeftPosition(r.removeFromTop(kParametersViewHeight).getTopLeft());
+  parametersView.setSize(kWidth, parametersView.getHeight());
+  parametersView.viewportHeight = kParametersViewHeight; // TODO(luca): move this
 
-  auto i = r.removeFromTop(instance->getHeight()); 
-  instance->setBounds(i.withSizeKeepingCentre(instance->getWidth(), i.getHeight()));
-
-  parametersView.setTopLeftPosition(i.getX(), i.getY());
-  parametersView.setSize(i.getWidth(), parametersView.getHeight());
-  parametersView.viewportHeight = i.getHeight();
-}
-
-void MainView::toggleParametersView() {
-  if (!infoView.isVisible()) {
-    instance->setVisible(!instance->isVisible()); 
-    parametersView.setVisible(!parametersView.isVisible()); 
-  }
+  track.setTopLeftPosition(r.getTopLeft());
+  track.setSize(kWidth, kTrackHeight);
 }
 
 void MainView::toggleInfoView() {
   infoView.setVisible(!infoView.isVisible());
-
-  if (!parametersView.isVisible()) {
-    instance->setVisible(!instance->isVisible());
-  }
-}
-
-void MainView::childBoundsChanged(juce::Component*) {
-  setSize(instance->getWidth() < Style::minWidth ? Style::minWidth : instance->getWidth(), instance->getHeight() + kTrackHeight + kToolBarHeight);
 }
 
 Editor::Editor(Plugin& p) : AudioProcessorEditor(&p), proc(p) {
-  addAndMakeVisible(defaultView);
-  
-  useMainView = engine.hasInstance();
-
-  if (useMainView) {
-    showMainView();
-  } else {
-    showDefaultView();
-  }
-
+  addChildComponent(defaultView);
+  addChildComponent(mainView);
   setWantsKeyboardFocus(true);
   setResizable(false, false);
+  manager.registerEditor(this);
+}
+
+Editor::~Editor() {
+  manager.deregisterEditor(this);
 }
 
 void Editor::paint(juce::Graphics& g) {
@@ -1219,47 +874,8 @@ void Editor::paint(juce::Graphics& g) {
 
 void Editor::resized() {
   auto r = getLocalBounds();
-  if (useMainView) {
-    mainView->setTopLeftPosition(r.getX(), r.getY());
-  } else {
-    defaultView.setBounds(r);
-  }
-}
-
-void Editor::showMainView() {
-  jassert(useMainView);
-  if (!mainView) {
-    mainView = std::make_unique<MainView>(manager, engine.getEditor());
-    addAndMakeVisible(mainView.get());
-  }
-  defaultView.setVisible(false);
-  setSize(mainView->getWidth(), mainView->getHeight());
-}
-
-void Editor::showDefaultView() {
-  jassert(!useMainView && !mainView);
-  defaultView.setVisible(true);
-  setSize(DefaultView::width, DefaultView::height);
-}
-
-void Editor::createInstanceChangeCallback() {
-  useMainView = true;
-  showMainView();
-}
-
-void Editor::killInstanceChangeCallback() {
-  useMainView = false;
-  removeChildComponent(mainView.get());
-  mainView.reset();
-  showDefaultView();
-}
-
-void Editor::childBoundsChanged(juce::Component*) {
-  if (useMainView) {
-    showMainView();
-  } else {
-    showDefaultView();
-  }
+  defaultView.setBounds(r);
+  mainView.setBounds(r);
 }
 
 bool Editor::keyPressed(const juce::KeyPress& k) {
@@ -1282,7 +898,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyCharI = 73;
   static constexpr i32 keyCharK = 75;
   static constexpr i32 keyCharR = 82;
-  static constexpr i32 keyCharV = 86;
   static constexpr i32 keyCharZ = 90;
 
   static constexpr i32 keyDelete = 127;
@@ -1291,24 +906,24 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
     return false;
   }
 
-  auto& track = mainView->track;
+  auto& track = mainView.track;
 
   if (modifier.isCommandDown()) {
     switch (code) {
       case keyNum1: {
-        track.grid.narrow(); 
+        manager.grid.narrow(); 
         track.repaint();
       } break;
       case keyNum2: {
-        track.grid.widen(); 
+        manager.grid.widen(); 
         track.repaint();
       } break;
       case keyNum3: {
-        track.grid.triplet(); 
+        manager.grid.triplet(); 
         track.repaint();
       } break;
       case keyNum4: {
-        track.grid.toggleSnap(); 
+        manager.grid.toggleSnap(); 
         track.repaint();
       } break;
       case keyCharD: {
@@ -1331,34 +946,30 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         manager.removeSelection();
       } break;
       case keyPlus: {
-        track.zoomTrack(1);
+        manager.doZoom(1, getMouseXYRelative().x);
       } break;
       case keyEquals: {
-        track.zoomTrack(1);
+        manager.doZoom(1, getMouseXYRelative().x);
       } break;
       case keyMin: {
-        track.zoomTrack(-1);
+        manager.doZoom(-1, getMouseXYRelative().x);
       } break;
       case keyCharE: {
-        manager.setEditMode(!manager.state.editMode);
+        manager.setEditMode(!manager.editMode);
       } break;
       case keyCharD: {
-        manager.setModulateDiscrete(!manager.state.modulateDiscrete);
+        manager.setDiscreteMode(!manager.discreteMode);
       } break;
       case keyCharR: {
         manager.randomiseParameters();
       } break;
-      case keyCharV: {
-        if (mainView) {
-          mainView->toggleParametersView();
-        }
-      } break;
       case keyCharK: {
-        manager.setPluginID({}); 
+        manager.loadPlugin({}); 
       } break;
       case keyCharI: {
-        if (mainView) {
-          mainView->toggleInfoView();
+        // TODO(luca): add manager function for this
+        if (instanceWindow) {
+          mainView.toggleInfoView();
         }
       } break;
     };
@@ -1370,15 +981,15 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
 }
 
 void Editor::modifierKeysChanged(const juce::ModifierKeys& k) {
-  manager.state.captureParameterChanges = false;
-  manager.state.releaseParameterChanges = false;
+  manager.captureParameterChanges = false;
+  manager.releaseParameterChanges = false;
 
   if (k.isCommandDown() && k.isShiftDown()) {
     DBG("Releasing parameters");
-    manager.state.releaseParameterChanges = true;
+    manager.releaseParameterChanges = true;
   } else if (k.isCommandDown()) {
     DBG("Capturing parameters");
-    manager.state.captureParameterChanges = true; 
+    manager.captureParameterChanges = true; 
   }
 
   gOptKeyPressed = k.isAltDown();

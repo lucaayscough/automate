@@ -1,6 +1,5 @@
 #pragma once
 
-#include "change_attachment.hpp"
 #include "plugin.hpp"
 #include <numbers>
 
@@ -16,8 +15,7 @@ struct Colours {
   static const juce::Colour glaucous;
   static const juce::Colour shamrockGreen;
   static const juce::Colour auburn;
-  static const juce::Colour outerSpace;
-  static const juce::Colour atomicTangerine;
+  static const juce::Colour outerSpace; static const juce::Colour atomicTangerine;
 };
 
 struct Fonts {
@@ -29,7 +27,6 @@ struct Fonts {
 struct Style {
   static constexpr f32 lineThickness = 1.25f; 
   static constexpr f32 lineThicknessHighlighted = 1.75f;
-  static constexpr i32 minWidth = 600;
 };
 
 static const juce::URL supportURL { "https://patreon.com/lucaayscough" };
@@ -47,19 +44,18 @@ struct Button : juce::Button {
 };
 
 struct Dial : juce::Slider {
-  Dial(const Parameter*);
+  Dial();
   void paint(juce::Graphics& g) override;
   void resized() override;
   void mouseDown(const juce::MouseEvent& e) override;
   void mouseUp(const juce::MouseEvent& e) override;
 
+  bool active = false;
   static constexpr f32 pi = f32(std::numbers::pi);
   static constexpr f32 tau = 2 * pi;
   static constexpr f32 offset = pi + pi * 0.25f;
   static constexpr f32 dotSize = 5;
   static constexpr f32 dotOffset = dotSize * 0.5f;
-
-  const Parameter* parameter;
 };
 
 struct InfoView : juce::Component {
@@ -101,59 +97,21 @@ struct InfoView : juce::Component {
   const juce::Font font { Fonts::sofiaProRegular.withHeight(16) };
 };
 
-struct Grid {
-  struct Beat {
-    u32 bar = 1;
-    u32 beat = 1;
-    f32 x = 0;
-  };
-
-  struct TimeSignature {
-    u32 numerator = 4;
-    u32 denominator = 4;
-  };
-
-  bool reset(f32, f32, TimeSignature);
-  void reset();
-  f32 snap(f32);
-
-  void narrow();
-  void widen();
-  void triplet();
-  void toggleSnap();
-
-  TimeSignature ts;
-  f32 maxWidth = 0;
-
-  static constexpr f32 intervalMin = 40;
-  f32 snapInterval = 0;
-  bool tripletMode = false;
-  i32 gridWidth = 0;
-  bool snapOn = true;
-  f32 zoom = 0;
-
-  std::vector<Beat> beats;
-  std::vector<f32> lines;
-};
-
 struct PathView : juce::Component {
-  PathView(Grid&);
+  PathView();
   void paint(juce::Graphics&) override;
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
   std::function<void(u32, f32, f32)> move;
   std::function<void(u32)> remove;
-
-  Grid& grid;
   u32 id = 0;
-
   static constexpr i32 size = 20;
   static constexpr i32 posOffset = size / 2;
 };
 
 struct ClipView : juce::Component {
-  ClipView(Grid&);
+  ClipView();
   void paint(juce::Graphics&) override;
   void mouseDown(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
@@ -162,13 +120,9 @@ struct ClipView : juce::Component {
 
   std::function<void(u32, f32, f32)> move;
   std::function<void(u32)> remove;
-  std::function<void(u32)> select;
-
+  std::function<void(i32)> select;
   bool selected = false;
-
   u32 id = 0;
-  Grid& grid;
-
   static constexpr i32 trimThreshold = 20;
   bool isTrimDrag = false;
   bool isLeftTrimDrag = false;
@@ -178,8 +132,6 @@ struct ClipView : juce::Component {
 struct AutomationLane : juce::Component {
   enum class GestureType { none, bend, drag, select, addPath };
 
-  AutomationLane(StateManager&, Grid&);
-  ~AutomationLane() override;
   void paint(juce::Graphics&) override;
   
   auto getAutomationPoint(juce::Point<f32>);
@@ -191,14 +143,22 @@ struct AutomationLane : juce::Component {
   void mouseExit(const juce::MouseEvent&) override;
   void mouseDrag(const juce::MouseEvent&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
+  
+  std::function<void(f32, f32)> setSelection;
+  std::function<void(f32)> setPlayheadPosition; // TODO(luca): do we need this? 
+  std::function<u32(f32, f32, f32)> addPath;
+  std::function<void(f32, f32)> bendAutomation;
+  std::function<void(f32)> flattenAutomationCurve;
+  std::function<void(f32, f32)> dragAutomationSection;
+  std::function<void(u32, f32, f32)> movePath;
 
-  StateManager& manager;
-  Grid& grid;
   juce::Path automation;
   juce::OwnedArray<PathView> pathViews;
 
+  bool paintHoverPoint = false;
   juce::Rectangle<f32> hoverBounds;
-  f32 xHighlightedSegment = -1;
+
+  f32 xHighlightedSegment = NONE;
   static constexpr i32 mouseIntersectDistance = 5;
   static constexpr i32 mouseOverDistance = 15;
   juce::Point<i32> lastMouseDragOffset;
@@ -213,29 +173,25 @@ struct AutomationLane : juce::Component {
   static constexpr f32 lineThickness = 2;
 };
 
-struct TrackView : juce::Component, juce::Timer, juce::DragAndDropContainer, juce::DragAndDropTarget {
-  TrackView(StateManager&);
-  ~TrackView() override;
+struct TrackView : juce::Component, juce::DragAndDropContainer, juce::DragAndDropTarget {
+  TrackView();
   void paint(juce::Graphics&) override;
   void resized() override;
-  void timerCallback() override;
-  void resetGrid();
-  i32  getTrackWidth();
   void mouseMagnify(const juce::MouseEvent&, f32) override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
   void mouseDoubleClick(const juce::MouseEvent&) override;
 
-  void zoomTrack(f32);
-  void scroll(f32);
+  std::function<void(f32, f32, f32)> addClip;
+  std::function<void(u32, f32, bool)> duplicateClip;
+  std::function<void(f32, i32)> doZoom;
+  std::function<void(f32)> doScroll;
 
   using Details = juce::DragAndDropTarget::SourceDetails;
   bool isInterestedInDragSource(const Details&) override;
   void itemDropped(const Details&) override;
 
-  StateManager& manager;
-
-  Grid grid;
-  AutomationLane automationLane { manager, grid };
+  Grid* grid = nullptr;
+  AutomationLane automationLane;
   juce::OwnedArray<ClipView> clipViews;
 
   struct Playhead {
@@ -244,7 +200,6 @@ struct TrackView : juce::Component, juce::Timer, juce::DragAndDropContainer, juc
   };
   
   Playhead playhead;
-  f32 zoom = 0;
 
   struct Bounds {
     juce::Rectangle<i32> timeline;
@@ -253,8 +208,6 @@ struct TrackView : juce::Component, juce::Timer, juce::DragAndDropContainer, juc
   };
 
   Bounds b;
-
-  f32 viewportDeltaX = 0;
 
   const juce::Font font { Fonts::sofiaProRegular.withHeight(12) };
 
@@ -279,27 +232,22 @@ struct ToolBar : juce::Component {
     void paintButton(juce::Graphics&, bool, bool) override;
   };
 
-  ToolBar(StateManager&);
-  ~ToolBar() override;
+  ToolBar();
   void resized() override;
   void paint(juce::Graphics& g) override;
 
-  StateManager& manager;
-  juce::AudioProcessor& proc { manager.proc };
-
   InfoButton infoButton;
   Button editModeButton { "Edit Mode", Button::Type::toggle };
-  Button modulateDiscreteButton { "Discrete Mode", Button::Type::toggle };
+  Button discreteModeButton { "Discrete Mode", Button::Type::toggle };
   Button supportLinkButton { "Support", Button::Type::trigger };
   KillButton killButton;
+
   static constexpr i32 buttonWidth = 125;
   static constexpr i32 padding = 10;
   static constexpr i32 buttonPadding = 16;
 };
 
 struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
-  static constexpr i32 width  = 600;
-  static constexpr i32 height = 600;
   static constexpr i32 titleHeight = 76;
   static constexpr i32 titleFontHeight = 28;
   static constexpr i32 buttonHeight = 25;
@@ -323,7 +271,7 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
     void update(juce::Array<juce::PluginDescription>);
     void updateManufacturerFilter(const juce::String&);
 
-    std::function<void(const juce::String&)> setPluginID;
+    std::function<void(const juce::String&)> loadPlugin;
     juce::Rectangle<i32> titleBounds;
     std::vector<Button> plugins;
     juce::String filter;
@@ -364,7 +312,7 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
 };
 
 struct ParametersView : juce::Component {
-  struct ParameterView : juce::Component, juce::AudioProcessorParameter::Listener {
+  struct ParameterView : juce::Component {
     struct Button : juce::ToggleButton {
       Button() {
         setTriggeredOnMouseDown(true);
@@ -384,20 +332,15 @@ struct ParametersView : juce::Component {
       }
     };
 
-    ParameterView(StateManager&, Parameter*);
-    ~ParameterView() override;
+    ParameterView();
     void resized() override;
     void paint(juce::Graphics& g) override;
-    void update();
-    void parameterValueChanged(i32, f32) override;
-    void parameterGestureChanged(i32, bool) override;
 
-    StateManager& manager;
-    Parameter* parameter = nullptr;
-
-    Dial dial { parameter };
+    Dial dial;
     juce::Rectangle<i32> nameBounds;
     Button activeToggle;
+    juce::String name;
+    u32 id = 0;
 
     static constexpr i32 dialSize = 60;
     static constexpr i32 nameHeight = 20;
@@ -406,60 +349,50 @@ struct ParametersView : juce::Component {
     static constexpr i32 height = dialSize + nameHeight + buttonSize + 3 * padding;
   };
 
-  ParametersView(StateManager&);
-  ~ParametersView() override;
   void resized() override;
   void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
-  void updateParameters();
 
-  StateManager& manager;
-  juce::OwnedArray<ParameterView> parameters;
+  juce::OwnedArray<ParameterView> parameterViews;
   static constexpr i32 padding = 10;
   i32 viewportHeight = 0;
 };
 
 struct MainView : juce::Component {
-  MainView(StateManager&, juce::AudioProcessorEditor*);
+  MainView();
   void resized() override;
   void paint(juce::Graphics& g) override;
-  void toggleParametersView();
   void toggleInfoView();
-  void childBoundsChanged(juce::Component*) override;
 
-  StateManager& manager;
   InfoView infoView;
-  TrackView track { manager };
-  std::unique_ptr<juce::AudioProcessorEditor> instance;
-  ParametersView parametersView { manager };
-  ToolBar toolBar { manager };
+  TrackView track;
+  ParametersView parametersView;
+  ToolBar toolBar;
+};
+
+struct InstanceWindow : juce::DocumentWindow {
+  InstanceWindow(juce::AudioProcessorEditor* instance) : juce::DocumentWindow("Instance", juce::Colours::black, 0) {
+    setVisible(true);
+    setContentNonOwned(instance, true);
+    setUsingNativeTitleBar(true);
+  }
 };
 
 struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   explicit Editor(Plugin&);
+  ~Editor() override;
 
   void paint(juce::Graphics&) override;
   void resized() override;
 
-  void showDefaultView();
-  void showMainView();
-
-  void createInstanceChangeCallback();
-  void killInstanceChangeCallback();
-  void childBoundsChanged(juce::Component*) override;
   bool keyPressed(const juce::KeyPress&) override;
   void modifierKeysChanged(const juce::ModifierKeys&) override;
 
   Plugin& proc;
   StateManager& manager { proc.manager };
-  Engine& engine { proc.engine };
 
-  bool useMainView = false;
-
-  std::unique_ptr<MainView> mainView;
+  std::unique_ptr<InstanceWindow> instanceWindow;
+  MainView mainView;
   DefaultView defaultView { manager, proc.apfm, proc.knownPluginList };
-
-  ChangeAttachment createInstanceAttachment { proc.engine.createInstanceBroadcaster, CHANGE_CB(createInstanceChangeCallback) };
-  ChangeAttachment killInstanceAttachment   { proc.engine.killInstanceBroadcaster, CHANGE_CB(killInstanceChangeCallback) };
 };
 
 } // namespace atmt

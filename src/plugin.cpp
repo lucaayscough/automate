@@ -23,7 +23,10 @@ Plugin::~Plugin() {
 void Plugin::prepareToPlay(double sampleRate, int blockSize) {
   JUCE_ASSERT_MESSAGE_THREAD
   jassert(sampleRate > 0 && blockSize > 0);
-  engine.prepare(f32(sampleRate), blockSize);
+
+  if (manager.instance) {
+    engine.prepare(f32(sampleRate), blockSize);
+  }
 }
 
 void Plugin::releaseResources() {}
@@ -32,43 +35,45 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
   //scoped_timer t("Plugin::processBlock()");
   juce::ScopedNoDenormals noDeNormals;
 
-  for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
-    buffer.clear(i, 0, buffer.getNumSamples());
+  if (manager.instance) {
+    for (auto i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); i++)
+      buffer.clear(i, 0, buffer.getNumSamples());
 
-  auto playhead = getPlayHead();
-  if (playhead) {
-    // TODO(luca): do time conversion if necessary and ensure that all necessary information
-    // including bpm etc is handled in hosts that do not provide them
+    auto playhead = getPlayHead();
+    if (playhead) {
+      // TODO(luca): do time conversion if necessary and ensure that all necessary information
+      // including bpm etc is handled in hosts that do not provide them
 
-    auto position = playhead->getPosition();
+      auto position = playhead->getPosition();
 
-    if (position.hasValue()) {
-      if (!manager.state.editMode) {
-        auto ppq = position->getPpqPosition();
-        auto sec = position->getTimeInSeconds();
+      if (position.hasValue()) {
+        if (!manager.editMode) {
+          auto ppq = position->getPpqPosition();
+          auto sec = position->getTimeInSeconds();
 
-        if (ppq.hasValue()) {
-          manager.state.playheadPosition.store(f32(*ppq));
-        } else if (sec.hasValue()) {
-          // TODO(luca): we need a way of converting seconds to ppq
-          manager.state.playheadPosition.store(f32(*sec));
+          if (ppq.hasValue()) {
+            manager.playheadPosition.store(f32(*ppq));
+          } else if (sec.hasValue()) {
+            // TODO(luca): we need a way of converting seconds to ppq
+            manager.playheadPosition.store(f32(*sec));
+          }
+        }
+
+        auto bpm = position->getBpm();
+        if (bpm.hasValue()) {
+          manager.bpm = f32(*bpm);
+        }
+
+        auto timeSignature = position->getTimeSignature();
+        if (timeSignature.hasValue()) {
+          manager.numerator = u32(timeSignature->numerator);
+          manager.denominator = u32(timeSignature->denominator);
         }
       }
-
-      auto bpm = position->getBpm();
-      if (bpm.hasValue()) {
-        manager.state.bpm = f32(*bpm);
-      }
-
-      auto timeSignature = position->getTimeSignature();
-      if (timeSignature.hasValue()) {
-        manager.state.numerator = u32(timeSignature->numerator);
-        manager.state.denominator = u32(timeSignature->denominator);
-      }
     }
-  }
 
-  engine.process(buffer, midiBuffer);
+    engine.process(buffer, midiBuffer);
+  }
 }
 
 // ================================================================================
