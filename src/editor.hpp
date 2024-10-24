@@ -392,6 +392,7 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
   void focusGained(juce::Component::FocusChangeType) override {
     if (instanceWindow) {
       instanceWindow->toFront(false);
+      toFront(true);
     }
   }
 
