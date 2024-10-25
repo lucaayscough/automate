@@ -470,15 +470,9 @@ bool StateManager::shouldProcessParameter(u32 index) {
 void StateManager::randomiseParameters() {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  setEditMode(true);
-
-  {
-    ScopedProcLock lk(proc);
-
-    for (u32 i = 0; i < parameters.size(); ++i) {
-      if (shouldProcessParameter(i)) {
-        parameters[i].parameter->setValue(random(randomSpread));
-      }
+  for (u32 i = 0; i < parameters.size(); ++i) {
+    if (shouldProcessParameter(i)) {
+      parameters[i].parameter->setValueNotifyingHost(random(randomSpread));
     }
   }
 }
@@ -530,7 +524,7 @@ void StateManager::parameterValueChanged(i32 i, f32 v) {
     }
 
     if (parametersView) {
-      parametersView->parameterViews[i]->dial.setValue(v);
+      parametersView->parameterViews[i]->dial.setValue(v, DONT_NOTIFY);
       parametersView->parameterViews[i]->dial.repaint();
     }
   };
@@ -785,48 +779,53 @@ void StateManager::updateTrackWidth() {
 }
 
 void StateManager::updateParametersView() {
+  scoped_timer t("StateManager::updateParametersView()");
   // TODO(luca): once allocated there should never be a time in which there is a difference in number between the views and the parameters
 
-  if (parametersView) {
-    auto& views = parametersView->parameterViews;
+  assert(parametersView);
 
-    u32 numParameters = u32(parameters.size());
-    u32 numViews = u32(views.size());
+  auto& views = parametersView->parameterViews;
 
-    if (numViews < numParameters) {
-      u32 diff = numParameters - numViews;
+  u32 numParameters = u32(parameters.size());
+  u32 numViews = u32(views.size());
 
-      while (diff--) {
-        views.add(new ParametersView::ParameterView());
-        parametersView->addAndMakeVisible(views.getLast());
-      }
-    } else if (numViews > numParameters) {
-      i32 diff = i32(numViews - numParameters);
-      views.removeLast(diff);
+  if (numViews < numParameters) {
+    u32 diff = numParameters - numViews;
+
+    while (diff--) {
+      views.add(new ParametersView::ParameterView());
+      parametersView->addAndMakeVisible(views.getLast());
     }
-
-    for (u32 i = 0; i < numParameters; ++i) {
-      auto& parameter = parameters[i];
-      auto* view = views[i32(i)];
-
-      auto* ptr = &parameter;
-      view->activeToggle.onClick = [this, i, ptr] {
-        setParameterActive(i, !ptr->active);
-      };
-      
-      view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
-      view->name = parameter.parameter->getName(1024);
-
-      view->dial.setValue(parameter.parameter->getValue());
-      view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
-      view->dial.onValueChange = [parameter, view] { parameter.parameter->setValue(f32(view->dial.getValue())); };
-      view->dial.active = parameter.active;
-    }
-
-    parametersView->setSize(trackWidth, trackView->getHeight());
-    parametersView->resized();
-    parametersView->repaint();
+  } else if (numViews > numParameters) {
+    i32 diff = i32(numViews - numParameters);
+    views.removeLast(diff);
   }
+
+  for (u32 i = 0; i < numParameters; ++i) {
+    auto& parameter = parameters[i];
+    auto* view = views[i32(i)];
+
+    auto* ptr = &parameter;
+    view->activeToggle.onClick = [this, i, ptr] {
+      setParameterActive(i, !ptr->active);
+    };
+    
+    view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
+    view->name = parameter.parameter->getName(1024);
+
+    view->dial.setValue(parameter.parameter->getValue(), DONT_NOTIFY);
+    view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
+
+    view->dial.onValueChange = [parameter, view] {
+      parameter.parameter->setValueNotifyingHost(f32(view->dial.getValue()));
+    };
+
+    view->dial.active = parameter.active;
+  }
+
+  parametersView->setSize(trackWidth, trackView->getHeight());
+  parametersView->resized();
+  parametersView->repaint();
 }
 
 void StateManager::showDefaultView() {

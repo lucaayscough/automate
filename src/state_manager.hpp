@@ -7,8 +7,6 @@
 #include <span>
 #include <assert.h>
 
-#define NONE -1
-
 namespace atmt {
 
 static constexpr i32 kScrollSpeed = 500;

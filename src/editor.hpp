@@ -3,8 +3,6 @@
 #include "plugin.hpp"
 #include <numbers>
 
-#define DONT_NOTIFY juce::NotificationType::dontSendNotification
-
 namespace atmt {
 
 struct Colours {

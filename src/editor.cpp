@@ -358,7 +358,7 @@ TrackView::TrackView() {
 }
 
 void TrackView::paint(juce::Graphics& g) {
-  scoped_timer t("TrackView::paint()");
+  //scoped_timer t("TrackView::paint()");
 
   auto r = getLocalBounds();
   g.fillAll(Colours::jet);

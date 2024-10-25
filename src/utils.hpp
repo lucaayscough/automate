@@ -4,6 +4,8 @@
 #include "types.hpp"
 
 #define EPSILON 1e-9f
+#define DONT_NOTIFY juce::NotificationType::dontSendNotification
+#define NONE -1
 
 namespace atmt {
 
