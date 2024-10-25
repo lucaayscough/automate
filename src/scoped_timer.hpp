@@ -6,7 +6,7 @@
 struct scoped_timer {
   using clock = std::chrono::high_resolution_clock;
 
-  scoped_timer(std::string n) {
+  scoped_timer(const std::string& n) {
     name = n;
     start = clock::now();
   }

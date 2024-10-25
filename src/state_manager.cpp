@@ -377,6 +377,7 @@ void StateManager::doScroll(f32 amount) {
 
 void StateManager::setEditMode(bool m) {
   JUCE_ASSERT_MESSAGE_THREAD
+  scoped_timer t("StateManager::setEditMode()");
 
   editMode = m;
 
@@ -507,9 +508,10 @@ void StateManager::setParameterActive(u32 index, bool a) {
 }
 
 void StateManager::parameterValueChanged(i32 i, f32 v) {
+  JUCE_ASSERT_MESSAGE_THREAD
   DBG("Parameter " + parameters[u32(i)].parameter->getName(1024) + " at index " + juce::String(i) + " changed.");
 
-  juce::MessageManager::callAsync([i, v, this] { 
+  auto sendParameterUpdate = [this, i, v] {
     engine->lastVisitedPair = UNDEFINED_PAIR; 
 
     if (captureParameterChanges) {
@@ -531,7 +533,13 @@ void StateManager::parameterValueChanged(i32 i, f32 v) {
       parametersView->parameterViews[i]->dial.setValue(v);
       parametersView->parameterViews[i]->dial.repaint();
     }
-  });
+  };
+
+  if (juce::MessageManager::existsAndIsLockedByCurrentThread() || juce::MessageManager::existsAndIsCurrentThread()) {
+    sendParameterUpdate();
+  } else {
+    juce::MessageManager::callAsync([sendParameterUpdate] { sendParameterUpdate(); });
+  }
 }
 
 void StateManager::parameterGestureChanged(i32, bool) {}
