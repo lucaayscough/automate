@@ -479,26 +479,29 @@ void StateManager::randomiseParameters() {
 
 void StateManager::setAllParametersActive(bool v) {
   JUCE_ASSERT_MESSAGE_THREAD
+  assert(parametersView);
   
   {
     ScopedProcLock lk(proc);
-    for (auto& p : parameters) {
-      p.active = v;
+
+    for (u32 i = 0; i < parameters.size(); ++i) {
+      setParameterActive(i, v);
     }
   }
-
-  updateParametersView(); 
 }
 
 void StateManager::setParameterActive(u32 index, bool a) {
   JUCE_ASSERT_MESSAGE_THREAD
+  assert(parametersView);
 
   {
     ScopedProcLock lk(proc);
     parameters[index].active = a;
   }
 
-  updateParametersView();
+  parametersView->parameterViews[i32(index)]->dial.active = a;
+  parametersView->parameterViews[i32(index)]->activeToggle.setToggleState(a, DONT_NOTIFY);
+  parametersView->parameterViews[i32(index)]->repaint();
 }
 
 void StateManager::parameterValueChanged(i32 i, f32 v) {
@@ -778,56 +781,6 @@ void StateManager::updateTrackWidth() {
   }
 }
 
-void StateManager::updateParametersView() {
-  scoped_timer t("StateManager::updateParametersView()");
-  // TODO(luca): once allocated there should never be a time in which there is a difference in number between the views and the parameters
-
-  assert(parametersView);
-
-  auto& views = parametersView->parameterViews;
-
-  u32 numParameters = u32(parameters.size());
-  u32 numViews = u32(views.size());
-
-  if (numViews < numParameters) {
-    u32 diff = numParameters - numViews;
-
-    while (diff--) {
-      views.add(new ParametersView::ParameterView());
-      parametersView->addAndMakeVisible(views.getLast());
-    }
-  } else if (numViews > numParameters) {
-    i32 diff = i32(numViews - numParameters);
-    views.removeLast(diff);
-  }
-
-  for (u32 i = 0; i < numParameters; ++i) {
-    auto& parameter = parameters[i];
-    auto* view = views[i32(i)];
-
-    auto* ptr = &parameter;
-    view->activeToggle.onClick = [this, i, ptr] {
-      setParameterActive(i, !ptr->active);
-    };
-    
-    view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
-    view->name = parameter.parameter->getName(1024);
-
-    view->dial.setValue(parameter.parameter->getValue(), DONT_NOTIFY);
-    view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
-
-    view->dial.onValueChange = [parameter, view] {
-      parameter.parameter->setValueNotifyingHost(f32(view->dial.getValue()));
-    };
-
-    view->dial.active = parameter.active;
-  }
-
-  parametersView->setSize(trackWidth, trackView->getHeight());
-  parametersView->resized();
-  parametersView->repaint();
-}
-
 void StateManager::showDefaultView() {
   assert(editor);
   stopTimer();
@@ -863,6 +816,36 @@ void StateManager::showMainView() {
   automationView->movePath = [this] (u32 id, f32 x, f32 y) { movePathDenorm(id, x, y, kDefaultPathCurve); };
 
   parametersView = &editor->mainView.parametersView;
+
+  {
+    auto& views = parametersView->parameterViews;
+
+    u32 numParameters = u32(parameters.size());
+    u32 numViews = u32(views.size());
+
+    assert(numViews == 0);
+
+    for (u32 i = 0; i < numParameters; ++i) {
+      views.add(new ParametersView::ParameterView());
+      parametersView->addAndMakeVisible(views.getLast());
+
+      auto& parameter = parameters[i];
+      auto* view = views[i32(i)];
+      auto* ptr = &parameter;
+
+      view->dial.setValue(parameter.parameter->getValue(), DONT_NOTIFY);
+      view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
+      view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
+      view->dial.active = parameter.active;
+      view->name = parameter.parameter->getName(1024);
+
+      view->activeToggle.onClick = [this, i, ptr] { setParameterActive(i, !ptr->active); };
+      view->dial.onValueChange = [parameter, view] {
+        parameter.parameter->setValueNotifyingHost(f32(view->dial.getValue()));
+      };
+    }
+  }
+
   toolBarView = &editor->mainView.toolBar;
       
   toolBarView->editModeButton.onClick = [this] { setEditMode(!editMode); };
@@ -871,7 +854,13 @@ void StateManager::showMainView() {
   toolBarView->killButton.onClick = [this] { loadPlugin({}); };
 
   updateTrack();
-  updateParametersView();
+
+  {
+    parametersView->setSize(trackWidth, trackView->getHeight());
+    parametersView->resized();
+    parametersView->repaint();
+  }
+
   updateToolBarView();
 
   startTimerHz(60);
@@ -949,6 +938,8 @@ bool StateManager::loadPlugin(const juce::String& id) {
             auto processorParameters = instance->getParameters();
             u32 numParameters = u32(processorParameters.size());
             parameters.reserve(numParameters);
+            uiParameterSync.values.resize(numParameters);
+            uiParameterSync.updates.resize(numParameters);
 
             for (u32 i = 0; i < numParameters; ++i) {
               parameters.emplace_back();
@@ -1141,16 +1132,34 @@ void StateManager::timerCallback() {
   }
 
   if (trackView) {
-    auto ph = playheadPosition.load() * zoom;
-    auto x = -viewportDeltaX;
-    auto inBoundsOld = trackView->playhead.x >= x && trackView->playhead.x <= x + trackWidth; 
-    auto inBoundsNew = ph >= x && ph <= x + trackWidth; 
+    {
+      auto ph = playheadPosition.load() * zoom;
+      auto x = -viewportDeltaX;
+      auto inBoundsOld = trackView->playhead.x >= x && trackView->playhead.x <= x + trackWidth; 
+      auto inBoundsNew = ph >= x && ph <= x + trackWidth; 
 
-    if (std::abs(trackView->playhead.x - ph) > EPSILON) {
-      trackView->playhead.x = ph;
+      if (std::abs(trackView->playhead.x - ph) > EPSILON) {
+        trackView->playhead.x = ph;
 
-      if (inBoundsOld || inBoundsNew) {
-        trackView->repaint();
+        if (inBoundsOld || inBoundsNew) {
+          trackView->repaint();
+        }
+      }
+    }
+
+    {
+      if (uiParameterSync.mode == UIParameterSync::UIUpdate) {
+        for (u32 i = 0; i < parameters.size(); ++i) {
+          auto& views = parametersView->parameterViews;
+
+          if (uiParameterSync.updates[i]) {
+            uiParameterSync.updates[i] = false; 
+            views[i32(i)]->dial.setValue(uiParameterSync.values[i], DONT_NOTIFY); 
+            views[i32(i)]->repaint();
+          }
+        }
+
+        uiParameterSync.mode = UIParameterSync::EngineUpdate;
       }
     }
   }

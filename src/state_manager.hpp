@@ -72,6 +72,16 @@ struct LerpPair {
   std::vector<bool> parameters;
 };
 
+struct UIParameterSync {
+  static constexpr bool EngineUpdate = false;
+  static constexpr bool UIUpdate = true;
+
+  std::vector<f32> values;
+  std::vector<bool> updates;
+
+  std::atomic<bool> mode = EngineUpdate;
+};
+
 struct Plugin;
 struct Engine;
 struct Editor;
@@ -136,7 +146,6 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
   void updateGrid();
   void updateTrack();
   void updateToolBarView();
-  void updateParametersView();
 
   void showDefaultView();
   void showMainView();
@@ -184,6 +193,8 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
   i32 selectedClipID = NONE;
   i32 viewportDeltaX = 0;
   i32 trackWidth = 0;
+
+  UIParameterSync uiParameterSync;
 
   std::unique_ptr<juce::AudioPluginInstance> instance;
   std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;

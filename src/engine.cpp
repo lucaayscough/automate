@@ -85,6 +85,11 @@ void Engine::interpolate() {
                 assert(isNormalised(newValue));
 
                 parameters[parameterIndex].parameter->setValue(f32(newValue));
+
+                if (manager.uiParameterSync.mode == UIParameterSync::EngineUpdate) {
+                  manager.uiParameterSync.values[parameterIndex] = f32(newValue);
+                  manager.uiParameterSync.updates[parameterIndex] = true;
+                }
               }
             }
           }
@@ -94,6 +99,10 @@ void Engine::interpolate() {
         break;
       }
     }
+  }
+
+  if (manager.uiParameterSync.mode == UIParameterSync::EngineUpdate) {
+    manager.uiParameterSync.mode = UIParameterSync::UIUpdate;
   }
 }
 
