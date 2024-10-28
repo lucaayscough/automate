@@ -436,19 +436,18 @@ void StateManager::setPlayheadPosition(f32 x) {
   JUCE_ASSERT_MESSAGE_THREAD
   assert(instance && editor && trackView && automationView);
   assert(x >= 0);
+  assert(editMode);
 
-  if (editMode) {
-    if (neqf32(playheadPosition, x)) {
-      playheadPosition = x;
+  if (neqf32(playheadPosition, x)) {
+    playheadPosition = x;
 
-      if (trackView) {
-        trackView->playhead.x = playheadPosition * zoom;
-        trackView->repaint();
-      }
+    if (trackView) {
+      trackView->playhead.x = playheadPosition * zoom;
+      trackView->repaint();
+    }
 
-      if (!clips.empty()) {
-        engine->interpolate();
-      }
+    if (!clips.empty()) {
+      engine->interpolate();
     }
   }
 
@@ -505,7 +504,6 @@ void StateManager::setParameterActive(u32 index, bool a) {
 }
 
 void StateManager::parameterValueChanged(i32 i, f32 v) {
-  JUCE_ASSERT_MESSAGE_THREAD
   DBG("Parameter " + parameters[u32(i)].parameter->getName(1024) + " at index " + juce::String(i) + " changed.");
 
   auto sendParameterUpdate = [this, i, v] {
@@ -821,9 +819,7 @@ void StateManager::showMainView() {
     auto& views = parametersView->parameterViews;
 
     u32 numParameters = u32(parameters.size());
-    u32 numViews = u32(views.size());
-
-    assert(numViews == 0);
+    views.clear();
 
     for (u32 i = 0; i < numParameters; ++i) {
       views.add(new ParametersView::ParameterView());

@@ -898,7 +898,9 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
   static constexpr i32 keyCharI = 73;
   static constexpr i32 keyCharK = 75;
   static constexpr i32 keyCharR = 82;
-  static constexpr i32 keyCharZ = 90;
+
+  static constexpr i32 keyLeft  = 63234;
+  static constexpr i32 keyRight = 63235;
 
   static constexpr i32 keyDelete = 127;
 
@@ -932,13 +934,6 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
       case keyCharE: {
         manager.setAllParametersActive(true);
       } break;
-      case keyCharZ: {
-        if (modifier.isShiftDown()) {
-          // TODO(luca): implement redo
-        } else {
-          // TODO(luca): implement undo
-        }
-      } break;
     };
   } else {
     switch (code) {
@@ -967,10 +962,15 @@ bool Editor::keyPressed(const juce::KeyPress& k) {
         manager.loadPlugin({}); 
       } break;
       case keyCharI: {
-        // TODO(luca): add manager function for this
         if (instanceWindow) {
           mainView.toggleInfoView();
         }
+      } break;
+      case keyLeft: {
+        manager.movePlayheadBack();
+      } break;
+      case keyRight: {
+        manager.movePlayheadForward();
       } break;
     };
   } 

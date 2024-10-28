@@ -91,75 +91,6 @@ struct ParametersView;
 struct ToolBar;
 
 struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
-  StateManager(juce::AudioProcessor&);
-
-  void addClip(f32, f32, f32);
-  void addClipDenorm(f32, f32, f32);
-  void duplicateClip(u32, f32, bool);
-  void duplicateClipDenorm(u32, f32, bool);
-  void moveClip(u32, f32, f32, f32);
-  void moveClipDenorm(u32, f32, f32, f32);
-  void selectClip(i32);
-  void removeClip(u32);
-
-  u32 addPath(f32, f32, f32);
-  u32 addPathDenorm(f32, f32, f32);
-  void movePath(u32, f32, f32, f32);
-  void movePathDenorm(u32, f32, f32, f32);
-  void removePath(u32);
-
-  void bendAutomation(f32, f32);
-  void bendAutomationDenorm(f32, f32);
-  void flattenAutomationCurve(f32);
-  void flattenAutomationCurveDenorm(f32);
-  void dragAutomationSection(f32, f32);
-  void dragAutomationSectionDenorm(f32, f32);
-
-  i32 findAutomationPoint(f32);
-  i32 findAutomationPointDenorm(f32);
-
-  void doZoom(f32, i32);
-  void doScroll(f32);
-  void setEditMode(bool);
-  void setDiscreteMode(bool);
-
-  void setSelection(f32, f32);
-  void setSelectionDenorm(f32, f32);
-  void removeSelection();
-  void setPlayheadPosition(f32);
-  void setPlayheadPositionDenorm(f32);
-
-  // NOTE(luca): Parameter operations
-  bool shouldProcessParameter(u32);
-  void randomiseParameters();
-  void setAllParametersActive(bool);
-  void setParameterActive(u32, bool);
-
-  void parameterValueChanged(i32, f32) override;
-  void parameterGestureChanged(i32, bool) override;
-
-  void updateTrackWidth();
-  void updateLerpPairs();
-  void updateAutomation();
-  void updateAutomationView();
-  void updateTrackView();
-  void updateGrid();
-  void updateTrack();
-  void updateToolBarView();
-
-  void showDefaultView();
-  void showMainView();
-  bool loadPlugin(const juce::String&);
-
-  void registerEditor(Editor*);
-  void deregisterEditor(Editor*);
-
-  void init();
-  void replace(const juce::ValueTree&);
-  juce::ValueTree getState();
-
-  void timerCallback() override;
-
   juce::AudioProcessor& proc;
   Plugin* plugin = nullptr;
   Engine* engine = nullptr;
@@ -198,6 +129,105 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
 
   std::unique_ptr<juce::AudioPluginInstance> instance;
   std::unique_ptr<juce::AudioProcessorEditor> instanceEditor;
+
+  StateManager(juce::AudioProcessor&);
+
+  void addClip(f32, f32, f32);
+  void addClipDenorm(f32, f32, f32);
+  void duplicateClip(u32, f32, bool);
+  void duplicateClipDenorm(u32, f32, bool);
+  void moveClip(u32, f32, f32, f32);
+  void moveClipDenorm(u32, f32, f32, f32);
+  void selectClip(i32);
+  void removeClip(u32);
+
+  u32 addPath(f32, f32, f32);
+  u32 addPathDenorm(f32, f32, f32);
+  void movePath(u32, f32, f32, f32);
+  void movePathDenorm(u32, f32, f32, f32);
+  void removePath(u32);
+
+  void bendAutomation(f32, f32);
+  void bendAutomationDenorm(f32, f32);
+  void flattenAutomationCurve(f32);
+  void flattenAutomationCurveDenorm(f32);
+  void dragAutomationSection(f32, f32);
+  void dragAutomationSectionDenorm(f32, f32);
+
+  i32 findAutomationPoint(f32);
+  i32 findAutomationPointDenorm(f32);
+
+  void doZoom(f32, i32);
+  void doScroll(f32);
+  void setEditMode(bool);
+  void setDiscreteMode(bool);
+
+  void setSelection(f32, f32);
+  void setSelectionDenorm(f32, f32);
+  void removeSelection();
+  void setPlayheadPosition(f32);
+  void setPlayheadPositionDenorm(f32);
+
+  void movePlayheadForward() {
+    if (editMode) {
+      f32 pos = playheadPosition * zoom;
+
+      if (grid.snapOn) {
+        pos += grid.snapInterval;  
+      } else {
+        pos += 1;
+      }
+
+      setPlayheadPositionDenorm(pos);
+    }
+  }
+
+  void movePlayheadBack() {
+    if (editMode) {
+      f32 pos = playheadPosition * zoom;
+
+      if (grid.snapOn) {
+        pos -= grid.snapInterval;  
+      } else {
+        pos -= 1;
+      }
+      
+      if (pos >= 0) {
+        setPlayheadPositionDenorm(pos);
+      }
+    }
+  }
+
+  // NOTE(luca): Parameter operations
+  bool shouldProcessParameter(u32);
+  void randomiseParameters();
+  void setAllParametersActive(bool);
+  void setParameterActive(u32, bool);
+
+  void parameterValueChanged(i32, f32) override;
+  void parameterGestureChanged(i32, bool) override;
+
+  void updateTrackWidth();
+  void updateLerpPairs();
+  void updateAutomation();
+  void updateAutomationView();
+  void updateTrackView();
+  void updateGrid();
+  void updateTrack();
+  void updateToolBarView();
+
+  void showDefaultView();
+  void showMainView();
+  bool loadPlugin(const juce::String&);
+
+  void registerEditor(Editor*);
+  void deregisterEditor(Editor*);
+
+  void init();
+  void replace(const juce::ValueTree&);
+  juce::ValueTree getState();
+
+  void timerCallback() override;
 };
 
 } // namespace atmt 

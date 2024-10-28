@@ -368,7 +368,7 @@ struct MainView : juce::Component {
 };
 
 struct InstanceWindow : juce::DocumentWindow {
-  InstanceWindow(juce::AudioProcessorEditor* instance) : juce::DocumentWindow("Instance", juce::Colours::black, 0) {
+  InstanceWindow(juce::AudioProcessorEditor* instance) : juce::DocumentWindow(instance->getName(), juce::Colours::black, 0) {
     setVisible(true);
     setContentNonOwned(instance, true);
     setUsingNativeTitleBar(true);
