@@ -363,7 +363,6 @@ struct MainView : juce::Component {
 
   InfoView infoView;
   TrackView track;
-  ParametersView parametersView;
   ToolBar toolBar;
 };
 

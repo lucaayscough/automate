@@ -11,7 +11,7 @@ StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {}
 
 void StateManager::addClip(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  scoped_timer t("StateManager::addClip()");
+  //scoped_timer t("StateManager::addClip()");
 
   assert(x >= 0 && y >= 0 && y <= 1);
   assert(instance);
@@ -363,6 +363,7 @@ void StateManager::doZoom(f32 amount, i32 position) {
     updateAutomationView();
   }
   
+  trackView->playhead.x = playheadPosition.load() * zoom;
   trackView->setTopLeftPosition(viewportDeltaX, trackView->getY());
 }
 
@@ -377,7 +378,7 @@ void StateManager::doScroll(f32 amount) {
 
 void StateManager::setEditMode(bool m) {
   JUCE_ASSERT_MESSAGE_THREAD
-  scoped_timer t("StateManager::setEditMode()");
+  //scoped_timer t("StateManager::setEditMode()");
 
   editMode = m;
 
@@ -406,7 +407,8 @@ void StateManager::setSelection(f32 start, f32 end) {
 
   automationView->selection.start = selection.start * zoom;
   automationView->selection.end = selection.end * zoom;
-  automationView->repaint();
+
+  updateTrack();
 }
 
 void StateManager::setSelectionDenorm(f32 start, f32 end) {
@@ -466,6 +468,36 @@ bool StateManager::shouldProcessParameter(u32 index) {
   return false;
 }
 
+void StateManager::movePlayheadForward() {
+  if (editMode) {
+    f32 pos = playheadPosition * zoom;
+
+    if (grid.snapOn) {
+      pos += grid.snapInterval;  
+    } else {
+      pos += 1;
+    }
+
+    setPlayheadPositionDenorm(pos);
+  }
+}
+
+void StateManager::movePlayheadBack() {
+  if (editMode) {
+    f32 pos = playheadPosition * zoom;
+
+    if (grid.snapOn) {
+      pos -= grid.snapInterval;  
+    } else {
+      pos -= 1;
+    }
+    
+    if (pos >= 0) {
+      setPlayheadPositionDenorm(pos);
+    }
+  }
+}
+
 void StateManager::randomiseParameters() {
   JUCE_ASSERT_MESSAGE_THREAD
 
@@ -520,7 +552,10 @@ void StateManager::parameterValueChanged(i32 i, f32 v) {
         setEditMode(true);
       } else if (selectedClipID != NONE) {
         clips[u32(selectedClipID)].parameters[u32(i)] = parameters[u32(i)].parameter->getValue();
-        updateLerpPairs();
+
+        if (clips.size() > 1) {
+          updateLerpPairs();
+        }
       }
     }
 
@@ -540,7 +575,7 @@ void StateManager::parameterValueChanged(i32 i, f32 v) {
 void StateManager::parameterGestureChanged(i32, bool) {}
 
 void StateManager::updateLerpPairs() {
-  scoped_timer t("StateManager::updateLerpPair()");
+  //scoped_timer t("StateManager::updateLerpPair()");
 
   ScopedProcLock lk(proc);
 
@@ -680,7 +715,7 @@ void StateManager::updateAutomationView() {
 }
 
 void StateManager::updateTrackView() {
-  scoped_timer t("StateManager::updateTrackView()");
+  //scoped_timer t("StateManager::updateTrackView()");
   assert(trackView);
 
   auto& clipViews = trackView->clipViews;
@@ -772,6 +807,14 @@ void StateManager::updateTrackWidth() {
   width *= zoom;
   width += kTrackWidthRightPadding;
 
+  if (width < kWidth + (-viewportDeltaX)) {
+    width = kWidth + (-viewportDeltaX);
+  }
+
+  if (width < selection.end * zoom) {
+    width += kTrackWidthRightPadding;
+  }
+
   if (width > kWidth) {
     trackWidth = i32(width);
   } else {
@@ -791,8 +834,11 @@ void StateManager::showMainView() {
   assert(instance);
 
   instanceEditor.reset(instance->createEditor());
+  assert(instanceEditor);
+
   editor->instanceWindow = std::make_unique<InstanceWindow>(instanceEditor.get());
   assert(editor->instanceWindow);
+
   editor->mainView.setVisible(true);
   editor->defaultView.setVisible(false);
   editor->setSize(kWidth, kHeight);
@@ -804,43 +850,67 @@ void StateManager::showMainView() {
   trackView->doZoom = [this] (f32 amount, i32 position) { doZoom(amount, position); };
   trackView->doScroll = [this] (f32 amount) { doScroll(amount); };
 
-  automationView = &trackView->automationLane;
-  automationView->setSelection = [this] (f32 start, f32 end) { setSelectionDenorm(start, end); };
-  automationView->setPlayheadPosition = [this] (f32 x) { setPlayheadPositionDenorm(x); };
-  automationView->addPath = [this] (f32 x, f32 y, f32 curve) { return addPathDenorm(x, y, curve); };
-  automationView->bendAutomation = [this] (f32 x, f32 amount) { return bendAutomationDenorm(x, amount); };
-  automationView->flattenAutomationCurve = [this] (f32 x) { flattenAutomationCurveDenorm(x); };
-  automationView->dragAutomationSection = [this] (f32 x, f32 amount) { dragAutomationSectionDenorm(x, amount); };
-  automationView->movePath = [this] (u32 id, f32 x, f32 y) { movePathDenorm(id, x, y, kDefaultPathCurve); };
-
-  parametersView = &editor->mainView.parametersView;
-
   {
-    auto& views = parametersView->parameterViews;
+    automationView = &trackView->automationLane;
+    automationView->setSelection = [this] (f32 start, f32 end) { setSelectionDenorm(start, end); };
 
-    u32 numParameters = u32(parameters.size());
-    views.clear();
+    automationView->setPlayheadPosition = [this] (f32 x) {
+      if (editMode) {
+        setPlayheadPositionDenorm(x);
+      }
+    };
 
-    for (u32 i = 0; i < numParameters; ++i) {
-      views.add(new ParametersView::ParameterView());
-      parametersView->addAndMakeVisible(views.getLast());
+    automationView->addPath = [this] (f32 x, f32 y, f32 curve) { return addPathDenorm(x, y, curve); };
 
-      auto& parameter = parameters[i];
-      auto* view = views[i32(i)];
-      auto* ptr = &parameter;
+    automationView->bendAutomation = [this] (f32 x, f32 amount) {
+      if (!paths.empty()) {
+        bendAutomationDenorm(x, amount);
+      }
+    };
 
-      view->dial.setValue(parameter.parameter->getValue(), DONT_NOTIFY);
-      view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
-      view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
-      view->dial.active = parameter.active;
-      view->name = parameter.parameter->getName(1024);
+    automationView->flattenAutomationCurve = [this] (f32 x) { flattenAutomationCurveDenorm(x); };
 
-      view->activeToggle.onClick = [this, i, ptr] { setParameterActive(i, !ptr->active); };
-      view->dial.onValueChange = [parameter, view] {
-        parameter.parameter->setValueNotifyingHost(f32(view->dial.getValue()));
-      };
-    }
+    automationView->dragAutomationSection = [this] (f32 x, f32 amount) {
+      if (!paths.empty()) {
+        dragAutomationSectionDenorm(x, amount);
+      }
+    };
+
+    automationView->movePath = [this] (u32 id, f32 x, f32 y) {
+      if (!paths.empty()) {
+        movePathDenorm(id, x, y, kDefaultPathCurve);
+      }
+    };
   }
+
+  //parametersView = &editor->mainView.parametersView;
+
+  //{
+  //  auto& views = parametersView->parameterViews;
+
+  //  u32 numParameters = u32(parameters.size());
+  //  views.clear();
+
+  //  for (u32 i = 0; i < numParameters; ++i) {
+  //    views.add(new ParametersView::ParameterView());
+  //    parametersView->addAndMakeVisible(views.getLast());
+
+  //    auto& parameter = parameters[i];
+  //    auto* view = views[i32(i)];
+  //    auto* ptr = &parameter;
+
+  //    view->dial.setValue(parameter.parameter->getValue(), DONT_NOTIFY);
+  //    view->dial.setDoubleClickReturnValue(true, parameter.parameter->getDefaultValue());
+  //    view->activeToggle.setToggleState(parameter.active, DONT_NOTIFY);
+  //    view->dial.active = parameter.active;
+  //    view->name = parameter.parameter->getName(1024);
+
+  //    view->activeToggle.onClick = [this, i, ptr] { setParameterActive(i, !ptr->active); };
+  //    view->dial.onValueChange = [parameter, view] {
+  //      parameter.parameter->setValueNotifyingHost(f32(view->dial.getValue()));
+  //    };
+  //  }
+  //}
 
   toolBarView = &editor->mainView.toolBar;
       
@@ -851,11 +921,11 @@ void StateManager::showMainView() {
 
   updateTrack();
 
-  {
-    parametersView->setSize(trackWidth, trackView->getHeight());
-    parametersView->resized();
-    parametersView->repaint();
-  }
+  //{
+  //  parametersView->setSize(trackWidth, trackView->getHeight());
+  //  parametersView->resized();
+  //  parametersView->repaint();
+  //}
 
   updateToolBarView();
 
@@ -865,7 +935,7 @@ void StateManager::showMainView() {
 bool StateManager::loadPlugin(const juce::String& id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  scoped_timer t("StateManager::loadPlugin()");
+  //scoped_timer t("StateManager::loadPlugin()");
 
   bool result = false;
 
@@ -1143,21 +1213,21 @@ void StateManager::timerCallback() {
       }
     }
 
-    {
-      if (uiParameterSync.mode == UIParameterSync::UIUpdate) {
-        for (u32 i = 0; i < parameters.size(); ++i) {
-          auto& views = parametersView->parameterViews;
+    //{
+    //  if (uiParameterSync.mode == UIParameterSync::UIUpdate) {
+    //    for (u32 i = 0; i < parameters.size(); ++i) {
+    //      auto& views = parametersView->parameterViews;
 
-          if (uiParameterSync.updates[i]) {
-            uiParameterSync.updates[i] = false; 
-            views[i32(i)]->dial.setValue(uiParameterSync.values[i], DONT_NOTIFY); 
-            views[i32(i)]->repaint();
-          }
-        }
+    //      if (uiParameterSync.updates[i]) {
+    //        uiParameterSync.updates[i] = false; 
+    //        views[i32(i)]->dial.setValue(uiParameterSync.values[i], DONT_NOTIFY); 
+    //        views[i32(i)]->repaint();
+    //      }
+    //    }
 
-        uiParameterSync.mode = UIParameterSync::EngineUpdate;
-      }
-    }
+    //    uiParameterSync.mode = UIParameterSync::EngineUpdate;
+    //  }
+    //}
   }
 }
 

@@ -21,7 +21,7 @@ static constexpr i32 kPresetLaneHeight = 24;
 static constexpr i32 kTrackHeight = kTimelineHeight + kPresetLaneHeight * 2 + kAutomationLaneHeight;
 static constexpr i32 kTrackWidthRightPadding = 200;
 static constexpr i32 kWidth = 600;
-static constexpr i32 kHeight = kTrackHeight + kToolBarHeight + kParametersViewHeight;
+static constexpr i32 kHeight = kTrackHeight + kToolBarHeight;
 
 static constexpr f32 kDefaultPathCurve = 0.5f;
 static constexpr i32 kDefaultViewWidth = 600;
@@ -124,6 +124,7 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
   i32 selectedClipID = NONE;
   i32 viewportDeltaX = 0;
   i32 trackWidth = 0;
+  
 
   UIParameterSync uiParameterSync;
 
@@ -168,35 +169,8 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
   void setPlayheadPosition(f32);
   void setPlayheadPositionDenorm(f32);
 
-  void movePlayheadForward() {
-    if (editMode) {
-      f32 pos = playheadPosition * zoom;
-
-      if (grid.snapOn) {
-        pos += grid.snapInterval;  
-      } else {
-        pos += 1;
-      }
-
-      setPlayheadPositionDenorm(pos);
-    }
-  }
-
-  void movePlayheadBack() {
-    if (editMode) {
-      f32 pos = playheadPosition * zoom;
-
-      if (grid.snapOn) {
-        pos -= grid.snapInterval;  
-      } else {
-        pos -= 1;
-      }
-      
-      if (pos >= 0) {
-        setPlayheadPositionDenorm(pos);
-      }
-    }
-  }
+  void movePlayheadForward();
+  void movePlayheadBack();
 
   // NOTE(luca): Parameter operations
   bool shouldProcessParameter(u32);

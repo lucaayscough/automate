@@ -823,7 +823,6 @@ void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWh
 }
 
 MainView::MainView() {
-  addAndMakeVisible(parametersView);
   addAndMakeVisible(toolBar);
   addAndMakeVisible(track);
   addChildComponent(infoView);
@@ -843,10 +842,6 @@ void MainView::resized() {
 
   infoView.setBounds(r);
   toolBar.setBounds(r.removeFromTop(kToolBarHeight));
-
-  parametersView.setTopLeftPosition(r.removeFromTop(kParametersViewHeight).getTopLeft());
-  parametersView.setSize(kWidth, parametersView.getHeight());
-  parametersView.viewportHeight = kParametersViewHeight; // TODO(luca): move this
 
   track.setTopLeftPosition(r.getTopLeft());
   track.setSize(kWidth, kTrackHeight);
