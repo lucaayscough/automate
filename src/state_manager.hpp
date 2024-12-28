@@ -13,9 +13,8 @@ static constexpr i32 kScrollSpeed = 500;
 static constexpr f32 kZoomDeltaScale = 5;
 static constexpr i32 kZoomSpeed = 2;
 
-static constexpr i32 kParametersViewHeight = 300;
-static constexpr i32 kToolBarHeight = 50;
-static constexpr i32 kAutomationLaneHeight = 140;
+static constexpr i32 kToolBarHeight = 44;
+static constexpr i32 kAutomationLaneHeight = 300;
 static constexpr i32 kTimelineHeight = 16;
 static constexpr i32 kPresetLaneHeight = 24;
 static constexpr i32 kTrackHeight = kTimelineHeight + kPresetLaneHeight * 2 + kAutomationLaneHeight;
@@ -124,7 +123,6 @@ struct StateManager : juce::AudioProcessorParameter::Listener, juce::Timer {
   i32 selectedClipID = NONE;
   i32 viewportDeltaX = 0;
   i32 trackWidth = 0;
-  
 
   UIParameterSync uiParameterSync;
 

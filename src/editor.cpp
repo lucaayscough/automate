@@ -93,7 +93,7 @@ void Dial::mouseUp(const juce::MouseEvent& e) {
 }
 
 void InfoView::paint(juce::Graphics& g) {
-  auto r = getLocalBounds().withSizeKeepingCentre(i32(kWidth * 0.75f), numCommands * commandHeight);
+  auto r = getLocalBounds().withSizeKeepingCentre(i32(kWidth * 0.6f), numCommands * commandHeight);
   auto left = r.removeFromLeft(r.getWidth() / 2);
   auto right = r;
 
@@ -753,73 +753,6 @@ void DefaultView::filesDropped(const juce::StringArray& files, i32, i32) {
   knownPluginList.scanAndAddDragAndDroppedFiles(formatManager, files, types);
   saveKnownPluginList(knownPluginList); 
   resized();
-}
-
-ParametersView::ParameterView::ParameterView() {
-  addAndMakeVisible(dial);
-  addAndMakeVisible(activeToggle);
-}
-
-void ParametersView::ParameterView::resized() {
-  auto r = getLocalBounds().reduced(padding, padding);
-  activeToggle.setBounds(r.removeFromTop(buttonSize).removeFromLeft(buttonSize));
-  dial.setBounds(r.removeFromTop(dialSize).withSizeKeepingCentre(dialSize, dialSize));
-  r.removeFromTop(padding);
-  nameBounds = r.removeFromTop(nameHeight);
-}
-
-void ParametersView::ParameterView::paint(juce::Graphics& g) {
-  g.setColour(Colours::isabelline); 
-  g.setFont(Fonts::sofiaProRegular.withHeight(10));
-  g.drawText(name, nameBounds, juce::Justification::centred);
-}
-
-void ParametersView::resized() {
-  // TODO(luca): clean this up
-  auto r = getLocalBounds();
-  r.removeFromTop(padding);
-  r.removeFromLeft(padding);
-  r.removeFromRight(padding);
-
-  i32 numPerRow = r.getWidth() / ParameterView::height;
-  i32 numRows = parameterViews.size() / numPerRow;
-
-  if (parameterViews.size() % numPerRow != 0) {
-    ++numRows; 
-  }
-
-  i32 remainder = r.getWidth() - numPerRow * ParameterView::height;
-  i32 offset = remainder / numPerRow;
-
-  setSize(getWidth(), numRows * ParameterView::height);
-
-  r = getLocalBounds();
-  r.removeFromTop(padding);
-  r.removeFromLeft(padding);
-  r.removeFromRight(padding);
-
-  i32 count = 0;
-  juce::Rectangle<i32> row;
-
-  for (auto p : parameterViews) {
-    if (count % numPerRow == 0) {
-      row = r.removeFromTop(ParameterView::height);    
-    }
-    p->setBounds(row.removeFromLeft(ParameterView::height + offset)); 
-    ++count;
-  }
-}
-
-void ParametersView::mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails& w) {
-  i32 y = getY() + i32(kScrollSpeed * w.deltaY);
-
-  if (y > kToolBarHeight) {
-    y = kToolBarHeight;
-  } else if (y < - (getHeight() - viewportHeight - kToolBarHeight)) {
-    y = - (getHeight() - viewportHeight - kToolBarHeight);
-  }
-
-  setTopLeftPosition(getX(), y);
 }
 
 MainView::MainView() {

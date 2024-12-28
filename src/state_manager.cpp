@@ -510,8 +510,7 @@ void StateManager::randomiseParameters() {
 
 void StateManager::setAllParametersActive(bool v) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(parametersView);
-  
+
   {
     ScopedProcLock lk(proc);
 
@@ -523,22 +522,17 @@ void StateManager::setAllParametersActive(bool v) {
 
 void StateManager::setParameterActive(u32 index, bool a) {
   JUCE_ASSERT_MESSAGE_THREAD
-  assert(parametersView);
 
   {
     ScopedProcLock lk(proc);
     parameters[index].active = a;
   }
-
-  parametersView->parameterViews[i32(index)]->dial.active = a;
-  parametersView->parameterViews[i32(index)]->activeToggle.setToggleState(a, DONT_NOTIFY);
-  parametersView->parameterViews[i32(index)]->repaint();
 }
 
-void StateManager::parameterValueChanged(i32 i, f32 v) {
+void StateManager::parameterValueChanged(i32 i, f32) {
   DBG("Parameter " + parameters[u32(i)].parameter->getName(1024) + " at index " + juce::String(i) + " changed.");
 
-  auto sendParameterUpdate = [this, i, v] {
+  auto sendParameterUpdate = [this, i] {
     engine->lastVisitedPair = UNDEFINED_PAIR; 
 
     if (captureParameterChanges) {
@@ -557,11 +551,6 @@ void StateManager::parameterValueChanged(i32 i, f32 v) {
           updateLerpPairs();
         }
       }
-    }
-
-    if (parametersView) {
-      parametersView->parameterViews[i]->dial.setValue(v, DONT_NOTIFY);
-      parametersView->parameterViews[i]->dial.repaint();
     }
   };
 
@@ -804,6 +793,10 @@ void StateManager::updateTrackWidth() {
     }
   }
 
+  if (width < playheadPosition) {
+    width = playheadPosition;
+  }
+
   width *= zoom;
   width += kTrackWidthRightPadding;
 
@@ -863,7 +856,7 @@ void StateManager::showMainView() {
     automationView->addPath = [this] (f32 x, f32 y, f32 curve) { return addPathDenorm(x, y, curve); };
 
     automationView->bendAutomation = [this] (f32 x, f32 amount) {
-      if (!paths.empty()) {
+      if (!paths.empty() || !clips.empty()) {
         bendAutomationDenorm(x, amount);
       }
     };
@@ -912,21 +905,16 @@ void StateManager::showMainView() {
   //  }
   //}
 
-  toolBarView = &editor->mainView.toolBar;
-      
-  toolBarView->editModeButton.onClick = [this] { setEditMode(!editMode); };
-  toolBarView->discreteModeButton.onClick = [this] { setDiscreteMode(!discreteMode); };
-  toolBarView->supportLinkButton.onClick = [] { supportURL.launchInDefaultBrowser(); };
-  toolBarView->killButton.onClick = [this] { loadPlugin({}); };
+  {
+    toolBarView = &editor->mainView.toolBar;
+
+    toolBarView->editModeButton.onClick = [this] { setEditMode(!editMode); };
+    toolBarView->discreteModeButton.onClick = [this] { setDiscreteMode(!discreteMode); };
+    toolBarView->supportLinkButton.onClick = [] { supportURL.launchInDefaultBrowser(); };
+    toolBarView->killButton.onClick = [this] { loadPlugin({}); };
+  }
 
   updateTrack();
-
-  //{
-  //  parametersView->setSize(trackWidth, trackView->getHeight());
-  //  parametersView->resized();
-  //  parametersView->repaint();
-  //}
-
   updateToolBarView();
 
   startTimerHz(60);

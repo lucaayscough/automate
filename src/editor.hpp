@@ -62,7 +62,7 @@ struct InfoView : juce::Component {
     const char* binding;
   };
 
-  static constexpr i32 commandHeight = 24;
+  static constexpr i32 commandHeight = 18;
   static constexpr Command commands[] =
   {  
     { "Enable all parameters",      "Command + E" },
@@ -71,7 +71,6 @@ struct InfoView : juce::Component {
     { "Release parameter",          "Command + Shift + Click " },
     { "Randomise parameters",       "R" },
     { "Kill instance",              "K" },
-    { "Toggle parameters view",     "V" },
     { "Narrow grid",                "Command + 1" },
     { "Widen grid",                 "Command + 2" },
     { "Toggle triplet grid",        "Command + 3" },
@@ -92,7 +91,7 @@ struct InfoView : juce::Component {
   void mouseDown(const juce::MouseEvent&) override;
 
   std::function<void()> mainViewUpdateCallback;
-  const juce::Font font { Fonts::sofiaProRegular.withHeight(16) };
+  const juce::Font font { Fonts::sofiaProLight.withHeight(12) };
 };
 
 struct PathView : juce::Component {
@@ -309,50 +308,41 @@ struct DefaultView : juce::Component, juce::FileDragAndDropTarget {
   ManufacturersPanel manufacturersPanel { pluginsPanel};
 };
 
-struct ParametersView : juce::Component {
-  struct ParameterView : juce::Component {
-    struct Button : juce::ToggleButton {
-      Button() {
-        setTriggeredOnMouseDown(true);
+struct ParameterView : juce::Component {
+  struct Button : juce::ToggleButton {
+    Button() {
+      setTriggeredOnMouseDown(true);
+    }
+
+    void paintButton(juce::Graphics& g, bool highlighted, bool) {
+      g.setColour(highlighted ? Colours::isabelline : Colours::frenchGray);
+      g.fillRoundedRectangle(getLocalBounds().toFloat(), 2);
+      g.setColour(Colours::eerieBlack);
+      g.setFont(Fonts::sofiaProMedium.withHeight(9));
+
+      if (getToggleState()) {
+        g.drawText("ON", getLocalBounds(), juce::Justification::centred);
+      } else {
+        g.drawText("OFF", getLocalBounds(), juce::Justification::centred);
       }
-
-      void paintButton(juce::Graphics& g, bool highlighted, bool) {
-        g.setColour(highlighted ? Colours::isabelline : Colours::frenchGray);
-        g.fillRoundedRectangle(getLocalBounds().toFloat(), 2);
-        g.setColour(Colours::eerieBlack);
-        g.setFont(Fonts::sofiaProMedium.withHeight(9));
-
-        if (getToggleState()) {
-          g.drawText("ON", getLocalBounds(), juce::Justification::centred);
-        } else {
-          g.drawText("OFF", getLocalBounds(), juce::Justification::centred);
-        }
-      }
-    };
-
-    ParameterView();
-    void resized() override;
-    void paint(juce::Graphics& g) override;
-
-    Dial dial;
-    juce::Rectangle<i32> nameBounds;
-    Button activeToggle;
-    juce::String name;
-    u32 id = 0;
-
-    static constexpr i32 dialSize = 60;
-    static constexpr i32 nameHeight = 20;
-    static constexpr i32 buttonSize = 20;
-    static constexpr i32 padding = 8;
-    static constexpr i32 height = dialSize + nameHeight + buttonSize + 3 * padding;
+    }
   };
 
+  ParameterView();
   void resized() override;
-  void mouseWheelMove(const juce::MouseEvent&, const juce::MouseWheelDetails&) override;
+  void paint(juce::Graphics& g) override;
 
-  juce::OwnedArray<ParameterView> parameterViews;
-  static constexpr i32 padding = 10;
-  i32 viewportHeight = 0;
+  Dial dial;
+  juce::Rectangle<i32> nameBounds;
+  Button activeToggle;
+  juce::String name;
+  u32 id = 0;
+
+  static constexpr i32 dialSize = 60;
+  static constexpr i32 nameHeight = 20;
+  static constexpr i32 buttonSize = 20;
+  static constexpr i32 padding = 8;
+  static constexpr i32 height = dialSize + nameHeight + buttonSize + 3 * padding;
 };
 
 struct MainView : juce::Component {
