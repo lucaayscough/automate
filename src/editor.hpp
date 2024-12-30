@@ -392,3 +392,4 @@ struct Editor : juce::AudioProcessorEditor, juce::DragAndDropContainer {
 };
 
 } // namespace atmt
+

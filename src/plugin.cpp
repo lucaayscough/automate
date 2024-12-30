@@ -73,7 +73,7 @@ void Plugin::processBlock(juce::AudioBuffer<f32>& buffer, juce::MidiBuffer& midi
     }
 
     engine.process(buffer, midiBuffer);
-  }
+  } 
 }
 
 // ================================================================================

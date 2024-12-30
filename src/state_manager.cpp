@@ -11,7 +11,6 @@ StateManager::StateManager(juce::AudioProcessor& a) : proc(a) {}
 
 void StateManager::addClip(f32 x, f32 y, f32 curve) {
   JUCE_ASSERT_MESSAGE_THREAD
-  //scoped_timer t("StateManager::addClip()");
 
   assert(x >= 0 && y >= 0 && y <= 1);
   assert(instance);
@@ -110,9 +109,10 @@ void StateManager::moveClipDenorm(u32 id, f32 x, f32 y, f32 curve) {
 void StateManager::selectClip(i32 id) {
   assert(instance && editor);
   assert(id < i32(clips.size()));
+
   selectedClipID = id;
 
-  if (id != NONE) {
+  if (editMode && id != NONE) {
     engine->setParameters(clips[u32(id)].parameters, parameters);
   }
 
@@ -378,7 +378,6 @@ void StateManager::doScroll(f32 amount) {
 
 void StateManager::setEditMode(bool m) {
   JUCE_ASSERT_MESSAGE_THREAD
-  //scoped_timer t("StateManager::setEditMode()");
 
   editMode = m;
 
@@ -564,7 +563,6 @@ void StateManager::parameterValueChanged(i32 i, f32) {
 void StateManager::parameterGestureChanged(i32, bool) {}
 
 void StateManager::updateLerpPairs() {
-  //scoped_timer t("StateManager::updateLerpPair()");
 
   ScopedProcLock lk(proc);
 
@@ -704,7 +702,6 @@ void StateManager::updateAutomationView() {
 }
 
 void StateManager::updateTrackView() {
-  //scoped_timer t("StateManager::updateTrackView()");
   assert(trackView);
 
   auto& clipViews = trackView->clipViews;
@@ -923,8 +920,6 @@ void StateManager::showMainView() {
 bool StateManager::loadPlugin(const juce::String& id) {
   JUCE_ASSERT_MESSAGE_THREAD
 
-  //scoped_timer t("StateManager::loadPlugin()");
-
   bool result = false;
 
   {
@@ -1037,6 +1032,7 @@ void StateManager::deregisterEditor(Editor* view) {
 
   stopTimer();
   editor = nullptr;
+  instanceEditor.reset();
 }
 
 void StateManager::init() {
